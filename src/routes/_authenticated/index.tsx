@@ -39,7 +39,7 @@ function Dashboard() {
       <div className="mb-8">
         <p className="text-xs uppercase tracking-wide text-muted-foreground">{t("appName")}</p>
         <h1 className="mt-1 text-2xl font-semibold text-foreground">
-          {greeting(t)}, {name}
+          {greetingText}, {name}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">{t("appTagline")}</p>
       </div>
