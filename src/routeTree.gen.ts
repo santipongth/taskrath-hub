@@ -15,12 +15,12 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedTemplatesRouteImport } from './routes/_authenticated/templates'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
-import { Route as AuthenticatedRunRouteImport } from './routes/_authenticated/run'
 import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authenticated/integrations'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedGovernanceRouteImport } from './routes/_authenticated/governance'
 import { Route as AuthenticatedApprovalsRouteImport } from './routes/_authenticated/approvals'
 import { Route as AuthenticatedAgentsRouteImport } from './routes/_authenticated/agents'
+import { Route as AuthenticatedRunIndexRouteImport } from './routes/_authenticated/run/index'
 import { Route as AuthenticatedRunTemplateIdRouteImport } from './routes/_authenticated/run/$templateId'
 import { Route as AuthenticatedHistoryRunIdRouteImport } from './routes/_authenticated/history/$runId'
 
@@ -53,11 +53,6 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedRunRoute = AuthenticatedRunRouteImport.update({
-  id: '/run',
-  path: '/run',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
 const AuthenticatedIntegrationsRoute =
   AuthenticatedIntegrationsRouteImport.update({
     id: '/integrations',
@@ -84,11 +79,16 @@ const AuthenticatedAgentsRoute = AuthenticatedAgentsRouteImport.update({
   path: '/agents',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedRunIndexRoute = AuthenticatedRunIndexRouteImport.update({
+  id: '/run/',
+  path: '/run/',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedRunTemplateIdRoute =
   AuthenticatedRunTemplateIdRouteImport.update({
-    id: '/$templateId',
-    path: '/$templateId',
-    getParentRoute: () => AuthenticatedRunRoute,
+    id: '/run/$templateId',
+    path: '/run/$templateId',
+    getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedHistoryRunIdRoute =
   AuthenticatedHistoryRunIdRouteImport.update({
@@ -106,11 +106,11 @@ export interface FileRoutesByFullPath {
   '/governance': typeof AuthenticatedGovernanceRoute
   '/history': typeof AuthenticatedHistoryRouteWithChildren
   '/integrations': typeof AuthenticatedIntegrationsRoute
-  '/run': typeof AuthenticatedRunRouteWithChildren
   '/settings': typeof AuthenticatedSettingsRoute
   '/templates': typeof AuthenticatedTemplatesRoute
   '/history/$runId': typeof AuthenticatedHistoryRunIdRoute
   '/run/$templateId': typeof AuthenticatedRunTemplateIdRoute
+  '/run/': typeof AuthenticatedRunIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -120,12 +120,12 @@ export interface FileRoutesByTo {
   '/governance': typeof AuthenticatedGovernanceRoute
   '/history': typeof AuthenticatedHistoryRouteWithChildren
   '/integrations': typeof AuthenticatedIntegrationsRoute
-  '/run': typeof AuthenticatedRunRouteWithChildren
   '/settings': typeof AuthenticatedSettingsRoute
   '/templates': typeof AuthenticatedTemplatesRoute
   '/': typeof AuthenticatedIndexRoute
   '/history/$runId': typeof AuthenticatedHistoryRunIdRoute
   '/run/$templateId': typeof AuthenticatedRunTemplateIdRoute
+  '/run': typeof AuthenticatedRunIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -137,12 +137,12 @@ export interface FileRoutesById {
   '/_authenticated/governance': typeof AuthenticatedGovernanceRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRouteWithChildren
   '/_authenticated/integrations': typeof AuthenticatedIntegrationsRoute
-  '/_authenticated/run': typeof AuthenticatedRunRouteWithChildren
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/templates': typeof AuthenticatedTemplatesRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/history/$runId': typeof AuthenticatedHistoryRunIdRoute
   '/_authenticated/run/$templateId': typeof AuthenticatedRunTemplateIdRoute
+  '/_authenticated/run/': typeof AuthenticatedRunIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -155,11 +155,11 @@ export interface FileRouteTypes {
     | '/governance'
     | '/history'
     | '/integrations'
-    | '/run'
     | '/settings'
     | '/templates'
     | '/history/$runId'
     | '/run/$templateId'
+    | '/run/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -169,12 +169,12 @@ export interface FileRouteTypes {
     | '/governance'
     | '/history'
     | '/integrations'
-    | '/run'
     | '/settings'
     | '/templates'
     | '/'
     | '/history/$runId'
     | '/run/$templateId'
+    | '/run'
   id:
     | '__root__'
     | '/_authenticated'
@@ -185,12 +185,12 @@ export interface FileRouteTypes {
     | '/_authenticated/governance'
     | '/_authenticated/history'
     | '/_authenticated/integrations'
-    | '/_authenticated/run'
     | '/_authenticated/settings'
     | '/_authenticated/templates'
     | '/_authenticated/'
     | '/_authenticated/history/$runId'
     | '/_authenticated/run/$templateId'
+    | '/_authenticated/run/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -243,13 +243,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/run': {
-      id: '/_authenticated/run'
-      path: '/run'
-      fullPath: '/run'
-      preLoaderRoute: typeof AuthenticatedRunRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
     '/_authenticated/integrations': {
       id: '/_authenticated/integrations'
       path: '/integrations'
@@ -285,12 +278,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAgentsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/run/': {
+      id: '/_authenticated/run/'
+      path: '/run'
+      fullPath: '/run/'
+      preLoaderRoute: typeof AuthenticatedRunIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/run/$templateId': {
       id: '/_authenticated/run/$templateId'
-      path: '/$templateId'
+      path: '/run/$templateId'
       fullPath: '/run/$templateId'
       preLoaderRoute: typeof AuthenticatedRunTemplateIdRouteImport
-      parentRoute: typeof AuthenticatedRunRoute
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/history/$runId': {
       id: '/_authenticated/history/$runId'
@@ -313,27 +313,17 @@ const AuthenticatedHistoryRouteChildren: AuthenticatedHistoryRouteChildren = {
 const AuthenticatedHistoryRouteWithChildren =
   AuthenticatedHistoryRoute._addFileChildren(AuthenticatedHistoryRouteChildren)
 
-interface AuthenticatedRunRouteChildren {
-  AuthenticatedRunTemplateIdRoute: typeof AuthenticatedRunTemplateIdRoute
-}
-
-const AuthenticatedRunRouteChildren: AuthenticatedRunRouteChildren = {
-  AuthenticatedRunTemplateIdRoute: AuthenticatedRunTemplateIdRoute,
-}
-
-const AuthenticatedRunRouteWithChildren =
-  AuthenticatedRunRoute._addFileChildren(AuthenticatedRunRouteChildren)
-
 interface AuthenticatedRouteChildren {
   AuthenticatedAgentsRoute: typeof AuthenticatedAgentsRoute
   AuthenticatedApprovalsRoute: typeof AuthenticatedApprovalsRoute
   AuthenticatedGovernanceRoute: typeof AuthenticatedGovernanceRoute
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRouteWithChildren
   AuthenticatedIntegrationsRoute: typeof AuthenticatedIntegrationsRoute
-  AuthenticatedRunRoute: typeof AuthenticatedRunRouteWithChildren
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedTemplatesRoute: typeof AuthenticatedTemplatesRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedRunTemplateIdRoute: typeof AuthenticatedRunTemplateIdRoute
+  AuthenticatedRunIndexRoute: typeof AuthenticatedRunIndexRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
@@ -342,10 +332,11 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedGovernanceRoute: AuthenticatedGovernanceRoute,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRouteWithChildren,
   AuthenticatedIntegrationsRoute: AuthenticatedIntegrationsRoute,
-  AuthenticatedRunRoute: AuthenticatedRunRouteWithChildren,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedTemplatesRoute: AuthenticatedTemplatesRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedRunTemplateIdRoute: AuthenticatedRunTemplateIdRoute,
+  AuthenticatedRunIndexRoute: AuthenticatedRunIndexRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
@@ -360,3 +351,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
