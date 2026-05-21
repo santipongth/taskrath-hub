@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { useEffect, useState } from "react";
 import { dashboardStats } from "@/lib/ai.functions";
 import { TEMPLATES } from "@/lib/templates";
 import { TemplateCard } from "@/components/template-card";
@@ -12,15 +13,21 @@ export const Route = createFileRoute("/_authenticated/")({
   component: Dashboard,
 });
 
-function greeting(t: (k: "greetingMorning" | "greetingAfternoon" | "greetingEvening") => string) {
-  const h = new Date().getHours();
-  if (h < 12) return t("greetingMorning");
-  if (h < 18) return t("greetingAfternoon");
-  return t("greetingEvening");
+function useGreeting(t: (k: "greetingMorning" | "greetingAfternoon" | "greetingEvening") => string) {
+  // Render a stable value on SSR + first client paint, then swap in time-based greeting after mount to avoid hydration mismatch.
+  const [key, setKey] = useState<"greetingMorning" | "greetingAfternoon" | "greetingEvening">("greetingMorning");
+  useEffect(() => {
+    const h = new Date().getHours();
+    setKey(h < 12 ? "greetingMorning" : h < 18 ? "greetingAfternoon" : "greetingEvening");
+  }, []);
+  return t(key);
 }
+
 
 function Dashboard() {
   const { t, lang } = useI18n();
+  const greetingText = useGreeting(t);
+
   const { email } = Route.useRouteContext();
   const fetchStats = useServerFn(dashboardStats);
   const { data } = useQuery({ queryKey: ["dashboardStats"], queryFn: () => fetchStats() });
@@ -32,7 +39,7 @@ function Dashboard() {
       <div className="mb-8">
         <p className="text-xs uppercase tracking-wide text-muted-foreground">{t("appName")}</p>
         <h1 className="mt-1 text-2xl font-semibold text-foreground">
-          {greeting(t)}, {name}
+          {greetingText}, {name}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">{t("appTagline")}</p>
       </div>
