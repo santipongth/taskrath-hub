@@ -13,6 +13,10 @@ export const Route = createFileRoute("/login")({
     meta: [{ title: "เข้าสู่ระบบ · TaskRath" }],
   }),
   beforeLoad: async () => {
+    // Client-only check — server has no Supabase session and would never
+    // redirect, but checking here on the client prevents a logged-in user
+    // from seeing the login form.
+    if (typeof window === "undefined") return;
     const { data } = await supabase.auth.getSession();
     if (data.session) throw redirect({ to: "/" });
   },
