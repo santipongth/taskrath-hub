@@ -125,9 +125,14 @@ function AuthListener() {
   const router = useRouter();
   const queryClient = useQueryClient();
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      router.invalidate();
-      queryClient.invalidateQueries();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      // Only react to actual sign-in / sign-out. TOKEN_REFRESHED, USER_UPDATED,
+      // and INITIAL_SESSION must NOT trigger router.invalidate() — that creates
+      // a refresh loop with beforeLoad's getUser() call.
+      if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
+        router.invalidate();
+        queryClient.invalidateQueries();
+      }
     });
     return () => subscription.unsubscribe();
   }, [router, queryClient]);
