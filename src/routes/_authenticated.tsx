@@ -17,7 +17,6 @@ export const Route = createFileRoute("/_authenticated")({
   },
   component: AuthLayout,
 });
-});
 
 function AuthLayout() {
   const { email } = Route.useRouteContext();
