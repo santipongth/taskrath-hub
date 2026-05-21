@@ -26,6 +26,8 @@ function useGreeting(t: (k: "greetingMorning" | "greetingAfternoon" | "greetingE
 
 function Dashboard() {
   const { t, lang } = useI18n();
+  const greetingText = useGreeting(t);
+
   const { email } = Route.useRouteContext();
   const fetchStats = useServerFn(dashboardStats);
   const { data } = useQuery({ queryKey: ["dashboardStats"], queryFn: () => fetchStats() });
