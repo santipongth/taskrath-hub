@@ -7,7 +7,7 @@ import { useI18n } from "@/lib/i18n";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export const Route = createFileRoute("/_authenticated/history")({
+export const Route = createFileRoute("/_authenticated/history/")({
   head: () => ({ meta: [{ title: "ประวัติการใช้งาน · TaskRath" }] }),
   component: HistoryPage,
 });

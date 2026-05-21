@@ -16,11 +16,11 @@ import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedTemplatesRouteImport } from './routes/_authenticated/templates'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authenticated/integrations'
-import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedGovernanceRouteImport } from './routes/_authenticated/governance'
 import { Route as AuthenticatedApprovalsRouteImport } from './routes/_authenticated/approvals'
 import { Route as AuthenticatedAgentsRouteImport } from './routes/_authenticated/agents'
 import { Route as AuthenticatedRunIndexRouteImport } from './routes/_authenticated/run/index'
+import { Route as AuthenticatedHistoryIndexRouteImport } from './routes/_authenticated/history/index'
 import { Route as AuthenticatedRunTemplateIdRouteImport } from './routes/_authenticated/run/$templateId'
 import { Route as AuthenticatedHistoryRunIdRouteImport } from './routes/_authenticated/history/$runId'
 
@@ -59,11 +59,6 @@ const AuthenticatedIntegrationsRoute =
     path: '/integrations',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
-const AuthenticatedHistoryRoute = AuthenticatedHistoryRouteImport.update({
-  id: '/history',
-  path: '/history',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
 const AuthenticatedGovernanceRoute = AuthenticatedGovernanceRouteImport.update({
   id: '/governance',
   path: '/governance',
@@ -84,6 +79,12 @@ const AuthenticatedRunIndexRoute = AuthenticatedRunIndexRouteImport.update({
   path: '/run/',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedHistoryIndexRoute =
+  AuthenticatedHistoryIndexRouteImport.update({
+    id: '/history/',
+    path: '/history/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedRunTemplateIdRoute =
   AuthenticatedRunTemplateIdRouteImport.update({
     id: '/run/$templateId',
@@ -92,9 +93,9 @@ const AuthenticatedRunTemplateIdRoute =
   } as any)
 const AuthenticatedHistoryRunIdRoute =
   AuthenticatedHistoryRunIdRouteImport.update({
-    id: '/$runId',
-    path: '/$runId',
-    getParentRoute: () => AuthenticatedHistoryRoute,
+    id: '/history/$runId',
+    path: '/history/$runId',
+    getParentRoute: () => AuthenticatedRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -104,12 +105,12 @@ export interface FileRoutesByFullPath {
   '/agents': typeof AuthenticatedAgentsRoute
   '/approvals': typeof AuthenticatedApprovalsRoute
   '/governance': typeof AuthenticatedGovernanceRoute
-  '/history': typeof AuthenticatedHistoryRouteWithChildren
   '/integrations': typeof AuthenticatedIntegrationsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/templates': typeof AuthenticatedTemplatesRoute
   '/history/$runId': typeof AuthenticatedHistoryRunIdRoute
   '/run/$templateId': typeof AuthenticatedRunTemplateIdRoute
+  '/history/': typeof AuthenticatedHistoryIndexRoute
   '/run/': typeof AuthenticatedRunIndexRoute
 }
 export interface FileRoutesByTo {
@@ -118,13 +119,13 @@ export interface FileRoutesByTo {
   '/agents': typeof AuthenticatedAgentsRoute
   '/approvals': typeof AuthenticatedApprovalsRoute
   '/governance': typeof AuthenticatedGovernanceRoute
-  '/history': typeof AuthenticatedHistoryRouteWithChildren
   '/integrations': typeof AuthenticatedIntegrationsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/templates': typeof AuthenticatedTemplatesRoute
   '/': typeof AuthenticatedIndexRoute
   '/history/$runId': typeof AuthenticatedHistoryRunIdRoute
   '/run/$templateId': typeof AuthenticatedRunTemplateIdRoute
+  '/history': typeof AuthenticatedHistoryIndexRoute
   '/run': typeof AuthenticatedRunIndexRoute
 }
 export interface FileRoutesById {
@@ -135,13 +136,13 @@ export interface FileRoutesById {
   '/_authenticated/agents': typeof AuthenticatedAgentsRoute
   '/_authenticated/approvals': typeof AuthenticatedApprovalsRoute
   '/_authenticated/governance': typeof AuthenticatedGovernanceRoute
-  '/_authenticated/history': typeof AuthenticatedHistoryRouteWithChildren
   '/_authenticated/integrations': typeof AuthenticatedIntegrationsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/templates': typeof AuthenticatedTemplatesRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/history/$runId': typeof AuthenticatedHistoryRunIdRoute
   '/_authenticated/run/$templateId': typeof AuthenticatedRunTemplateIdRoute
+  '/_authenticated/history/': typeof AuthenticatedHistoryIndexRoute
   '/_authenticated/run/': typeof AuthenticatedRunIndexRoute
 }
 export interface FileRouteTypes {
@@ -153,12 +154,12 @@ export interface FileRouteTypes {
     | '/agents'
     | '/approvals'
     | '/governance'
-    | '/history'
     | '/integrations'
     | '/settings'
     | '/templates'
     | '/history/$runId'
     | '/run/$templateId'
+    | '/history/'
     | '/run/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -167,13 +168,13 @@ export interface FileRouteTypes {
     | '/agents'
     | '/approvals'
     | '/governance'
-    | '/history'
     | '/integrations'
     | '/settings'
     | '/templates'
     | '/'
     | '/history/$runId'
     | '/run/$templateId'
+    | '/history'
     | '/run'
   id:
     | '__root__'
@@ -183,13 +184,13 @@ export interface FileRouteTypes {
     | '/_authenticated/agents'
     | '/_authenticated/approvals'
     | '/_authenticated/governance'
-    | '/_authenticated/history'
     | '/_authenticated/integrations'
     | '/_authenticated/settings'
     | '/_authenticated/templates'
     | '/_authenticated/'
     | '/_authenticated/history/$runId'
     | '/_authenticated/run/$templateId'
+    | '/_authenticated/history/'
     | '/_authenticated/run/'
   fileRoutesById: FileRoutesById
 }
@@ -250,13 +251,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedIntegrationsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/history': {
-      id: '/_authenticated/history'
-      path: '/history'
-      fullPath: '/history'
-      preLoaderRoute: typeof AuthenticatedHistoryRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
     '/_authenticated/governance': {
       id: '/_authenticated/governance'
       path: '/governance'
@@ -285,6 +279,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRunIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/history/': {
+      id: '/_authenticated/history/'
+      path: '/history'
+      fullPath: '/history/'
+      preLoaderRoute: typeof AuthenticatedHistoryIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/run/$templateId': {
       id: '/_authenticated/run/$templateId'
       path: '/run/$templateId'
@@ -294,35 +295,25 @@ declare module '@tanstack/react-router' {
     }
     '/_authenticated/history/$runId': {
       id: '/_authenticated/history/$runId'
-      path: '/$runId'
+      path: '/history/$runId'
       fullPath: '/history/$runId'
       preLoaderRoute: typeof AuthenticatedHistoryRunIdRouteImport
-      parentRoute: typeof AuthenticatedHistoryRoute
+      parentRoute: typeof AuthenticatedRoute
     }
   }
 }
-
-interface AuthenticatedHistoryRouteChildren {
-  AuthenticatedHistoryRunIdRoute: typeof AuthenticatedHistoryRunIdRoute
-}
-
-const AuthenticatedHistoryRouteChildren: AuthenticatedHistoryRouteChildren = {
-  AuthenticatedHistoryRunIdRoute: AuthenticatedHistoryRunIdRoute,
-}
-
-const AuthenticatedHistoryRouteWithChildren =
-  AuthenticatedHistoryRoute._addFileChildren(AuthenticatedHistoryRouteChildren)
 
 interface AuthenticatedRouteChildren {
   AuthenticatedAgentsRoute: typeof AuthenticatedAgentsRoute
   AuthenticatedApprovalsRoute: typeof AuthenticatedApprovalsRoute
   AuthenticatedGovernanceRoute: typeof AuthenticatedGovernanceRoute
-  AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRouteWithChildren
   AuthenticatedIntegrationsRoute: typeof AuthenticatedIntegrationsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedTemplatesRoute: typeof AuthenticatedTemplatesRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedHistoryRunIdRoute: typeof AuthenticatedHistoryRunIdRoute
   AuthenticatedRunTemplateIdRoute: typeof AuthenticatedRunTemplateIdRoute
+  AuthenticatedHistoryIndexRoute: typeof AuthenticatedHistoryIndexRoute
   AuthenticatedRunIndexRoute: typeof AuthenticatedRunIndexRoute
 }
 
@@ -330,12 +321,13 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAgentsRoute: AuthenticatedAgentsRoute,
   AuthenticatedApprovalsRoute: AuthenticatedApprovalsRoute,
   AuthenticatedGovernanceRoute: AuthenticatedGovernanceRoute,
-  AuthenticatedHistoryRoute: AuthenticatedHistoryRouteWithChildren,
   AuthenticatedIntegrationsRoute: AuthenticatedIntegrationsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedTemplatesRoute: AuthenticatedTemplatesRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedHistoryRunIdRoute: AuthenticatedHistoryRunIdRoute,
   AuthenticatedRunTemplateIdRoute: AuthenticatedRunTemplateIdRoute,
+  AuthenticatedHistoryIndexRoute: AuthenticatedHistoryIndexRoute,
   AuthenticatedRunIndexRoute: AuthenticatedRunIndexRoute,
 }
 
