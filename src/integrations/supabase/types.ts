@@ -21,6 +21,7 @@ export type Database = {
           created_at: string
           id: string
           input: Json
+          metadata: Json
           needs_approval: boolean
           output: string | null
           prompt_tokens: number
@@ -35,6 +36,7 @@ export type Database = {
           created_at?: string
           id?: string
           input?: Json
+          metadata?: Json
           needs_approval?: boolean
           output?: string | null
           prompt_tokens?: number
@@ -49,6 +51,7 @@ export type Database = {
           created_at?: string
           id?: string
           input?: Json
+          metadata?: Json
           needs_approval?: boolean
           output?: string | null
           prompt_tokens?: number
