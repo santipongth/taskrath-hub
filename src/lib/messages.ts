@@ -108,6 +108,14 @@ export const messages = {
   settingsTitle: { th: "ตั้งค่า", en: "Settings" },
   settingsLanguage: { th: "ภาษา", en: "Language" },
   settingsDepartment: { th: "สังกัด/หน่วยงาน", en: "Department" },
+
+  // OCR / PII
+  ocrUpload: { th: "อัปโหลดรูปเอกสาร (OCR)", en: "Upload image (OCR)" },
+  ocrExtracting: { th: "กำลังถอดข้อความ…", en: "Extracting text…" },
+  ocrSuccess: { th: "ถอดข้อความสำเร็จ", en: "Text extracted" },
+  piiRedacted: { th: "ปกปิด PII", en: "PII redacted" },
+  auditLogTitle: { th: "บันทึกการใช้งาน", en: "Audit log" },
+  auditLogEmpty: { th: "ยังไม่มีบันทึก", en: "No audit entries yet" },
 } as const;
 
 export type MessageKey = keyof typeof messages;
