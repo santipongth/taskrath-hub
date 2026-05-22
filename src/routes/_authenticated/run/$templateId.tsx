@@ -170,6 +170,23 @@ function TemplateRunPage() {
         </div>
       </div>
 
+      {hasDraft && (
+        <div className="mb-4 flex items-center justify-between rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-sm">
+          <span className="inline-flex items-center gap-2 text-amber-700 dark:text-amber-300">
+            <RotateCcw className="h-4 w-4" />
+            {lang === "th" ? "พบฉบับร่างที่ยังไม่ได้บันทึก" : "Unsaved draft found"}
+          </span>
+          <div className="flex gap-2">
+            <Button size="sm" variant="ghost" onClick={dismissDraft}>
+              {lang === "th" ? "ยกเลิก" : "Dismiss"}
+            </Button>
+            <Button size="sm" variant="outline" onClick={restoreDraft}>
+              {lang === "th" ? "กู้คืน" : "Restore"}
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-4 rounded-lg border border-border bg-card p-5">
         {tpl.fields.map((f) => (
           <div key={f.name} className="space-y-1.5">
@@ -227,7 +244,12 @@ function TemplateRunPage() {
             <ShieldCheck className="h-3 w-3" />
             {lang === "th" ? "PII จะถูกปกปิดก่อนส่ง AI" : "PII redacted before sending to AI"}
           </span>
-          <Button onClick={onRun} disabled={loading}>{loading ? t("running") : t("run")}</Button>
+          <div className="flex items-center gap-2">
+            <kbd className="hidden rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground sm:inline-block">
+              ⌘↵
+            </kbd>
+            <Button onClick={onRun} disabled={loading}>{loading ? t("running") : t("run")}</Button>
+          </div>
         </div>
       </div>
 
@@ -239,6 +261,16 @@ function TemplateRunPage() {
               {piiInfo && <Badge variant="secondary" className="text-[10px]">{t("piiRedacted")}: {piiInfo}</Badge>}
             </div>
             <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setEditingOutput((v) => !v)}
+              >
+                <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                {editingOutput
+                  ? (lang === "th" ? "เสร็จสิ้น" : "Done")
+                  : (lang === "th" ? "แก้ไข" : "Edit")}
+              </Button>
               <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(output); toast.success(t("copied")); }}>
                 <Copy className="mr-1.5 h-3.5 w-3.5" />{t("copy")}
               </Button>
@@ -247,7 +279,16 @@ function TemplateRunPage() {
               </Button>
             </div>
           </div>
-          <pre className="whitespace-pre-wrap text-sm text-foreground">{output}</pre>
+          {editingOutput ? (
+            <Textarea
+              value={output}
+              onChange={(e) => setOutput(e.target.value)}
+              rows={Math.max(10, output.split("\n").length + 2)}
+              className="resize-none font-sans text-sm leading-relaxed"
+            />
+          ) : (
+            <pre className="whitespace-pre-wrap text-sm text-foreground">{output}</pre>
+          )}
         </div>
       )}
     </div>
