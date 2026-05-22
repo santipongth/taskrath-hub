@@ -20,6 +20,9 @@ function TemplatesPage() {
   const { t, lang } = useI18n();
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<TemplateCategory | "all">("all");
+  const fetchFavs = useServerFn(listFavorites);
+  const { data: favs } = useQuery({ queryKey: ["favorites"], queryFn: () => fetchFavs() });
+  const favSet = useMemo(() => new Set(favs?.ids ?? []), [favs]);
 
   const filtered = useMemo(() => {
     return TEMPLATES.filter((tpl) => {
