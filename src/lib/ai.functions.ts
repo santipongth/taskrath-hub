@@ -356,7 +356,7 @@ export const refineRun = createServerFn({ method: "POST" })
     if (e1) throw new Error(e1.message);
 
     await logAudit(supabase, userId, "ai.refine", data.runId, { preset: data.preset, usage: ai.usage });
-    return { output: ai.text, revisionCount: trimmed.length, usage: ai.usage };
+    return { output: ai.text, revisions: trimmed, usage: ai.usage };
   });
 
 export const revertRun = createServerFn({ method: "POST" })
