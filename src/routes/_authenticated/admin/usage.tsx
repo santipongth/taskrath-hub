@@ -75,20 +75,21 @@ function AdminUsagePage() {
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={data.daily}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis dataKey="day" className="text-xs" />
-                  <YAxis className="text-xs" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis dataKey="day" stroke="var(--muted-foreground)" fontSize={11} />
+                  <YAxis stroke="var(--muted-foreground)" fontSize={11} />
                   <Tooltip
                     contentStyle={{
-                      background: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
+                      background: "var(--card)",
+                      border: "1px solid var(--border)",
                       borderRadius: 6,
                       fontSize: 12,
+                      color: "var(--foreground)",
                     }}
                     formatter={(v: number, name: string) => [name === "cost" ? fmtCost(v) : v, name]}
                   />
-                  <Line type="monotone" dataKey="cost" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="runs" stroke="hsl(var(--muted-foreground))" strokeWidth={1} dot={false} />
+                  <Line type="monotone" dataKey="cost" stroke="var(--primary)" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="runs" stroke="var(--muted-foreground)" strokeWidth={1} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
