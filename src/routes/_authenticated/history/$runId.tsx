@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getRun } from "@/lib/ai.functions";
+import { getAgencySettings } from "@/lib/admin.functions";
 import { TEMPLATES_BY_ID } from "@/lib/templates";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
@@ -19,10 +20,12 @@ function RunDetail() {
   const { runId } = Route.useParams();
   const { t, lang } = useI18n();
   const fetch = useServerFn(getRun);
+  const fetchAgency = useServerFn(getAgencySettings);
   const { data, isLoading } = useQuery({
     queryKey: ["run", runId],
     queryFn: () => fetch({ data: { id: runId } }),
   });
+  const { data: agency } = useQuery({ queryKey: ["agency"], queryFn: () => fetchAgency() });
 
   if (isLoading) {
     return (
@@ -73,7 +76,7 @@ function RunDetail() {
             <Button variant="ghost" size="sm" onClick={() => exportRunToPdf(run, tpl ? (lang === "th" ? tpl.titleTh : tpl.titleEn) : "Document")}>
               <FileDown className="mr-1.5 h-3.5 w-3.5" />PDF
             </Button>
-            <Button variant="ghost" size="sm" onClick={async () => { await exportRunToDocx(run, tpl ? (lang === "th" ? tpl.titleTh : tpl.titleEn) : "Document"); toast.success("DOCX"); }}>
+            <Button variant="ghost" size="sm" onClick={async () => { await exportRunToDocx(run, tpl ? (lang === "th" ? tpl.titleTh : tpl.titleEn) : "Document", agency ?? null); toast.success("DOCX"); }}>
               <FileText className="mr-1.5 h-3.5 w-3.5" />DOCX
             </Button>
           </div>

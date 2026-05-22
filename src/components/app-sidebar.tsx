@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   LayoutDashboard, Sparkles, LibraryBig, History, Bot, Plug,
-  CheckCircle2, ShieldCheck, Settings, BarChart3,
+  CheckCircle2, ShieldCheck, Settings, BarChart3, PieChart, Building2,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -82,23 +82,38 @@ export function AppSidebar() {
             )}
             <SidebarGroupContent>
               <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname.startsWith("/admin/usage")}
-                    tooltip={lang === "th" ? "การใช้งาน" : "Usage"}
-                  >
-                    <Link to="/admin/usage" className="flex items-center gap-2">
-                      <BarChart3 className="h-4 w-4" />
-                      {!collapsed && <span className="truncate">{lang === "th" ? "การใช้งาน" : "Usage"}</span>}
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                <AdminItem to="/admin/dashboard" icon={PieChart} labelTh="แดชบอร์ดผู้บริหาร" labelEn="Executive" pathname={pathname} collapsed={collapsed} lang={lang} />
+                <AdminItem to="/admin/usage" icon={BarChart3} labelTh="การใช้งาน" labelEn="Usage" pathname={pathname} collapsed={collapsed} lang={lang} />
+                <AdminItem to="/admin/settings" icon={Building2} labelTh="ตั้งค่าหน่วยงาน" labelEn="Agency" pathname={pathname} collapsed={collapsed} lang={lang} />
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
         )}
       </SidebarContent>
     </Sidebar>
+  );
+}
+
+function AdminItem({
+  to, icon: Icon, labelTh, labelEn, pathname, collapsed, lang,
+}: {
+  to: "/admin/dashboard" | "/admin/usage" | "/admin/settings";
+  icon: typeof LayoutDashboard;
+  labelTh: string;
+  labelEn: string;
+  pathname: string;
+  collapsed: boolean;
+  lang: string;
+}) {
+  const label = lang === "th" ? labelTh : labelEn;
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton asChild isActive={pathname.startsWith(to)} tooltip={label}>
+        <Link to={to} className="flex items-center gap-2">
+          <Icon className="h-4 w-4" />
+          {!collapsed && <span className="truncate">{label}</span>}
+        </Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
   );
 }
