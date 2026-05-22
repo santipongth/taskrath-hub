@@ -26,11 +26,22 @@ function RunDetail() {
   const { t, lang } = useI18n();
   const fetch = useServerFn(getRun);
   const fetchAgency = useServerFn(getAgencySettings);
+  const qc = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["run", runId],
     queryFn: () => fetch({ data: { id: runId } }),
   });
   const { data: agency } = useQuery({ queryKey: ["agency"], queryFn: () => fetchAgency() });
+
+  const serverOutput = data?.run?.output ?? "";
+  const serverRevisions = ((data?.run?.metadata as { revisions?: Revision[] } | null)?.revisions ?? []) as Revision[];
+  const [output, setOutput] = useState(serverOutput);
+  const [revisions, setRevisions] = useState<Revision[]>(serverRevisions);
+  useEffect(() => {
+    setOutput(serverOutput);
+    setRevisions(serverRevisions);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.run?.id, serverOutput]);
 
   if (isLoading) {
     return (
