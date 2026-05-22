@@ -459,6 +459,7 @@ export const requestApproval = createServerFn({ method: "POST" })
     });
     if (e2) throw new Error(e2.message);
     await logAudit(supabase, userId, "approval.request", data.runId, { note: data.note ?? null });
+    await notifyEvent(supabase, "approval", `🔔 TaskRath: มีคำขออนุมัติใหม่ (run ${data.runId.slice(0, 8)})${data.note ? `\nหมายเหตุ: ${data.note}` : ""}`);
     return { ok: true };
   });
 
