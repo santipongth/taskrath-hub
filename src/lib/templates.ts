@@ -1,7 +1,7 @@
 import {
   FileAudio, Mail, Inbox, StickyNote, Calculator, FileText,
   FileSignature, Stamp, Megaphone, MessagesSquare, Languages,
-  SpellCheck, Scale, CalendarClock, type LucideIcon,
+  SpellCheck, Scale, CalendarClock, ShieldCheck, Tags, type LucideIcon,
 } from "lucide-react";
 
 export type TemplateCategory = "meeting" | "letter" | "analysis" | "legal" | "citizen";
