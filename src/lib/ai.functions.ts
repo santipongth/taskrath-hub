@@ -62,8 +62,9 @@ async function callAI(systemPrompt: string, userPrompt: string): Promise<string>
   return json.choices?.[0]?.message?.content ?? "";
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function logAudit(
-  supabase: { from: (t: string) => { insert: (v: unknown) => Promise<unknown> } },
+  supabase: any,
   userId: string,
   action: string,
   resource: string | null,
