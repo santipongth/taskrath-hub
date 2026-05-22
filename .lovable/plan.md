@@ -1,94 +1,114 @@
+# แผนยกระดับ TaskRath ให้ "ใช้งานได้จริง" + UX ที่ผู้ใช้รัก
 
-## ภาพรวม
-แบ่งงานเป็น 4 เฟส เรียงตามผลกระทบและความง่ายในการส่งมอบ ทุกเฟสเป็น frontend + serverFn บนสแตคเดิม (TanStack Start + Lovable Cloud) ไม่ใช้ Edge Function
+ภาพรวมความสมบูรณ์ปัจจุบัน: เรามี Templates 14+ ตัว, Run/History/Approval, Favorites, Export PDF/DOCX (ฟอนต์ Sarabun), Executive Dashboard, Agency Settings, Admin Usage, LINE Notification, OCR, PII guard, Prompt-injection guard
 
----
-
-## Phase 1 — Productivity (เริ่มก่อน, impact สูง)
-
-### 1.1 Favorites / Pinned templates
-- Migration: ตาราง `template_favorites (user_id, template_id, created_at)` + RLS เจ้าของเท่านั้น
-- ServerFn: `listFavorites`, `toggleFavorite`
-- UI: ปุ่มดาว ★ บน `TemplateCard`, section "ปักหมุด" บน Dashboard (`_authenticated/index.tsx`) แสดงก่อน Quick Actions
-
-### 1.2 Export PDF + DOCX
-- หน้า `history/$runId.tsx` + ปุ่มในแถวรายการ `history/index.tsx`
-- ใช้ client-side: `jspdf` + `html2canvas` สำหรับ PDF (ฟอนต์ Sarabun embed), `docx` package สำหรับ DOCX
-- หัวกระดาษราชการ: ตราครุฑ (asset), ชื่อหน่วยงาน, ที่/วันที่, เนื้อหา, ลงนาม — render จาก `ai_runs.output`
-- ปุ่ม "Export PDF" / "Export DOCX" ที่หน้าผลลัพธ์ run และเมนู ⋯ ในตาราง history
-
-### 1.3 เทมเพลตใหม่
-เพิ่มใน `src/lib/templates.ts`:
-- `dopa-verify` — ตรวจสอบเอกสาร DOPA (ทะเบียนราษฎร, บัตร ปชช.) — ฟิลด์: ประเภทเอกสาร, ข้อความ/รูปจาก OCR → ตรวจความครบถ้วนและจุดผิดปกติ
-- `complaint-classify` — จำแนก+ร่างตอบข้อร้องเรียนประชาชน (มี `complaint-reply` แล้ว เสริมตัวจำแนกประเภท/หน่วยงานที่เกี่ยวข้อง/ระดับความเร่งด่วน)
-
-หมายเหตุ: Template Library "หนังสือราชการมาตรฐาน/แบบฟอร์ม DOPA/e-Gov" ส่วนใหญ่ครอบคลุมใน 14 เทมเพลตเดิม + 2 ตัวใหม่นี้ ถ้าต้องการเพิ่มชุดเต็มภายหลังค่อยทำผ่าน Admin Template Editor (อยู่ใน backlog Tier 2 เดิม)
+ยังขาดอะไรเพื่อให้ "ทำงานได้จริง" และ "ผู้ใช้ชอบ" → แบ่งเป็น 3 ระลอก เลือกทำตามลำดับความสำคัญ
 
 ---
 
-## Phase 2 — Executive Dashboard
-ขยายจาก `/admin/usage` เป็น `/admin/dashboard` สำหรับผู้บริหาร:
-- ServerFn `executiveStats` (admin only): runs ตามแผนก (join `profiles.department`), top templates, แนวโน้มรายสัปดาห์/เดือน, อัตราการ approve/reject, จำนวนผู้ใช้ active
-- กราฟ: bar (runs by department), pie (template mix), line (trend 90 วัน)
-- ฟิลเตอร์ช่วงเวลา + export CSV
-- การ์ด KPI: total runs, total cost, avg cost/run, pending approvals
+## ระลอก A — ใช้งานได้จริงในงานประจำวัน (must-have)
+
+### A1. Streaming output (พิมพ์ทีละตัวอักษรแบบ ChatGPT)
+ตอนนี้รอจนเสร็จทั้งก้อนแล้วค่อยโชว์ → ผู้ใช้รู้สึกช้า/ค้าง
+- เปลี่ยน `runTemplate` เป็น server route แบบ SSE หรือ ReadableStream
+- หน้า run แสดงข้อความค่อย ๆ ขึ้น + ปุ่ม Stop
+- เพิ่ม skeleton + เวลาเฉลี่ย/คาดการณ์
+
+### A2. Refine & Iterate ผลลัพธ์ (แก้ในที่)
+หลังได้ผลลัพธ์ ให้กดปุ่ม: "ทางการขึ้น", "สั้นลง", "แก้คำผิด", "เปลี่ยนน้ำเสียง", หรือพิมพ์คำสั่งเอง
+- ผลลัพธ์ใหม่อ้างอิงผลเดิม (chain) เก็บเป็น versions ใน `ai_runs.metadata`
+- ปุ่ม Undo/เปรียบเทียบ diff สองเวอร์ชัน
+
+### A3. Editor ก่อน Export
+ตอนนี้ผลลัพธ์เป็น read-only → ส่วนใหญ่ผู้ใช้ต้อง copy ไป Word
+- ใส่ rich-text editor (tiptap) แก้ได้ในเว็บ บันทึกกลับเข้า run
+- Export PDF/DOCX ใช้เวอร์ชันที่แก้แล้ว
+
+### A4. Save Draft อัตโนมัติ + Resume
+หน้า run ถ้ารีเฟรช ข้อมูลในฟอร์มหาย
+- localStorage autosave ทุก field ตาม `templateId`
+- Banner "พบฉบับร่างค้างไว้ — กู้คืน?"
+
+### A5. ค้นหาประวัติ + ฟิลเตอร์
+History ตอนนี้เป็นตารางไม่มีค้นหา
+- ช่องค้นหา (title/output), ฟิลเตอร์ template, ช่วงวันที่, สถานะ
+- pagination (เกิน 1000 rows limit ของ Supabase)
 
 ---
 
-## Phase 3 — Notification
+## ระลอก B — UX ที่ทำให้ผู้ใช้ชอบ
 
-### 3.1 Email (ใช้ Lovable Cloud emails)
-- เปิด email infra → ส่งเมื่อ: มี approval รออนุมัติ (ส่งหา approver), approval ถูกตัดสิน (ส่งหา requester)
-- ServerFn `sendApprovalEmail` เรียกใน flow approval ปัจจุบัน
+### B1. Command Palette (⌘K)
+กด Ctrl/⌘+K → ค้นหาเทมเพลต, รัน, ดูประวัติ, เปลี่ยนหน้า, ลงชื่อออก
+- ใช้ `cmdk` (มี `Command` component ของ shadcn อยู่แล้ว)
 
-### 3.2 LINE Notify / LINE OA
-- LINE Notify ถูก deprecate มี.ค. 2025 → ใช้ LINE Messaging API (LINE OA)
-- ต้องการ secret: `LINE_CHANNEL_ACCESS_TOKEN`
-- ตาราง `line_bindings (user_id, line_user_id)` ให้ผู้ใช้ผูกบัญชีผ่าน LINE Login (เฟสนี้เริ่มแค่ broadcast group ก่อน — ผู้ดูแลกรอก group ID)
-- ServerFn `sendLineNotification(text)` push ไปยัง group ที่ตั้งค่าใน `app_settings`
-- ตั้งค่า: หน้า Settings → "การแจ้งเตือน LINE" (toggle + group ID)
+### B2. Keyboard Shortcuts
+- `⌘+Enter` รัน, `⌘+S` save draft, `⌘+E` export, `⌘+/` shortcuts help
+- Tooltip โชว์ shortcut ทุกปุ่มหลัก
 
----
+### B3. Empty states + Onboarding
+- หน้าแรกของผู้ใช้ใหม่: 3-step welcome tour
+- Empty state ของ History/Favorites มีภาพ + CTA "ลองรันเทมเพลตแรก"
 
-## Phase 4 — Backlog (รอยืนยัน)
-- RAG (อ้างอิงระเบียบราชการ), Multi-step agents, Voice input, PWA — จากแผนเดิม
+### B4. Loading & Micro-interactions
+- Skeleton ทุกหน้า, optimistic toggle favorite (มีแล้วแต่เช็ก animation)
+- Confetti เล็ก ๆ เมื่อ approval ผ่าน
+- Sound toggle (ปิดได้) เมื่อ run เสร็จ
 
----
+### B5. Toast → Inline status ที่ละเอียดขึ้น
+- โชว์ใช้ token / cost / เวลา หลัง run แต่ละครั้ง
+- บอกชัดเจนถ้าโดน prompt-guard block + ลิงก์อ่านเหตุผล
 
-## รายละเอียดเทคนิค
+### B6. Dark/Light/System theme + ขนาดตัวอักษร
+- หน่วยงานเยอะวัยมาก → slider ปรับ font 100/115/130%
 
-**Database migrations**
-```sql
-CREATE TABLE template_favorites (
-  id uuid PK, user_id uuid, template_id text,
-  created_at timestamptz, UNIQUE(user_id, template_id)
-);
--- RLS: เจ้าของอ่าน/เขียนของตน
-
-CREATE TABLE line_bindings (id, user_id unique, line_user_id, created_at);
-CREATE TABLE app_settings (key text PK, value jsonb); -- เก็บ LINE group ID, email toggles
-```
-
-**Packages**
-- `bun add jspdf html2canvas docx` (สำหรับ export)
-- ฟอนต์ Sarabun: ใช้ TTF จาก Google Fonts → embed base64 ใน jspdf
-
-**ไฟล์ใหม่/แก้**
-- `src/lib/export.ts` — `exportRunToPdf`, `exportRunToDocx`
-- `src/lib/favorites.functions.ts`
-- `src/lib/notifications.functions.ts` (email + line)
-- `src/lib/admin.functions.ts` — เพิ่ม `executiveStats`
-- `src/routes/_authenticated/admin/dashboard.tsx`
-- `src/routes/_authenticated/history/$runId.tsx` — เพิ่มปุ่ม Export
-- `src/components/template-card.tsx` — เพิ่ม favorite toggle
-- `src/routes/_authenticated/index.tsx` — section pinned
-- `src/lib/templates.ts` — เพิ่ม 2 เทมเพลต
-
-**Secrets ที่ต้องเพิ่ม (เฟส 3)**: `LINE_CHANNEL_ACCESS_TOKEN`
+### B7. Mobile-friendly polish
+ส่วน Admin/History ตอนนี้ดีบนเดสก์ท็อปแต่บีบบน mobile
+- Card layout แทนตารางบน <md
+- Bottom nav สำหรับ mobile
 
 ---
 
-## คำถามก่อนเริ่ม
-1. เริ่ม Phase 1 ทั้งก้อน (Favorites + Export PDF/DOCX + 2 เทมเพลตใหม่) เลยใช่ไหม? หรืออยากเลือกเฉพาะส่วน?
-2. Export PDF: ต้องมีตราครุฑ + ชื่อหน่วยงานบนหัวกระดาษไหม? ถ้าใช่ ขอชื่อหน่วยงาน/โลโก้
-3. Notification เฟส 3: เริ่มที่ Email อย่างเดียว หรือทำ LINE OA ด้วย? (LINE ต้องมี Channel Access Token จาก LINE Developers Console)
+## ระลอก C — Production-readiness (ความน่าเชื่อถือ)
+
+### C1. Email notification เต็มรูปแบบ
+- ตั้งค่า email domain (ขอ user ยืนยัน) → ส่งเมล: approval requested/approved/rejected, run shared
+- Template อีเมลภาษาไทยพร้อมโลโก้หน่วยงาน
+
+### C2. Share & Collaborate
+- ปุ่ม "แชร์ลิงก์ดูอย่างเดียว" บน run (token-based, expire ได้)
+- Comment thread บน run สำหรับให้หัวหน้าเสนอแก้
+
+### C3. Team workspace / แผนก
+- Profile มีคอลัมน์ `department` แล้ว → ใช้กรอง history และ dashboard ตามแผนก
+- Admin invite ผู้ใช้ใหม่ผ่านอีเมล (magic link)
+
+### C4. Template library ขยาย + Admin Editor
+- หน้า Admin → สร้าง/แก้เทมเพลตเองในฐานข้อมูล (ไม่ต้อง deploy)
+- Import/Export เทมเพลตเป็น JSON
+- เทมเพลตเพิ่มที่ขอบ่อย: คำสั่งแต่งตั้ง, ประกาศจัดซื้อจัดจ้าง, บันทึกขออนุมัติเดินทาง, รายงานการตรวจสอบภายใน
+
+### C5. Rate limit, Quota, Cost guard
+- จำกัด runs/วัน ต่อผู้ใช้ (กันรั่ว)
+- Admin ตั้ง monthly budget ต่อแผนก → เตือนเมื่อเกิน 80%
+
+### C6. Audit log viewer + Export CSV
+- ตอนนี้ `audit_logs` บันทึกแล้วแต่ดูไม่ได้ → หน้า /admin/audit
+
+### C7. Backup & Data retention
+- Auto-archive runs เก่ากว่า N เดือนเป็น JSON ใน Storage
+- ปุ่ม "Export ข้อมูลของฉันทั้งหมด" ตาม PDPA
+
+### C8. Accessibility (WCAG AA)
+- aria-labels, focus rings, keyboard nav, contrast check ทุกหน้า
+- จำเป็นต่อระบบราชการ (ตามมาตรฐาน TWCAG 2.0)
+
+---
+
+## ขอเลือก / ยืนยัน
+
+1. เริ่มที่ระลอก A ทั้งก้อนเลย (Streaming + Refine + Editor + Autosave + Search) ใช่ไหม? หรือเลือกเฉพาะข้อ?
+2. ระลอก B อยากได้ทั้งหมด หรือเอาเฉพาะ Command Palette + Shortcuts + Mobile polish (3 อันที่ impact สูงสุด)?
+3. ระลอก C: ข้อ C1 (Email) ต้องการเปิด domain เลยมั้ย? C4 (Admin Template Editor) สำคัญแค่ไหน?
+
+ถ้าไม่สะดวกเลือก → ผมแนะนำลำดับ: **A1 → A3 → A4 → A5 → B1 → B7 → C5 → C1** (8 ชิ้นนี้ครอบคลุม 80% ของ UX ที่ผู้ใช้จะรู้สึกต่าง)
