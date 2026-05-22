@@ -10,7 +10,14 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
-    meta: [{ title: "เข้าสู่ระบบ · TaskRath" }],
+    meta: [
+      { title: "เข้าสู่ระบบ · TaskRath" },
+      { name: "description", content: "เข้าสู่ระบบ TaskRath เพื่อใช้งานผู้ช่วย AI สำหรับเจ้าหน้าที่ภาครัฐไทย ร่างหนังสือ สรุปประชุม และจัดการงานราชการอย่างปลอดภัย" },
+      { property: "og:title", content: "เข้าสู่ระบบ · TaskRath" },
+      { property: "og:description", content: "เข้าสู่ระบบเพื่อใช้งานผู้ช่วย AI สำหรับเจ้าหน้าที่ภาครัฐไทย" },
+      { property: "og:url", content: "https://taskrath-hub.lovable.app/login" },
+    ],
+    links: [{ rel: "canonical", href: "https://taskrath-hub.lovable.app/login" }],
   }),
   beforeLoad: async () => {
     // Client-only check — server has no Supabase session and would never
