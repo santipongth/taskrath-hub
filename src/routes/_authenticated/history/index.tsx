@@ -1,17 +1,22 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { useMemo, useState } from "react";
 import { listHistory, getRun } from "@/lib/ai.functions";
 import { getAgencySettings } from "@/lib/admin.functions";
-import { TEMPLATES_BY_ID } from "@/lib/templates";
+import { TEMPLATES, TEMPLATES_BY_ID } from "@/lib/templates";
 import { useI18n } from "@/lib/i18n";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, FileDown, FileText } from "lucide-react";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { MoreHorizontal, FileDown, FileText, Search, X } from "lucide-react";
 import { exportRunToPdf, exportRunToDocx } from "@/lib/export";
 import { toast } from "sonner";
 
@@ -28,6 +33,30 @@ function HistoryPage() {
   const { data, isLoading } = useQuery({ queryKey: ["history"], queryFn: () => fetchHistory() });
   const { data: agency } = useQuery({ queryKey: ["agency"], queryFn: () => fetchAgency() });
 
+  const [q, setQ] = useState("");
+  const [tplFilter, setTplFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  const filtered = useMemo(() => {
+    const all = data?.runs ?? [];
+    const needle = q.trim().toLowerCase();
+    return all.filter((r) => {
+      if (tplFilter !== "all" && r.template_id !== tplFilter) return false;
+      if (statusFilter === "approval" && !r.needs_approval) return false;
+      if (statusFilter !== "all" && statusFilter !== "approval" && r.status !== statusFilter) return false;
+      if (!needle) return true;
+      const tpl = r.template_id ? TEMPLATES_BY_ID[r.template_id] : null;
+      const haystack = [
+        r.title ?? "",
+        tpl?.titleTh ?? "", tpl?.titleEn ?? "",
+        r.template_id ?? "",
+      ].join(" ").toLowerCase();
+      return haystack.includes(needle);
+    });
+  }, [data, q, tplFilter, statusFilter]);
+
+  const hasActiveFilter = q || tplFilter !== "all" || statusFilter !== "all";
+
   async function handleExport(runId: string, title: string, kind: "pdf" | "docx") {
     const res = await fetchRun({ data: { id: runId } });
     if (!res?.run) return;
@@ -42,13 +71,61 @@ function HistoryPage() {
         {lang === "th" ? "งานทั้งหมดที่คุณสั่งให้ AI ทำ" : "All your past AI runs"}
       </p>
 
-      <div className="mt-6 overflow-hidden rounded-lg border border-border">
+      <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={lang === "th" ? "ค้นหาในหัวข้อ/เทมเพลต…" : "Search by title or template…"}
+            className="h-9 pl-9"
+          />
+        </div>
+        <Select value={tplFilter} onValueChange={setTplFilter}>
+          <SelectTrigger className="h-9 w-full sm:w-52">
+            <SelectValue placeholder={lang === "th" ? "เทมเพลต" : "Template"} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{lang === "th" ? "ทุกเทมเพลต" : "All templates"}</SelectItem>
+            {TEMPLATES.map((tpl) => (
+              <SelectItem key={tpl.id} value={tpl.id}>{lang === "th" ? tpl.titleTh : tpl.titleEn}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="h-9 w-full sm:w-40">
+            <SelectValue placeholder={lang === "th" ? "สถานะ" : "Status"} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{lang === "th" ? "ทุกสถานะ" : "All statuses"}</SelectItem>
+            <SelectItem value="completed">{lang === "th" ? "เสร็จสิ้น" : "Completed"}</SelectItem>
+            <SelectItem value="approval">{lang === "th" ? "รออนุมัติ" : "Pending approval"}</SelectItem>
+            <SelectItem value="failed">{lang === "th" ? "ล้มเหลว" : "Failed"}</SelectItem>
+          </SelectContent>
+        </Select>
+        {hasActiveFilter && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => { setQ(""); setTplFilter("all"); setStatusFilter("all"); }}
+          >
+            <X className="mr-1 h-3.5 w-3.5" />
+            {lang === "th" ? "ล้าง" : "Clear"}
+          </Button>
+        )}
+      </div>
+
+      <div className="mt-3 overflow-hidden rounded-lg border border-border">
         {isLoading ? (
           <div className="space-y-2 p-4">
             {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
           </div>
-        ) : !data?.runs.length ? (
-          <p className="p-12 text-center text-sm text-muted-foreground">{t("historyEmpty")}</p>
+        ) : !filtered.length ? (
+          <p className="p-12 text-center text-sm text-muted-foreground">
+            {hasActiveFilter
+              ? (lang === "th" ? "ไม่พบรายการที่ตรงกับเงื่อนไข" : "No runs match your filters")
+              : t("historyEmpty")}
+          </p>
         ) : (
           <table className="w-full text-sm">
             <thead className="border-b border-border bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
@@ -61,7 +138,7 @@ function HistoryPage() {
               </tr>
             </thead>
             <tbody>
-              {data.runs.map((r) => {
+              {filtered.map((r) => {
                 const tpl = r.template_id ? TEMPLATES_BY_ID[r.template_id] : null;
                 const title = tpl ? (lang === "th" ? tpl.titleTh : tpl.titleEn) : (lang === "th" ? "สั่งงานอิสระ" : "Freeform");
                 return (
