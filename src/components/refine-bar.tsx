@@ -52,14 +52,7 @@ export function RefineBar({ runId, revisions, onUpdated }: Props) {
     setLoading(key);
     try {
       const res = await refine({ data: { runId, ...args } });
-      // Build new revisions array client-side: previous output gets pushed
-      const newRev: Revision = {
-        output: revisions[revisions.length - 1]?.output ?? "",
-        instruction: args.instruction ?? args.preset ?? "",
-        preset: args.preset,
-        at: new Date().toISOString(),
-      };
-      onUpdated(res.output, [...revisions, newRev].slice(-10));
+      onUpdated(res.output, res.revisions as Revision[]);
       toast.success(lang === "th" ? "ปรับผลลัพธ์แล้ว" : "Refined");
       if (args.instruction) setCustom("");
     } catch (e) {
