@@ -11,6 +11,9 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Copy, CheckCircle2, ImagePlus, ShieldCheck, RotateCcw, Pencil } from "lucide-react";
 import { toast } from "sonner";
+import { RefineBar } from "@/components/refine-bar";
+
+type Revision = { output: string; instruction: string; preset?: string; at: string };
 
 export const Route = createFileRoute("/_authenticated/run/$templateId")({
   head: ({ params }) => {
@@ -47,6 +50,7 @@ function TemplateRunPage() {
   const [piiInfo, setPiiInfo] = useState<string>("");
   const [ocrLoading, setOcrLoading] = useState<string | null>(null);
   const [hasDraft, setHasDraft] = useState(false);
+  const [revisions, setRevisions] = useState<Revision[]>([]);
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const draftKey = `taskrath:draft:${templateId}`;
@@ -94,6 +98,7 @@ function TemplateRunPage() {
     setOutput("");
     setRunId(null);
     setPiiInfo("");
+    setRevisions([]);
     setEditingOutput(false);
     try {
       const res = await run({ data: { templateId, inputs } });
@@ -288,6 +293,17 @@ function TemplateRunPage() {
             />
           ) : (
             <pre className="whitespace-pre-wrap text-sm text-foreground">{output}</pre>
+          )}
+          {runId && (
+            <RefineBar
+              runId={runId}
+              revisions={revisions}
+              onUpdated={(newOutput, newRevisions) => {
+                setOutput(newOutput);
+                setRevisions(newRevisions);
+                setEditingOutput(false);
+              }}
+            />
           )}
         </div>
       )}

@@ -1,15 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { useState, useEffect } from "react";
 import { getRun } from "@/lib/ai.functions";
 import { getAgencySettings } from "@/lib/admin.functions";
 import { TEMPLATES_BY_ID } from "@/lib/templates";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Copy, FileDown, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { exportRunToPdf, exportRunToDocx } from "@/lib/export";
+import { RefineBar } from "@/components/refine-bar";
+
+type Revision = { output: string; instruction: string; preset?: string; at: string };
 
 export const Route = createFileRoute("/_authenticated/history/$runId")({
   head: () => ({ meta: [{ title: "รายละเอียดงาน · TaskRath" }] }),
@@ -21,11 +26,22 @@ function RunDetail() {
   const { t, lang } = useI18n();
   const fetch = useServerFn(getRun);
   const fetchAgency = useServerFn(getAgencySettings);
+  const qc = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["run", runId],
     queryFn: () => fetch({ data: { id: runId } }),
   });
   const { data: agency } = useQuery({ queryKey: ["agency"], queryFn: () => fetchAgency() });
+
+  const serverOutput = data?.run?.output ?? "";
+  const serverRevisions = ((data?.run?.metadata as { revisions?: Revision[] } | null)?.revisions ?? []) as Revision[];
+  const [output, setOutput] = useState(serverOutput);
+  const [revisions, setRevisions] = useState<Revision[]>(serverRevisions);
+  useEffect(() => {
+    setOutput(serverOutput);
+    setRevisions(serverRevisions);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.run?.id, serverOutput]);
 
   if (isLoading) {
     return (
@@ -68,20 +84,36 @@ function RunDetail() {
 
       <div className="mt-4 rounded-lg border border-border bg-card p-5">
         <div className="mb-3 flex items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold">{t("result")}</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-semibold">{t("result")}</h2>
+            {revisions.length > 0 && (
+              <Badge variant="secondary" className="text-[10px]">
+                {lang === "th" ? `ปรับ ${revisions.length} ครั้ง` : `${revisions.length} revisions`}
+              </Badge>
+            )}
+          </div>
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(run.output ?? ""); toast.success(t("copied")); }}>
+            <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(output); toast.success(t("copied")); }}>
               <Copy className="mr-1.5 h-3.5 w-3.5" />{t("copy")}
             </Button>
-            <Button variant="ghost" size="sm" onClick={async () => { await exportRunToPdf(run, tpl ? (lang === "th" ? tpl.titleTh : tpl.titleEn) : "Document", agency ?? null); toast.success("PDF"); }}>
+            <Button variant="ghost" size="sm" onClick={async () => { await exportRunToPdf({ ...run, output }, tpl ? (lang === "th" ? tpl.titleTh : tpl.titleEn) : "Document", agency ?? null); toast.success("PDF"); }}>
               <FileDown className="mr-1.5 h-3.5 w-3.5" />PDF
             </Button>
-            <Button variant="ghost" size="sm" onClick={async () => { await exportRunToDocx(run, tpl ? (lang === "th" ? tpl.titleTh : tpl.titleEn) : "Document", agency ?? null); toast.success("DOCX"); }}>
+            <Button variant="ghost" size="sm" onClick={async () => { await exportRunToDocx({ ...run, output }, tpl ? (lang === "th" ? tpl.titleTh : tpl.titleEn) : "Document", agency ?? null); toast.success("DOCX"); }}>
               <FileText className="mr-1.5 h-3.5 w-3.5" />DOCX
             </Button>
           </div>
         </div>
-        <pre className="whitespace-pre-wrap text-sm text-foreground">{run.output}</pre>
+        <pre className="whitespace-pre-wrap text-sm text-foreground">{output}</pre>
+        <RefineBar
+          runId={runId}
+          revisions={revisions}
+          onUpdated={(newOutput, newRevisions) => {
+            setOutput(newOutput);
+            setRevisions(newRevisions);
+            qc.invalidateQueries({ queryKey: ["run", runId] });
+          }}
+        />
       </div>
     </div>
   );
