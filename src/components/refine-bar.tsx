@@ -46,7 +46,7 @@ export function RefineBar({ runId, revisions, onUpdated }: Props) {
   const [custom, setCustom] = useState("");
 
   const apply = async (
-    args: { preset?: Props extends never ? never : "formal" | "shorter" | "longer" | "friendly" | "proofread"; instruction?: string },
+    args: { preset?: "formal" | "shorter" | "longer" | "friendly" | "proofread"; instruction?: string },
     key: string,
   ) => {
     setLoading(key);
