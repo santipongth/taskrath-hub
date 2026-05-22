@@ -1,91 +1,64 @@
-## ภาพรวม
+# Phase 5 — Refine ผลลัพธ์ (ทางการขึ้น / สั้นลง / ฯลฯ)
 
-แบ่งงานเป็น 4 เฟส เรียงตามผลกระทบและความง่ายในการส่งมอบ ทุกเฟสเป็น frontend + serverFn บนสแตคเดิม (TanStack Start + Lovable Cloud) ไม่ใช้ Edge Function
+ให้ผู้ใช้ปรับผลลัพธ์ AI ที่ได้แล้ว โดยไม่ต้องเริ่มใหม่ พร้อมเก็บประวัติเวอร์ชันเพื่อย้อนกลับได้
 
----
+## สิ่งที่จะสร้าง
 
-## Phase 1 — Productivity (เริ่มก่อน, impact สูง)
+### 1. Server function: `refineRun` (`src/lib/ai.functions.ts`)
+- รับ `runId` + `instruction` (preset หรือ custom)
+- โหลด run เดิม, สั่ง AI แก้ไขผลลัพธ์ตาม instruction (system: รักษาความหมายเดิม, คงโครงสร้างราชการ)
+- ผ่าน PII redaction + prompt-guard เหมือน `runTemplate`
+- บันทึก revision ใน `ai_runs.metadata.revisions` (array: `{output, instruction, at, usage}`) — เก็บได้สูงสุด 10 เวอร์ชัน
+- อัปเดต `output` เป็นเวอร์ชันใหม่, รวม usage เข้ากับ run เดิม (เพิ่ม tokens/cost)
+- เขียน audit log `ai.refine`
 
-### 1.1 Favorites / Pinned templates
+### 2. Migration: เพิ่มคอลัมน์ `metadata` ใน `ai_runs`
+```sql
+ALTER TABLE ai_runs ADD COLUMN IF NOT EXISTS metadata jsonb NOT NULL DEFAULT '{}'::jsonb;
+```
 
-- Migration: ตาราง `template_favorites (user_id, template_id, created_at)` + RLS เจ้าของเท่านั้น
-- ServerFn: `listFavorites`, `toggleFavorite`
-- UI: ปุ่มดาว ★ บน `TemplateCard`, section "ปักหมุด" บน Dashboard (`_authenticated/index.tsx`) แสดงก่อน Quick Actions
+### 3. UI Refine bar ใน `src/routes/_authenticated/run/$templateId.tsx`
+แสดงใต้กล่องผลลัพธ์ (เมื่อมี `runId`):
 
-### 1.2 Export PDF + DOCX
+- ปุ่ม preset 5 ตัว: **ทางการขึ้น**, **สั้นลง**, **ละเอียดขึ้น**, **เป็นมิตรขึ้น**, **แก้คำผิด**
+- ช่องพิมพ์คำสั่งเอง + ปุ่ม "ปรับ"
+- ระหว่างโหลด: spinner + disable
+- หลังสำเร็จ: แทนที่ output, toast แจ้ง, เพิ่มจำนวน revision
 
-- หน้า `history/$runId.tsx` + ปุ่มในแถวรายการ `history/index.tsx`
-- ใช้ client-side: `jspdf` + `html2canvas` สำหรับ PDF (ฟอนต์ Sarabun embed), `docx` package สำหรับ DOCX
-- หัวกระดาษราชการ: ตราครุฑ (asset), ชื่อหน่วยงาน, ที่/วันที่, เนื้อหา, ลงนาม — render จาก `ai_runs.output`
-- ปุ่ม "Export PDF" / "Export DOCX" ที่หน้าผลลัพธ์ run และเมนู ⋯ ในตาราง history
+### 4. Version history & undo
+- ถ้ามี ≥1 revision แสดงปุ่ม "เวอร์ชัน (N)" → popover รายการเวอร์ชัน (เวลา + instruction)
+- เลือกเวอร์ชันใดจะ preview, มีปุ่ม "กู้คืน" → call `revertRun({runId, index})` ที่ swap output กลับ
+- ปุ่ม "Undo" ลัด = กู้คืนเวอร์ชันก่อนหน้า
 
-### 1.3 เทมเพลตใหม่
-
-เพิ่มใน `src/lib/templates.ts`:
-
-- `dopa-verify` — ตรวจสอบเอกสาร DOPA (ทะเบียนราษฎร, บัตร ปชช.) — ฟิลด์: ประเภทเอกสาร, ข้อความ/รูปจาก OCR → ตรวจความครบถ้วนและจุดผิดปกติ
-- `complaint-classify` — จำแนก+ร่างตอบข้อร้องเรียนประชาชน (มี `complaint-reply` แล้ว เสริมตัวจำแนกประเภท/หน่วยงานที่เกี่ยวข้อง/ระดับความเร่งด่วน)
-
-หมายเหตุ: Template Library "หนังสือราชการมาตรฐาน/แบบฟอร์ม DOPA/e-Gov" ส่วนใหญ่ครอบคลุมใน 14 เทมเพลตเดิม + 2 ตัวใหม่นี้ ถ้าต้องการเพิ่มชุดเต็มภายหลังค่อยทำผ่าน Admin Template Editor (อยู่ใน backlog Tier 2 เดิม)
-
----
-
-## Phase 2 — Executive Dashboard
-
-ขยายจาก `/admin/usage` เป็น `/admin/dashboard` สำหรับผู้บริหาร:
-
-- ServerFn `executiveStats` (admin only): runs ตามแผนก (join `profiles.department`), top templates, แนวโน้มรายสัปดาห์/เดือน, อัตราการ approve/reject, จำนวนผู้ใช้ active
-- กราฟ: bar (runs by department), pie (template mix), line (trend 90 วัน)
-- ฟิลเตอร์ช่วงเวลา + export CSV
-- การ์ด KPI: total runs, total cost, avg cost/run, pending approvals
-
----
-
----
-
-## Phase 4 — Backlog (รอยืนยัน)
-
-- RAG (อ้างอิงระเบียบราชการ), Multi-step agents, Voice input, PWA — จากแผนเดิม
-
----
+### 5. หน้า history detail (`src/routes/_authenticated/history/$runId.tsx`)
+- แสดง badge "ปรับ N ครั้ง" ถ้ามี revisions
+- มี Refine bar + version list เดียวกัน
 
 ## รายละเอียดเทคนิค
 
-**Database migrations**
-
-```sql
-CREATE TABLE template_favorites (
-  id uuid PK, user_id uuid, template_id text,
-  created_at timestamptz, UNIQUE(user_id, template_id)
-);
--- RLS: เจ้าของอ่าน/เขียนของตน
-
-CREATE TABLE line_bindings (id, user_id unique, line_user_id, created_at);
-CREATE TABLE app_settings (key text PK, value jsonb); -- เก็บ LINE group ID, email toggles
+System prompt สำหรับ refine:
+```
+คุณเป็นบรรณาธิการเอกสารราชการไทย จงปรับข้อความที่ได้รับตามคำสั่งของผู้ใช้
+ห้ามเพิ่มข้อมูลใหม่ที่ไม่มีในต้นฉบับ ห้ามตัดข้อมูลสำคัญ (ชื่อ วันที่ เลขที่)
+รักษารูปแบบหนังสือราชการ คืนเฉพาะข้อความที่ปรับแล้ว
 ```
 
-**Packages**
+User prompt: `คำสั่ง: {instruction}\n\nข้อความต้นฉบับ:\n{currentOutput}`
 
-- `bun add jspdf html2canvas docx` (สำหรับ export)
-- ฟอนต์ Sarabun: ใช้ TTF จาก Google Fonts → embed base64 ใน jspdf
+Preset instructions:
+- formal: "ปรับโทนให้เป็นทางการขึ้น ใช้คำศัพท์ราชการ"
+- shorter: "ย่อให้สั้นลง คงสาระสำคัญ"
+- longer: "ขยายความให้ละเอียดและครบถ้วนขึ้น"
+- friendly: "ปรับโทนให้เป็นมิตรและอ่านง่ายขึ้น แต่ยังคงความสุภาพ"
+- proofread: "ตรวจแก้คำผิด ไวยากรณ์ และการเว้นวรรค คงโครงสร้างเดิม"
 
-**ไฟล์ใหม่/แก้**
+## ไฟล์ที่จะแก้/สร้าง
+- new: `supabase/migrations/<timestamp>_add_runs_metadata.sql`
+- edit: `src/lib/ai.functions.ts` — เพิ่ม `refineRun`, `revertRun`
+- edit: `src/routes/_authenticated/run/$templateId.tsx` — Refine bar + version history
+- edit: `src/routes/_authenticated/history/$runId.tsx` — Refine bar + badge
 
-- `src/lib/export.ts` — `exportRunToPdf`, `exportRunToDocx`
-- `src/lib/favorites.functions.ts`
-- `src/lib/notifications.functions.ts` (email + line)
-- `src/lib/admin.functions.ts` — เพิ่ม `executiveStats`
-- `src/routes/_authenticated/admin/dashboard.tsx`
-- `src/routes/_authenticated/history/$runId.tsx` — เพิ่มปุ่ม Export
-- `src/components/template-card.tsx` — เพิ่ม favorite toggle
-- `src/routes/_authenticated/index.tsx` — section pinned
-- `src/lib/templates.ts` — เพิ่ม 2 เทมเพลต
-
-**Secrets ที่ต้องเพิ่ม (เฟส 3)**: `LINE_CHANNEL_ACCESS_TOKEN`
-
----
-
-## คำถามก่อนเริ่ม
-
-1. เริ่ม Phase 1 ทั้งก้อน (Favorites + Export PDF/DOCX + 2 เทมเพลตใหม่) เลยใช่ไหม? หรืออยากเลือกเฉพาะส่วน?
-2. Export PDF: ต้องมีตราครุฑ + ชื่อหน่วยงานบนหัวกระดาษไหม? ถ้าใช่ ขอชื่อหน่วยงาน/โลโก้
+## ไม่ทำในรอบนี้
+- Streaming output (A1) — แยกรอบ
+- Diff view ระหว่างเวอร์ชัน (อาจเพิ่มภายหลัง)
+- Editor แบบ tiptap — ใช้ textarea เดิมที่มี Edit mode อยู่แล้ว
