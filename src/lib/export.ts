@@ -8,7 +8,7 @@ type RunLike = {
   title?: string | null;
   output?: string | null;
   created_at: string;
-  input?: Record<string, unknown> | null;
+  input?: unknown;
 };
 
 function formatDate(iso: string) {
