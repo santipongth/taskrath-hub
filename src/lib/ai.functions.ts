@@ -609,3 +609,127 @@ export const adminUsageStats = createServerFn({ method: "GET" })
         .slice(0, 10),
     };
   });
+
+// ─────────────────────────────────────────────────────────────
+// Agents — specialised AI personas. Each has its own system prompt.
+// Output is persisted to ai_runs with template_id = `agent:<id>`.
+// ─────────────────────────────────────────────────────────────
+export type AgentDef = {
+  id: string;
+  titleTh: string;
+  titleEn: string;
+  descTh: string;
+  descEn: string;
+  systemPrompt: string;
+  skills: string[];
+  placeholderTh: string;
+};
+
+export const AGENTS: AgentDef[] = [
+  {
+    id: "doc-assistant",
+    titleTh: "ผู้ช่วยเอกสาร",
+    titleEn: "Document Assistant",
+    descTh: "ช่วยร่าง สรุป แปล และตรวจเอกสารราชการ",
+    descEn: "Draft, summarize, translate, and proofread official documents",
+    systemPrompt:
+      "คุณคือผู้ช่วยเอกสารราชการไทยมากประสบการณ์ ตอบเป็นภาษาทางการ ใช้รูปแบบหนังสือราชการเมื่อเหมาะสม สรุปสาระให้กระชับ ชัดเจน และจัดโครงสร้างเป็นหัวข้อเมื่อช่วยให้อ่านง่าย",
+    skills: ["สรุป", "ร่าง", "แปล", "ตรวจคำผิด"],
+    placeholderTh: "เช่น สรุปเอกสารต่อไปนี้ให้เป็น bullet 5 ข้อ…",
+  },
+  {
+    id: "budget-analyst",
+    titleTh: "นักวิเคราะห์งบประมาณ",
+    titleEn: "Budget Analyst",
+    descTh: "วิเคราะห์งบประมาณ คำนวณ และเสนอแนะเชิงนโยบาย",
+    descEn: "Analyze budgets and provide policy recommendations",
+    systemPrompt:
+      "คุณคือนักวิเคราะห์งบประมาณภาครัฐ จงประเมินตัวเลขในมุมความสมเหตุสมผล ประสิทธิภาพ ความเสี่ยง ความสอดคล้องกับยุทธศาสตร์ และให้ข้อเสนอแนะเชิงนโยบายอย่างเป็นกลาง ใช้ภาษาทางการ",
+    skills: ["วิเคราะห์", "พยากรณ์", "เสนอแนะ"],
+    placeholderTh: "เช่น วิเคราะห์งบประมาณโครงการต่อไปนี้ มูลค่า 12 ล้านบาท…",
+  },
+  {
+    id: "citizen-service",
+    titleTh: "เจ้าหน้าที่บริการประชาชน",
+    titleEn: "Citizen Service",
+    descTh: "ร่างคำตอบเรื่องร้องเรียน ตอบคำถาม FAQ ด้วยภาษาสุภาพ",
+    descEn: "Draft replies to citizen requests and complaints",
+    systemPrompt:
+      "คุณคือเจ้าหน้าที่บริการประชาชนผู้สุภาพและเป็นมิตร จงร่างคำตอบที่ชัดเจน สุภาพ ระบุแนวทางดำเนินการที่ประชาชนสามารถทำได้จริง หลีกเลี่ยงศัพท์ราชการที่เข้าใจยาก",
+    skills: ["ตอบ", "จำแนกประเภท", "ส่งต่อ"],
+    placeholderTh: "เช่น ประชาชนร้องเรียนเรื่องไฟถนนดับมา 2 สัปดาห์ ขอให้ร่างคำตอบ…",
+  },
+  {
+    id: "legal-researcher",
+    titleTh: "นักวิจัยกฎหมาย",
+    titleEn: "Legal Researcher",
+    descTh: "ค้น สรุป และอธิบายกฎหมาย/ระเบียบ",
+    descEn: "Research, summarize, and explain laws and regulations",
+    systemPrompt:
+      "คุณคือนักวิจัยด้านกฎหมายและระเบียบราชการไทย จงอธิบายและสรุปสาระของกฎหมายให้เข้าใจง่าย ระบุผู้บังคับใช้ ผู้ได้รับผลกระทบ และข้อควรระวัง อ้างอิงชื่อกฎหมายและมาตราเมื่อมีในต้นฉบับ ห้ามแต่งข้อกฎหมายขึ้นมาเอง",
+    skills: ["ค้นหา", "สรุป", "อธิบาย"],
+    placeholderTh: "เช่น สรุปสาระสำคัญของ พ.ร.บ. คุ้มครองข้อมูลส่วนบุคคล…",
+  },
+];
+
+export const AGENTS_BY_ID: Record<string, AgentDef> = Object.fromEntries(
+  AGENTS.map((a) => [a.id, a]),
+);
+
+export const runAgent = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        agentId: z.string().min(1).max(64),
+        prompt: z.string().min(1).max(20000),
+        redactPii: z.boolean().optional().default(true),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const agent = AGENTS_BY_ID[data.agentId];
+    if (!agent) throw new Error("Unknown agent");
+
+    const guard = checkPromptInjection(data.prompt);
+    if (guard.decision === "block") {
+      await logAudit(supabase, userId, "ai.blocked", `agent:${data.agentId}`, {
+        reason: "injection",
+        hits: guard.hits,
+        score: guard.score,
+      });
+      throw new Error("พบรูปแบบคำสั่งที่อาจเป็น prompt injection — ปฏิเสธการประมวลผล");
+    }
+
+    const r = data.redactPii ? redactPII(data.prompt) : { text: data.prompt, map: {}, counts: {} };
+    const ai = await callAI(agent.systemPrompt, r.text);
+    const output = data.redactPii ? restorePII(ai.text, r.map) : ai.text;
+
+    const { data: run, error } = await supabase
+      .from("ai_runs")
+      .insert({
+        user_id: userId,
+        template_id: `agent:${data.agentId}`,
+        title: `${agent.titleTh}`,
+        input: { prompt: data.prompt },
+        output,
+        status: "completed",
+        prompt_tokens: ai.usage.promptTokens,
+        completion_tokens: ai.usage.completionTokens,
+        cost_usd: ai.usage.costUsd,
+      })
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+
+    await logAudit(supabase, userId, "ai.agent", `agent:${data.agentId}`, {
+      run_id: run.id,
+      pii: piiSummary(r.counts),
+      guard_score: guard.score,
+      usage: ai.usage,
+    });
+    await notifyEvent(supabase, "complete", `🤖 TaskRath Agent "${agent.titleTh}" ตอบเสร็จแล้ว`);
+
+    return { id: run.id, output, usage: ai.usage, pii: piiSummary(r.counts) };
+  });
