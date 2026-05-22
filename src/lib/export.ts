@@ -1,8 +1,8 @@
 import { jsPDF } from "jspdf";
 import {
-  Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType,
-  Table, TableRow, TableCell, WidthType, BorderStyle, ShadingType, PageNumber,
-  Header, Footer,
+  Document, Packer, Paragraph, TextRun, AlignmentType,
+  Table, TableRow, TableCell, WidthType, BorderStyle, PageNumber,
+  Footer,
 } from "docx";
 import type { AgencySettings } from "@/lib/admin.functions";
 
@@ -122,15 +122,14 @@ export async function exportRunToDocx(
   const body: Paragraph[] = [];
   const text = run.output ?? "";
   for (const block of text.split(/\n{2,}/)) {
-    body.push(
-      new Paragraph({
-        spacing: { before: 120, line: 360 },
-        indent: { firstLine: 720 },
-        children: block.split("\n").map((line, i) => tr(line, {})).flatMap((run, i, arr) =>
-          i === 0 ? [run] : [new TextRun({ text: "", break: 1 }), run],
-        ),
-      }),
-    );
+    if (!block.trim()) continue;
+    const lines = block.split("\n");
+    const children: TextRun[] = [];
+    lines.forEach((line, i) => {
+      if (i > 0) children.push(new TextRun({ text: "", break: 1, font: FONT, size: SIZE_BODY }));
+      children.push(tr(line));
+    });
+    body.push(new Paragraph({ spacing: { before: 120, line: 360 }, indent: { firstLine: 720 }, children }));
   }
 
   // Sign-off block (right-aligned)
