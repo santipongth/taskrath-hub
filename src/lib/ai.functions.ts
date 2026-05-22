@@ -373,3 +373,85 @@ export const listAuditLogs = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     return { logs: data ?? [] };
   });
+
+export const checkIsAdmin = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+    return { isAdmin: data === true };
+  });
+
+export const adminUsageStats = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data: isAdminData } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+    if (isAdminData !== true) throw new Error("Forbidden: admin role required");
+
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: runs, error } = await supabase
+      .from("ai_runs")
+      .select("user_id, template_id, prompt_tokens, completion_tokens, cost_usd, created_at")
+      .gte("created_at", since)
+      .order("created_at", { ascending: false })
+      .limit(5000);
+    if (error) throw new Error(error.message);
+
+    type Row = NonNullable<typeof runs>[number];
+    const list: Row[] = runs ?? [];
+
+    let totalPromptTokens = 0;
+    let totalCompletionTokens = 0;
+    let totalCost = 0;
+    const byDay = new Map<string, { tokens: number; cost: number; runs: number }>();
+    const byUser = new Map<string, { runs: number; tokens: number; cost: number }>();
+    const byTemplate = new Map<string, { runs: number; tokens: number; cost: number }>();
+
+    for (const r of list) {
+      const pt = r.prompt_tokens ?? 0;
+      const ct = r.completion_tokens ?? 0;
+      const cost = Number(r.cost_usd ?? 0);
+      const tokens = pt + ct;
+      totalPromptTokens += pt;
+      totalCompletionTokens += ct;
+      totalCost += cost;
+      const day = r.created_at.slice(0, 10);
+      const d = byDay.get(day) ?? { tokens: 0, cost: 0, runs: 0 };
+      d.tokens += tokens; d.cost += cost; d.runs += 1;
+      byDay.set(day, d);
+      const u = byUser.get(r.user_id) ?? { runs: 0, tokens: 0, cost: 0 };
+      u.runs += 1; u.tokens += tokens; u.cost += cost;
+      byUser.set(r.user_id, u);
+      const tid = r.template_id ?? "(freeform)";
+      const t = byTemplate.get(tid) ?? { runs: 0, tokens: 0, cost: 0 };
+      t.runs += 1; t.tokens += tokens; t.cost += cost;
+      byTemplate.set(tid, t);
+    }
+
+    const userIds = [...byUser.keys()];
+    const { data: profiles } = userIds.length
+      ? await supabase.from("profiles").select("id, display_name").in("id", userIds)
+      : { data: [] as { id: string; display_name: string | null }[] };
+    const nameMap = new Map((profiles ?? []).map((p) => [p.id, p.display_name ?? p.id.slice(0, 8)]));
+
+    return {
+      totals: {
+        runs: list.length,
+        promptTokens: totalPromptTokens,
+        completionTokens: totalCompletionTokens,
+        costUsd: totalCost,
+      },
+      daily: [...byDay.entries()]
+        .map(([day, v]) => ({ day, ...v }))
+        .sort((a, b) => a.day.localeCompare(b.day)),
+      topUsers: [...byUser.entries()]
+        .map(([id, v]) => ({ id, name: nameMap.get(id) ?? id.slice(0, 8), ...v }))
+        .sort((a, b) => b.cost - a.cost)
+        .slice(0, 10),
+      topTemplates: [...byTemplate.entries()]
+        .map(([id, v]) => ({ id, ...v }))
+        .sort((a, b) => b.runs - a.runs)
+        .slice(0, 10),
+    };
+  });
