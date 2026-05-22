@@ -28,13 +28,16 @@ export function AppShell({ children, userEmail }: { children: ReactNode; userEma
         <div className="flex flex-1 flex-col">
           <header className="flex h-14 items-center gap-3 border-b border-border bg-background px-4">
             <SidebarTrigger className="text-muted-foreground" />
-            <div className="relative max-w-md flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder={t("search")}
-                className="h-9 border-border bg-background pl-9 text-sm shadow-none focus-visible:ring-1 focus-visible:ring-ring"
-              />
-            </div>
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent("open-command-palette"))}
+              className="relative flex h-9 max-w-md flex-1 items-center gap-2 rounded-md border border-border bg-background px-3 text-left text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <Search className="h-4 w-4" />
+              <span className="truncate">{t("search")}</span>
+              <kbd className="ml-auto hidden rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium sm:inline-block">
+                ⌘K
+              </kbd>
+            </button>
             <div className="ml-auto flex items-center gap-2">
               <div className="flex items-center rounded-md border border-border p-0.5 text-xs">
                 <button
