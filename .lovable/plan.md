@@ -1,109 +1,94 @@
-# TaskRath — Tier 2 → Tier 4 Roadmap
 
-แผนนี้แบ่งเป็น 4 phase ตามลำดับความสำคัญและการพึ่งพา (Tier 2 ก่อน เพราะเป็นฐานของ Tier 3–4)
-
----
-
-## Phase 1 — Tier 2: Productivity (ฐานข้อมูล + Admin)
-
-### 1.1 Template versioning + Admin editor
-- ตาราง `templates` (id, slug, name_th, name_en, category, fields jsonb, is_active, created_by) และ `template_versions` (id, template_id, version, system_prompt, user_prompt_template, created_by, created_at, is_published)
-- RLS: ทุกคน read templates ที่ active, เฉพาะ admin เขียน/แก้
-- ย้าย `TEMPLATE_PROMPTS` จาก `src/lib/ai.functions.ts` → ดึงจาก DB (version ล่าสุดที่ `is_published`)
-- หน้า `/admin/templates` — list, edit, preview, publish version
-- เพิ่ม route `_authenticated/admin/*` ที่ guard ด้วย `has_role(admin)`
-
-### 1.2 File upload + OCR (Gemini Vision)
-- Storage bucket `uploads` (private), RLS: user เข้าถึงไฟล์ตนเอง (folder = user_id)
-- Component upload (drag/drop) ใน Run page → ส่งไฟล์ผ่าน server fn `extractTextFromImage`
-- Server fn: ใช้ `google/gemini-2.5-flash` (multimodal) ส่งรูป + prompt "ถอดข้อความจากภาพหนังสือราชการ คงรูปแบบ"
-- ข้อความที่ได้ inject เข้าช่อง input ของ template
+## ภาพรวม
+แบ่งงานเป็น 4 เฟส เรียงตามผลกระทบและความง่ายในการส่งมอบ ทุกเฟสเป็น frontend + serverFn บนสแตคเดิม (TanStack Start + Lovable Cloud) ไม่ใช้ Edge Function
 
 ---
 
-## Phase 2 — Tier 3: Governance / Enterprise
+## Phase 1 — Productivity (เริ่มก่อน, impact สูง)
 
-### 2.1 PII redaction (pre-AI)
-- `src/lib/pii.ts` — regex สำหรับ:
-  - เลขบัตร ปชช. 13 หลัก (พร้อม checksum)
-  - เบอร์โทร (0x-xxxx-xxxx, +66)
-  - อีเมล
-  - เลขบัญชีธนาคาร 10–14 หลัก
-- ก่อนเรียก `callAI` → replace ด้วย `[ID_1]`, `[PHONE_1]`, ... และเก็บ mapping
-- หลัง AI ตอบกลับ → restore กลับ (option toggle per user ใน Settings: "ปกปิด PII ตลอดเวลา")
-- บันทึกใน `audit_logs` ว่ามี PII กี่รายการ (ไม่บันทึกค่าจริง)
+### 1.1 Favorites / Pinned templates
+- Migration: ตาราง `template_favorites (user_id, template_id, created_at)` + RLS เจ้าของเท่านั้น
+- ServerFn: `listFavorites`, `toggleFavorite`
+- UI: ปุ่มดาว ★ บน `TemplateCard`, section "ปักหมุด" บน Dashboard (`_authenticated/index.tsx`) แสดงก่อน Quick Actions
 
-### 2.2 Prompt injection guard
-- `src/lib/prompt-guard.ts` — pattern เสี่ยง: "ignore previous", "system prompt", "ละเว้นคำสั่ง", "DAN", role-switching, markdown injection
-- คะแนนความเสี่ยง 0–100; > 70 บล็อก, 40–70 เตือน + log
-- ใส่ใน `runTemplate` / `runFreeform`
+### 1.2 Export PDF + DOCX
+- หน้า `history/$runId.tsx` + ปุ่มในแถวรายการ `history/index.tsx`
+- ใช้ client-side: `jspdf` + `html2canvas` สำหรับ PDF (ฟอนต์ Sarabun embed), `docx` package สำหรับ DOCX
+- หัวกระดาษราชการ: ตราครุฑ (asset), ชื่อหน่วยงาน, ที่/วันที่, เนื้อหา, ลงนาม — render จาก `ai_runs.output`
+- ปุ่ม "Export PDF" / "Export DOCX" ที่หน้าผลลัพธ์ run และเมนู ⋯ ในตาราง history
 
-### 2.3 Usage dashboard (admin)
-- ขยาย `ai_runs`: เพิ่มคอลัมน์ `prompt_tokens`, `completion_tokens`, `cost_usd` (อ่านจาก response `usage`)
-- หน้า `/admin/usage`: chart (recharts) tokens/วัน, top 10 users, top templates, cost รวม
-- View ใช้ SQL aggregates (group by user_id, template_id, date_trunc)
+### 1.3 เทมเพลตใหม่
+เพิ่มใน `src/lib/templates.ts`:
+- `dopa-verify` — ตรวจสอบเอกสาร DOPA (ทะเบียนราษฎร, บัตร ปชช.) — ฟิลด์: ประเภทเอกสาร, ข้อความ/รูปจาก OCR → ตรวจความครบถ้วนและจุดผิดปกติ
+- `complaint-classify` — จำแนก+ร่างตอบข้อร้องเรียนประชาชน (มี `complaint-reply` แล้ว เสริมตัวจำแนกประเภท/หน่วยงานที่เกี่ยวข้อง/ระดับความเร่งด่วน)
 
-### 2.4 Data retention
-- ตั้ง `profiles.retention_days` (default 365) ระดับ workspace (หรือ system setting)
-- pg_cron daily: `DELETE FROM ai_runs WHERE created_at < now() - interval '<N> days'`
-- หน้า Settings (admin): กำหนด N + ปุ่ม "ลบทันที"
-
-### 2.5 Audit log viewer
-- เพิ่ม logging ทุก action สำคัญ: run, approval request/decide, template edit, settings change, file upload
-- หน้า `/governance` (admin tab): ตาราง filter by action/user/date, export CSV
-- รองรับ infinite scroll หรือ pagination
+หมายเหตุ: Template Library "หนังสือราชการมาตรฐาน/แบบฟอร์ม DOPA/e-Gov" ส่วนใหญ่ครอบคลุมใน 14 เทมเพลตเดิม + 2 ตัวใหม่นี้ ถ้าต้องการเพิ่มชุดเต็มภายหลังค่อยทำผ่าน Admin Template Editor (อยู่ใน backlog Tier 2 เดิม)
 
 ---
 
-## Phase 3 — Tier 4 (light): Multi-step + RAG
-
-### 3.1 Multi-step agents (chain templates)
-- ตาราง `agent_workflows` (id, name, steps jsonb) — แต่ละ step: {template_id, input_mapping}
-- Output ของ step N → input ของ step N+1 (ผ่าน Jinja-like `{{step1.output}}`)
-- หน้า `/agents` — สร้าง/แก้ workflow, รัน
-- เริ่มจาก preset 2–3 ตัว: "สรุปประชุม → ร่างหนังสือเชิญครั้งถัดไป", "วิเคราะห์งบ → ร่างบันทึกเสนอ"
-
-### 3.2 Knowledge base / RAG
-- ตาราง `kb_documents` (id, title, source_url, file_path) + `kb_chunks` (id, doc_id, content, embedding vector(3072), metadata)
-- เปิด `pgvector`, สร้าง HNSW index
-- Server fn `ingestDocument`: parse (pdf/docx) → chunk 800 chars overlap 100 → embed (Lovable AI `google/gemini-embedding-001`) → insert
-- Server fn `searchKB`: embed query → cosine search top-5
-- Run page: toggle "อ้างอิงระเบียบ" → ดึง chunk ใส่ context พร้อม citation
-- หน้า `/admin/knowledge` — อัปโหลด/ลบเอกสาร
+## Phase 2 — Executive Dashboard
+ขยายจาก `/admin/usage` เป็น `/admin/dashboard` สำหรับผู้บริหาร:
+- ServerFn `executiveStats` (admin only): runs ตามแผนก (join `profiles.department`), top templates, แนวโน้มรายสัปดาห์/เดือน, อัตราการ approve/reject, จำนวนผู้ใช้ active
+- กราฟ: bar (runs by department), pie (template mix), line (trend 90 วัน)
+- ฟิลเตอร์ช่วงเวลา + export CSV
+- การ์ด KPI: total runs, total cost, avg cost/run, pending approvals
 
 ---
 
-## Phase 4 — Tier 4 (advanced): Voice + PWA
+## Phase 3 — Notification
 
-### 4.1 Voice input
-- ใช้ Web Speech API (`SpeechRecognition`) — th-TH
-- ปุ่มไมค์ในทุกช่อง textarea → แปลงเสียงเป็นข้อความ
-- Fallback: ปุ่ม "อัดไฟล์" → ส่งให้ Gemini audio model ถอดเสียง
+### 3.1 Email (ใช้ Lovable Cloud emails)
+- เปิด email infra → ส่งเมื่อ: มี approval รออนุมัติ (ส่งหา approver), approval ถูกตัดสิน (ส่งหา requester)
+- ServerFn `sendApprovalEmail` เรียกใน flow approval ปัจจุบัน
 
-### 4.2 Mobile PWA + Push notifications
-- `vite-plugin-pwa` — manifest, service worker, offline shell
-- Icons ทุกขนาด (สร้างด้วย imagegen)
-- Web Push (VAPID): ตาราง `push_subscriptions`
-- pg_cron / server fn: เมื่อมี approval request → push ถึง approver
-- หน้า Settings: enable/disable push, ทดสอบส่ง
+### 3.2 LINE Notify / LINE OA
+- LINE Notify ถูก deprecate มี.ค. 2025 → ใช้ LINE Messaging API (LINE OA)
+- ต้องการ secret: `LINE_CHANNEL_ACCESS_TOKEN`
+- ตาราง `line_bindings (user_id, line_user_id)` ให้ผู้ใช้ผูกบัญชีผ่าน LINE Login (เฟสนี้เริ่มแค่ broadcast group ก่อน — ผู้ดูแลกรอก group ID)
+- ServerFn `sendLineNotification(text)` push ไปยัง group ที่ตั้งค่าใน `app_settings`
+- ตั้งค่า: หน้า Settings → "การแจ้งเตือน LINE" (toggle + group ID)
 
 ---
 
-## ลำดับการทำ (แนะนำ)
+## Phase 4 — Backlog (รอยืนยัน)
+- RAG (อ้างอิงระเบียบราชการ), Multi-step agents, Voice input, PWA — จากแผนเดิม
 
-ทำทีละ phase, ส่งมอบ + ทดสอบ end-to-end ก่อนเริ่ม phase ถัดไป:
+---
 
-```text
-Phase 1 (Tier 2)  → 2 messages  [templates DB+admin, file upload+OCR]
-Phase 2 (Tier 3)  → 3 messages  [PII+injection, usage dashboard, retention+audit viewer]
-Phase 3 (Tier 4a) → 2 messages  [agents, RAG]
-Phase 4 (Tier 4b) → 2 messages  [voice, PWA+push]
+## รายละเอียดเทคนิค
+
+**Database migrations**
+```sql
+CREATE TABLE template_favorites (
+  id uuid PK, user_id uuid, template_id text,
+  created_at timestamptz, UNIQUE(user_id, template_id)
+);
+-- RLS: เจ้าของอ่าน/เขียนของตน
+
+CREATE TABLE line_bindings (id, user_id unique, line_user_id, created_at);
+CREATE TABLE app_settings (key text PK, value jsonb); -- เก็บ LINE group ID, email toggles
 ```
 
+**Packages**
+- `bun add jspdf html2canvas docx` (สำหรับ export)
+- ฟอนต์ Sarabun: ใช้ TTF จาก Google Fonts → embed base64 ใน jspdf
+
+**ไฟล์ใหม่/แก้**
+- `src/lib/export.ts` — `exportRunToPdf`, `exportRunToDocx`
+- `src/lib/favorites.functions.ts`
+- `src/lib/notifications.functions.ts` (email + line)
+- `src/lib/admin.functions.ts` — เพิ่ม `executiveStats`
+- `src/routes/_authenticated/admin/dashboard.tsx`
+- `src/routes/_authenticated/history/$runId.tsx` — เพิ่มปุ่ม Export
+- `src/components/template-card.tsx` — เพิ่ม favorite toggle
+- `src/routes/_authenticated/index.tsx` — section pinned
+- `src/lib/templates.ts` — เพิ่ม 2 เทมเพลต
+
+**Secrets ที่ต้องเพิ่ม (เฟส 3)**: `LINE_CHANNEL_ACCESS_TOKEN`
+
+---
+
 ## คำถามก่อนเริ่ม
-
-1. **เริ่มจาก Phase ไหน?** แนะนำ Phase 1 (Template versioning + File OCR) เพราะปลดล็อก admin workflow และเป็นฐานของ Phase 2–3
-2. **ขอบเขต admin**: ผู้ใช้ปัจจุบันคนไหนเป็น admin? (ต้อง assign `admin` role ใน `user_roles` ให้ก่อน)
-3. **Multi-tenant?** ตอนนี้ทุก user เห็น approval รวมกัน — ต้องการแยก workspace/department ไหม? (จะกระทบ schema design ใน Phase 2–3)
-
-ตอบมาแล้วจะลงมือทำ Phase ที่เลือกทันที
+1. เริ่ม Phase 1 ทั้งก้อน (Favorites + Export PDF/DOCX + 2 เทมเพลตใหม่) เลยใช่ไหม? หรืออยากเลือกเฉพาะส่วน?
+2. Export PDF: ต้องมีตราครุฑ + ชื่อหน่วยงานบนหัวกระดาษไหม? ถ้าใช่ ขอชื่อหน่วยงาน/โลโก้
+3. Notification เฟส 3: เริ่มที่ Email อย่างเดียว หรือทำ LINE OA ด้วย? (LINE ต้องมี Channel Access Token จาก LINE Developers Console)
