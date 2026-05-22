@@ -93,3 +93,27 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
+
+function AdminItem({
+  to, icon: Icon, labelTh, labelEn, pathname, collapsed, lang,
+}: {
+  to: "/admin/dashboard" | "/admin/usage" | "/admin/settings";
+  icon: typeof LayoutDashboard;
+  labelTh: string;
+  labelEn: string;
+  pathname: string;
+  collapsed: boolean;
+  lang: string;
+}) {
+  const label = lang === "th" ? labelTh : labelEn;
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton asChild isActive={pathname.startsWith(to)} tooltip={label}>
+        <Link to={to} className="flex items-center gap-2">
+          <Icon className="h-4 w-4" />
+          {!collapsed && <span className="truncate">{label}</span>}
+        </Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+}
