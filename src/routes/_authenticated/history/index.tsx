@@ -1,11 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { listHistory } from "@/lib/ai.functions";
+import { listHistory, getRun } from "@/lib/ai.functions";
 import { TEMPLATES_BY_ID } from "@/lib/templates";
 import { useI18n } from "@/lib/i18n";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MoreHorizontal, FileDown, FileText } from "lucide-react";
+import { exportRunToPdf, exportRunToDocx } from "@/lib/export";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/history/")({
   head: () => ({ meta: [{ title: "ประวัติการใช้งาน · TaskRath" }] }),
