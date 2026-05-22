@@ -6,8 +6,9 @@ import { TEMPLATES_BY_ID } from "@/lib/templates";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Copy } from "lucide-react";
+import { ArrowLeft, Copy, FileDown, FileText } from "lucide-react";
 import { toast } from "sonner";
+import { exportRunToPdf, exportRunToDocx } from "@/lib/export";
 
 export const Route = createFileRoute("/_authenticated/history/$runId")({
   head: () => ({ meta: [{ title: "รายละเอียดงาน · TaskRath" }] }),
@@ -63,11 +64,19 @@ function RunDetail() {
       </div>
 
       <div className="mt-4 rounded-lg border border-border bg-card p-5">
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3 flex items-center justify-between gap-2">
           <h2 className="text-sm font-semibold">{t("result")}</h2>
-          <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(run.output ?? ""); toast.success(t("copied")); }}>
-            <Copy className="mr-1.5 h-3.5 w-3.5" />{t("copy")}
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(run.output ?? ""); toast.success(t("copied")); }}>
+              <Copy className="mr-1.5 h-3.5 w-3.5" />{t("copy")}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => exportRunToPdf(run, tpl ? (lang === "th" ? tpl.titleTh : tpl.titleEn) : "Document")}>
+              <FileDown className="mr-1.5 h-3.5 w-3.5" />PDF
+            </Button>
+            <Button variant="ghost" size="sm" onClick={async () => { await exportRunToDocx(run, tpl ? (lang === "th" ? tpl.titleTh : tpl.titleEn) : "Document"); toast.success("DOCX"); }}>
+              <FileText className="mr-1.5 h-3.5 w-3.5" />DOCX
+            </Button>
+          </div>
         </div>
         <pre className="whitespace-pre-wrap text-sm text-foreground">{run.output}</pre>
       </div>

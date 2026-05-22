@@ -1,7 +1,7 @@
 import {
   FileAudio, Mail, Inbox, StickyNote, Calculator, FileText,
   FileSignature, Stamp, Megaphone, MessagesSquare, Languages,
-  SpellCheck, Scale, CalendarClock, type LucideIcon,
+  SpellCheck, Scale, CalendarClock, ShieldCheck, Tags, type LucideIcon,
 } from "lucide-react";
 
 export type TemplateCategory = "meeting" | "letter" | "analysis" | "legal" | "citizen";
@@ -225,6 +225,34 @@ export const TEMPLATES: Template[] = [
     fields: [
       { name: "topic", labelTh: "เรื่อง/หัวข้อประชุม", labelEn: "Meeting topic", type: "text", required: true },
       { name: "items", labelTh: "หัวข้อที่ต้องการบรรจุ", labelEn: "Items to include", type: "textarea" },
+    ],
+  },
+  {
+    id: "dopa-verify",
+    icon: ShieldCheck,
+    titleTh: "ตรวจสอบเอกสาร DOPA",
+    titleEn: "DOPA Document Verification",
+    descTh: "ตรวจความครบถ้วน/ผิดปกติของเอกสารทะเบียนราษฎร บัตรประชาชน หรือเอกสาร DOPA",
+    descEn: "Check completeness and anomalies of civil registry / ID / DOPA documents",
+    category: "legal",
+    systemPromptTh: "คุณเป็นเจ้าหน้าที่ตรวจสอบเอกสารกรมการปกครอง (DOPA) จงตรวจสอบเอกสารที่ได้รับ ระบุ: (1) ประเภทเอกสารที่ระบุได้, (2) ฟิลด์ที่ครบถ้วน, (3) ฟิลด์ที่ขาดหายหรือไม่ชัดเจน, (4) จุดน่าสงสัย/ผิดปกติ (เลข ปชช. ไม่ครบ 13 หลัก, รูปแบบวันที่ผิด, ลายเซ็น/ตราประทับขาด), (5) คำแนะนำการดำเนินการต่อ ใช้ภาษาทางการ",
+    fields: [
+      { name: "doc_type", labelTh: "ประเภทเอกสาร (เช่น ทร.14, บัตร ปชช., ทะเบียนบ้าน)", labelEn: "Document type", type: "text", required: true },
+      { name: "content", labelTh: "ข้อความเอกสาร (พิมพ์หรืออัปโหลดรูปเพื่อ OCR)", labelEn: "Document text", type: "textarea", required: true },
+    ],
+  },
+  {
+    id: "complaint-classify",
+    icon: Tags,
+    titleTh: "จำแนกข้อร้องเรียนประชาชน",
+    titleEn: "Citizen Complaint Triage",
+    descTh: "จำแนกประเภท ระดับความเร่งด่วน และหน่วยงานที่รับผิดชอบ พร้อมร่างคำตอบเบื้องต้น",
+    descEn: "Classify category, urgency, responsible agency, and draft initial reply",
+    category: "citizen",
+    systemPromptTh: "คุณเป็นเจ้าหน้าที่ศูนย์รับเรื่องร้องเรียน จงวิเคราะห์ข้อร้องเรียนแล้วตอบในรูปแบบ:\n1. ประเภทเรื่อง (เช่น สาธารณูปโภค, ทุจริต, บริการประชาชน, สิ่งแวดล้อม ฯลฯ)\n2. ระดับความเร่งด่วน (สูง/กลาง/ต่ำ) พร้อมเหตุผล\n3. หน่วยงานที่ควรรับผิดชอบหลัก/รอง\n4. ข้อมูลที่ขาดและควรขอเพิ่ม\n5. ร่างคำตอบเบื้องต้นแก่ผู้ร้องด้วยภาษาสุภาพ",
+    fields: [
+      { name: "complaint", labelTh: "ข้อร้องเรียน", labelEn: "Complaint", type: "textarea", required: true },
+      { name: "channel", labelTh: "ช่องทางที่รับเรื่อง (เช่น 1567, เว็บไซต์, เดินมา)", labelEn: "Channel", type: "text" },
     ],
   },
 ];

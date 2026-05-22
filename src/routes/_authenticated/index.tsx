@@ -1,12 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { dashboardStats } from "@/lib/ai.functions";
-import { TEMPLATES } from "@/lib/templates";
+import { listFavorites } from "@/lib/favorites.functions";
+import { TEMPLATES, TEMPLATES_BY_ID } from "@/lib/templates";
 import { TemplateCard } from "@/components/template-card";
 import { useI18n } from "@/lib/i18n";
-import { Sparkles, ListChecks, LibraryBig } from "lucide-react";
+import { Sparkles, ListChecks, LibraryBig, Star } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
@@ -23,7 +24,6 @@ export const Route = createFileRoute("/_authenticated/")({
 });
 
 function useGreeting(t: (k: "greetingMorning" | "greetingAfternoon" | "greetingEvening") => string) {
-  // Render a stable value on SSR + first client paint, then swap in time-based greeting after mount to avoid hydration mismatch.
   const [key, setKey] = useState<"greetingMorning" | "greetingAfternoon" | "greetingEvening">("greetingMorning");
   useEffect(() => {
     const h = new Date().getHours();
@@ -32,14 +32,21 @@ function useGreeting(t: (k: "greetingMorning" | "greetingAfternoon" | "greetingE
   return t(key);
 }
 
-
 function Dashboard() {
   const { t, lang } = useI18n();
   const greetingText = useGreeting(t);
 
   const { email } = Route.useRouteContext();
   const fetchStats = useServerFn(dashboardStats);
+  const fetchFavs = useServerFn(listFavorites);
   const { data } = useQuery({ queryKey: ["dashboardStats"], queryFn: () => fetchStats() });
+  const { data: favs } = useQuery({ queryKey: ["favorites"], queryFn: () => fetchFavs() });
+
+  const favoriteSet = useMemo(() => new Set(favs?.ids ?? []), [favs]);
+  const pinnedTemplates = useMemo(
+    () => (favs?.ids ?? []).map((id) => TEMPLATES_BY_ID[id]).filter(Boolean),
+    [favs],
+  );
 
   const name = email?.split("@")[0] ?? (lang === "th" ? "ผู้ใช้งาน" : "there");
 
@@ -59,6 +66,18 @@ function Dashboard() {
         <StatCard icon={<LibraryBig className="h-4 w-4" />} label={t("statTemplates")} value={TEMPLATES.length} />
       </div>
 
+      {pinnedTemplates.length > 0 && (
+        <section className="mt-10">
+          <div className="mb-4 flex items-center gap-2">
+            <Star className="h-4 w-4 text-amber-500" fill="currentColor" />
+            <h2 className="text-sm font-semibold text-foreground">{lang === "th" ? "ปักหมุดไว้" : "Pinned"}</h2>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {pinnedTemplates.map((tpl) => <TemplateCard key={tpl.id} template={tpl} pinned />)}
+          </div>
+        </section>
+      )}
+
       <section className="mt-10">
         <div className="mb-4 flex items-end justify-between">
           <div>
@@ -67,7 +86,7 @@ function Dashboard() {
           </div>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {TEMPLATES.map((tpl) => <TemplateCard key={tpl.id} template={tpl} />)}
+          {TEMPLATES.map((tpl) => <TemplateCard key={tpl.id} template={tpl} pinned={favoriteSet.has(tpl.id)} />)}
         </div>
       </section>
     </div>

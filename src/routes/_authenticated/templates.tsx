@@ -1,7 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { TEMPLATES, type TemplateCategory } from "@/lib/templates";
 import { TemplateCard } from "@/components/template-card";
+import { listFavorites } from "@/lib/favorites.functions";
 import { useI18n } from "@/lib/i18n";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
@@ -17,6 +20,9 @@ function TemplatesPage() {
   const { t, lang } = useI18n();
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<TemplateCategory | "all">("all");
+  const fetchFavs = useServerFn(listFavorites);
+  const { data: favs } = useQuery({ queryKey: ["favorites"], queryFn: () => fetchFavs() });
+  const favSet = useMemo(() => new Set(favs?.ids ?? []), [favs]);
 
   const filtered = useMemo(() => {
     return TEMPLATES.filter((tpl) => {
@@ -53,7 +59,7 @@ function TemplatesPage() {
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {filtered.map((tpl) => <TemplateCard key={tpl.id} template={tpl} />)}
+        {filtered.map((tpl) => <TemplateCard key={tpl.id} template={tpl} pinned={favSet.has(tpl.id)} />)}
       </div>
       {filtered.length === 0 && (
         <p className="mt-12 text-center text-sm text-muted-foreground">{t("empty")}</p>
