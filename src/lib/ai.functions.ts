@@ -214,6 +214,16 @@ export const runTemplate = createServerFn({ method: "POST" })
       usage,
     });
 
+    await logAudit(supabase, userId, "ai.run", data.templateId, {
+      run_id: run.id,
+      pii: piiSummary(piiCounts),
+      guard_score: guard.score,
+      guard_hits: guard.hits,
+      usage,
+    });
+
+    await notifyEvent(supabase, "complete", `✅ TaskRath: รัน "${data.templateId}" เสร็จสิ้น`);
+
     return { id: run.id, output, pii: piiSummary(piiCounts), guard: { score: guard.score, decision: guard.decision }, usage };
   });
 
