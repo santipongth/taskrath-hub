@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { redactPII, restorePII, piiSummary } from "@/lib/pii";
+import { checkPromptInjection } from "@/lib/prompt-guard";
 
 const TEMPLATE_PROMPTS: Record<string, string> = {
   "meeting-summary": "คุณเป็นเลขานุการที่ปรึกษาด้านการประชุมราชการ จงสรุปการประชุมในรูปแบบทางการ มีหัวข้อ: วาระ, ประเด็นสำคัญ, มติที่ประชุม, และผู้รับผิดชอบ",
@@ -23,7 +25,6 @@ async function callAI(systemPrompt: string, userPrompt: string): Promise<string>
   const key = process.env.LOVABLE_API_KEY;
   if (!key) throw new Error("AI service not configured");
 
-  // HiClaw integration: when HICLAW_API_URL is set, route there instead.
   const hiclawUrl = process.env.HICLAW_API_URL;
   const hiclawKey = process.env.HICLAW_API_KEY;
   if (hiclawUrl && hiclawKey) {
@@ -43,13 +44,9 @@ async function callAI(systemPrompt: string, userPrompt: string): Promise<string>
     return json.choices?.[0]?.message?.content ?? "";
   }
 
-  // Fallback: Lovable AI Gateway (Gemini)
   const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${key}`,
-    },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
     body: JSON.stringify({
       model: "google/gemini-2.5-flash",
       messages: [
@@ -65,6 +62,17 @@ async function callAI(systemPrompt: string, userPrompt: string): Promise<string>
   return json.choices?.[0]?.message?.content ?? "";
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function logAudit(
+  supabase: any,
+  userId: string,
+  action: string,
+  resource: string | null,
+  metadata: Record<string, unknown>,
+) {
+  await supabase.from("audit_logs").insert({ user_id: userId, action, resource, metadata });
+}
+
 export const runTemplate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
@@ -73,17 +81,44 @@ export const runTemplate = createServerFn({ method: "POST" })
         templateId: z.string().min(1).max(64),
         inputs: z.record(z.string(), z.string().max(20000)),
         title: z.string().max(200).optional(),
+        redactPii: z.boolean().optional().default(true),
       })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const systemPrompt = TEMPLATE_PROMPTS[data.templateId] ?? "คุณเป็นผู้ช่วยที่เชี่ยวชาญงานราชการไทย";
-    const userPrompt = Object.entries(data.inputs)
+    const rawUserPrompt = Object.entries(data.inputs)
       .map(([k, v]) => `${k}:\n${v}`)
       .join("\n\n");
 
-    const output = await callAI(systemPrompt, userPrompt);
+    // Prompt injection guard
+    const guard = checkPromptInjection(rawUserPrompt);
+    if (guard.decision === "block") {
+      await logAudit(supabase, userId, "ai.blocked", data.templateId, { reason: "injection", hits: guard.hits, score: guard.score });
+      throw new Error("พบรูปแบบคำสั่งที่อาจเป็น prompt injection — ปฏิเสธการประมวลผล");
+    }
+
+    // PII redaction
+    let userPromptForAI = rawUserPrompt;
+    let piiMap: Record<string, string> = {};
+    let piiCounts: Record<string, number> = {};
+    if (data.redactPii) {
+      const r = redactPII(rawUserPrompt);
+      userPromptForAI = r.text;
+      piiMap = r.map;
+      piiCounts = r.counts;
+    }
+
+    let aiOutput: string;
+    try {
+      aiOutput = await callAI(systemPrompt, userPromptForAI);
+    } catch (e) {
+      await logAudit(supabase, userId, "ai.error", data.templateId, { error: e instanceof Error ? e.message : "unknown" });
+      throw e;
+    }
+
+    const output = data.redactPii ? restorePII(aiOutput, piiMap) : aiOutput;
 
     const { data: run, error } = await supabase
       .from("ai_runs")
@@ -99,20 +134,34 @@ export const runTemplate = createServerFn({ method: "POST" })
       .single();
     if (error) throw new Error(error.message);
 
-    return { id: run.id, output };
+    await logAudit(supabase, userId, "ai.run", data.templateId, {
+      run_id: run.id,
+      pii: piiSummary(piiCounts),
+      guard_score: guard.score,
+      guard_hits: guard.hits,
+    });
+
+    return { id: run.id, output, pii: piiSummary(piiCounts), guard: { score: guard.score, decision: guard.decision } };
   });
 
 export const runFreeform = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({ prompt: z.string().min(1).max(20000) }).parse(input),
+    z.object({ prompt: z.string().min(1).max(20000), redactPii: z.boolean().optional().default(true) }).parse(input),
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const output = await callAI(
+    const guard = checkPromptInjection(data.prompt);
+    if (guard.decision === "block") {
+      await logAudit(supabase, userId, "ai.blocked", null, { reason: "injection", hits: guard.hits, score: guard.score });
+      throw new Error("พบรูปแบบคำสั่งที่อาจเป็น prompt injection — ปฏิเสธการประมวลผล");
+    }
+    const r = data.redactPii ? redactPII(data.prompt) : { text: data.prompt, map: {}, counts: {} };
+    const aiOutput = await callAI(
       "คุณเป็นผู้ช่วย AI สำหรับเจ้าหน้าที่ราชการไทย ตอบอย่างกระชับ สุภาพ และใช้ภาษาทางการ",
-      data.prompt,
+      r.text,
     );
+    const output = data.redactPii ? restorePII(aiOutput, r.map) : aiOutput;
     const { data: run, error } = await supabase
       .from("ai_runs")
       .insert({
@@ -125,7 +174,55 @@ export const runFreeform = createServerFn({ method: "POST" })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
-    return { id: run.id, output };
+    await logAudit(supabase, userId, "ai.run", null, { run_id: run.id, pii: piiSummary(r.counts), guard_score: guard.score });
+    return { id: run.id, output, pii: piiSummary(r.counts), guard: { score: guard.score, decision: guard.decision } };
+  });
+
+// OCR via Gemini Vision (multimodal). Accepts base64-encoded image data URL.
+export const extractTextFromImage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        // data URL: "data:image/png;base64,..."
+        dataUrl: z.string().min(20).max(20_000_000),
+        hint: z.string().max(500).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const key = process.env.LOVABLE_API_KEY;
+    if (!key) throw new Error("AI service not configured");
+
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          {
+            role: "system",
+            content:
+              "คุณเป็นระบบ OCR สำหรับเอกสารราชการไทย จงถอดข้อความจากภาพให้ครบถ้วน คงรูปแบบย่อหน้า เลขข้อ ตาราง และหัวหนังสือ คืนเฉพาะข้อความ ไม่ต้องอธิบาย",
+          },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: data.hint ?? "ถอดข้อความจากภาพหนังสือราชการนี้" },
+              { type: "image_url", image_url: { url: data.dataUrl } },
+            ],
+          },
+        ],
+      }),
+    });
+    if (res.status === 429) throw new Error("Rate limit exceeded. Please try again shortly.");
+    if (res.status === 402) throw new Error("AI credits exhausted.");
+    if (!res.ok) throw new Error(`OCR error ${res.status}`);
+    const json = await res.json();
+    const text: string = json.choices?.[0]?.message?.content ?? "";
+    await logAudit(supabase, userId, "ocr.extract", null, { chars: text.length });
+    return { text };
   });
 
 export const listHistory = createServerFn({ method: "GET" })
@@ -174,6 +271,7 @@ export const requestApproval = createServerFn({ method: "POST" })
       note: data.note ?? null,
     });
     if (e2) throw new Error(e2.message);
+    await logAudit(supabase, userId, "approval.request", data.runId, { note: data.note ?? null });
     return { ok: true };
   });
 
@@ -213,6 +311,7 @@ export const decideApproval = createServerFn({ method: "POST" })
       })
       .eq("id", data.approvalId);
     if (error) throw new Error(error.message);
+    await logAudit(supabase, userId, `approval.${data.decision}`, data.approvalId, { note: data.note ?? null });
     return { ok: true };
   });
 
@@ -226,4 +325,17 @@ export const dashboardStats = createServerFn({ method: "GET" })
       supabase.from("approvals").select("id", { count: "exact", head: true }).eq("status", "pending"),
     ]);
     return { runsThisWeek: runs.count ?? 0, pendingApprovals: pending.count ?? 0 };
+  });
+
+export const listAuditLogs = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase } = context;
+    const { data, error } = await supabase
+      .from("audit_logs")
+      .select("id, user_id, action, resource, metadata, created_at")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) throw new Error(error.message);
+    return { logs: data ?? [] };
   });
