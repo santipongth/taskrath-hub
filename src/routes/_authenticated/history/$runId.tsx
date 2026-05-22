@@ -6,8 +6,9 @@ import { TEMPLATES_BY_ID } from "@/lib/templates";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Copy } from "lucide-react";
+import { ArrowLeft, Copy, FileDown, FileText } from "lucide-react";
 import { toast } from "sonner";
+import { exportRunToPdf, exportRunToDocx } from "@/lib/export";
 
 export const Route = createFileRoute("/_authenticated/history/$runId")({
   head: () => ({ meta: [{ title: "รายละเอียดงาน · TaskRath" }] }),
