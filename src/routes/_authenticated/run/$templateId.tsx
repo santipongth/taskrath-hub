@@ -94,17 +94,34 @@ function TemplateRunPage() {
     setOutput("");
     setRunId(null);
     setPiiInfo("");
+    setEditingOutput(false);
     try {
       const res = await run({ data: { templateId, inputs } });
       setOutput(res.output);
       setRunId(res.id);
       setPiiInfo(res.pii ?? "");
+      // Clear the autosaved draft after successful run
+      localStorage.removeItem(draftKey);
+      setHasDraft(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error");
     } finally {
       setLoading(false);
     }
   };
+
+  // Keyboard shortcut: ⌘/Ctrl + Enter to run
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && !loading) {
+        e.preventDefault();
+        onRun();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inputs, loading]);
 
   const onRequestApproval = async () => {
     if (!runId) return;
