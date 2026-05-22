@@ -5,6 +5,7 @@ import {
   Footer,
 } from "docx";
 import type { AgencySettings } from "@/lib/admin.functions";
+import { ensureSarabun } from "@/lib/pdf-fonts";
 
 type RunLike = {
   id: string;
@@ -204,40 +205,90 @@ function sanitize(s: string) {
 }
 
 /**
- * PDF export uses jsPDF default fonts (Helvetica) which do not support Thai
- * glyphs. Use DOCX export for Thai government documents. To enable full Thai
- * PDF support, request font embedding (Sarabun TTF) — will add ~300KB.
+ * PDF export with embedded Sarabun font for full Thai support.
+ * Loads ~180KB of TTF data lazily on first export.
  */
-export function exportRunToPdf(run: RunLike, templateTitle: string) {
+export async function exportRunToPdf(
+  run: RunLike,
+  templateTitle: string,
+  agency?: AgencySettings | null,
+) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
+  await ensureSarabun(doc);
+
   const margin = 56;
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   const usable = pageWidth - margin * 2;
   let y = margin;
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.text(templateTitle, margin, y);
-  y += 22;
+  if (agency?.name) {
+    doc.setFont("Sarabun", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(20);
+    doc.text(agency.name, margin, y);
+    y += 18;
+    if (agency.address) {
+      doc.setFont("Sarabun", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(90);
+      const addrLines = doc.splitTextToSize(agency.address, usable) as string[];
+      for (const l of addrLines) { doc.text(l, margin, y); y += 12; }
+    }
+  }
 
-  doc.setFont("helvetica", "normal");
+  const refNo = `ที่ ${run.template_id ?? "อว"}/${run.id.slice(0, 6).toUpperCase()}`;
+  const date = thaiDate(run.created_at);
+  doc.setFont("Sarabun", "normal");
   doc.setFontSize(10);
-  doc.setTextColor(100);
-  doc.text(formatDate(run.created_at), margin, y);
-  y += 18;
+  doc.setTextColor(60);
+  doc.text(refNo, pageWidth - margin, margin, { align: "right" });
+  doc.text(date, pageWidth - margin, margin + 14, { align: "right" });
+
+  y = Math.max(y, margin + 40);
   doc.setDrawColor(200);
   doc.line(margin, y, pageWidth - margin, y);
   y += 16;
 
+  const subject = run.title?.trim() || templateTitle;
+  doc.setFont("Sarabun", "bold");
+  doc.setFontSize(13);
   doc.setTextColor(20);
-  doc.setFontSize(11);
-  const lines = doc.splitTextToSize(run.output ?? "", usable);
-  const pageHeight = doc.internal.pageSize.getHeight();
-  for (const line of lines as string[]) {
-    if (y > pageHeight - margin) { doc.addPage(); y = margin; }
-    doc.text(line, margin, y);
-    y += 16;
+  const titleLines = doc.splitTextToSize(`เรื่อง  ${subject}`, usable) as string[];
+  for (const l of titleLines) { doc.text(l, margin, y); y += 18; }
+  y += 6;
+
+  doc.setFont("Sarabun", "normal");
+  doc.setFontSize(12);
+  doc.setTextColor(30);
+  const text = run.output ?? "";
+  for (const para of text.split(/\n{2,}/)) {
+    if (!para.trim()) continue;
+    const lines = doc.splitTextToSize(para, usable) as string[];
+    for (const line of lines) {
+      if (y > pageHeight - margin - 40) { doc.addPage(); y = margin; }
+      doc.text(line, margin, y);
+      y += 16;
+    }
+    y += 8;
   }
 
-  doc.save(`${sanitize(templateTitle)}-${run.id.slice(0, 8)}.pdf`);
+  if (agency?.signerName || agency?.signerPosition) {
+    if (y > pageHeight - margin - 80) { doc.addPage(); y = margin; }
+    y += 24;
+    doc.setFont("Sarabun", "normal");
+    doc.text("ขอแสดงความนับถือ", pageWidth / 2, y, { align: "center" });
+    y += 36;
+    if (agency.signerName) {
+      doc.setFont("Sarabun", "bold");
+      doc.text(agency.signerName, pageWidth / 2, y, { align: "center" });
+      y += 16;
+    }
+    if (agency.signerPosition) {
+      doc.setFont("Sarabun", "normal");
+      doc.text(agency.signerPosition, pageWidth / 2, y, { align: "center" });
+    }
+  }
+
+  doc.save(`${sanitize(subject)}-${run.id.slice(0, 8)}.pdf`);
 }
