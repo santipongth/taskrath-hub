@@ -294,6 +294,17 @@ function TemplateRunPage() {
           ) : (
             <pre className="whitespace-pre-wrap text-sm text-foreground">{output}</pre>
           )}
+          {runId && (
+            <RefineBar
+              runId={runId}
+              revisions={revisions}
+              onUpdated={(newOutput, newRevisions) => {
+                setOutput(newOutput);
+                setRevisions(newRevisions);
+                setEditingOutput(false);
+              }}
+            />
+          )}
         </div>
       )}
     </div>
