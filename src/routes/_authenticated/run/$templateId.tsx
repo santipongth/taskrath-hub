@@ -11,6 +11,9 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Copy, CheckCircle2, ImagePlus, ShieldCheck, RotateCcw, Pencil } from "lucide-react";
 import { toast } from "sonner";
+import { RefineBar } from "@/components/refine-bar";
+
+type Revision = { output: string; instruction: string; preset?: string; at: string };
 
 export const Route = createFileRoute("/_authenticated/run/$templateId")({
   head: ({ params }) => {
