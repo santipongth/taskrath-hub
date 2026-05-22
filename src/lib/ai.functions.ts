@@ -4,6 +4,48 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { redactPII, restorePII, piiSummary } from "@/lib/pii";
 import { checkPromptInjection } from "@/lib/prompt-guard";
 
+type NotifSettings = {
+  lineEnabled: boolean;
+  lineTargetId: string;
+  lineBroadcast: boolean;
+  notifyOnApproval: boolean;
+  notifyOnComplete: boolean;
+};
+
+async function notifyEvent(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  event: "complete" | "approval",
+  text: string,
+) {
+  try {
+    const { data } = await supabase
+      .from("app_settings")
+      .select("value")
+      .eq("key", "notifications")
+      .maybeSingle();
+    const cfg = (data?.value as NotifSettings | null) ?? null;
+    if (!cfg || !cfg.lineEnabled) return;
+    if (event === "complete" && !cfg.notifyOnComplete) return;
+    if (event === "approval" && !cfg.notifyOnApproval) return;
+    const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+    if (!token) return;
+    const messages = [{ type: "text", text: text.slice(0, 4900) }];
+    const url = cfg.lineBroadcast
+      ? "https://api.line.me/v2/bot/message/broadcast"
+      : "https://api.line.me/v2/bot/message/push";
+    const payload = cfg.lineBroadcast ? { messages } : cfg.lineTargetId ? { to: cfg.lineTargetId, messages } : null;
+    if (!payload) return;
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    /* notification failure must never block the calling flow */
+  }
+}
+
 const TEMPLATE_PROMPTS: Record<string, string> = {
   "meeting-summary": "คุณเป็นเลขานุการที่ปรึกษาด้านการประชุมราชการ จงสรุปการประชุมในรูปแบบทางการ มีหัวข้อ: วาระ, ประเด็นสำคัญ, มติที่ประชุม, และผู้รับผิดชอบ",
   "external-letter": "คุณเป็นเจ้าหน้าที่สารบรรณราชการ จงร่างหนังสือภายนอกตามระเบียบสำนักนายกรัฐมนตรีว่าด้วยงานสารบรรณ พ.ศ. 2526 ใช้ภาษาทางการ",
