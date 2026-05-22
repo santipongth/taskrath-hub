@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { runTemplate, requestApproval, extractTextFromImage } from "@/lib/ai.functions";
 import { TEMPLATES_BY_ID } from "@/lib/templates";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Copy, CheckCircle2, ImagePlus, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Copy, CheckCircle2, ImagePlus, ShieldCheck, RotateCcw, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/run/$templateId")({
@@ -41,11 +41,51 @@ function TemplateRunPage() {
   const ocr = useServerFn(extractTextFromImage);
   const [inputs, setInputs] = useState<Record<string, string>>({});
   const [output, setOutput] = useState("");
+  const [editingOutput, setEditingOutput] = useState(false);
   const [runId, setRunId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [piiInfo, setPiiInfo] = useState<string>("");
   const [ocrLoading, setOcrLoading] = useState<string | null>(null);
+  const [hasDraft, setHasDraft] = useState(false);
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  const draftKey = `taskrath:draft:${templateId}`;
+
+  // Detect existing draft on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Record<string, string>;
+        if (Object.values(parsed).some((v) => v && v.trim())) setHasDraft(true);
+      }
+    } catch { /* ignore */ }
+  }, [draftKey]);
+
+  // Autosave on inputs change (debounced)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try {
+        const hasAny = Object.values(inputs).some((v) => v && v.trim());
+        if (hasAny) localStorage.setItem(draftKey, JSON.stringify(inputs));
+      } catch { /* ignore */ }
+    }, 500);
+    return () => clearTimeout(t);
+  }, [inputs, draftKey]);
+
+  const restoreDraft = () => {
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (raw) setInputs(JSON.parse(raw));
+      setHasDraft(false);
+      toast.success(lang === "th" ? "กู้คืนฉบับร่างแล้ว" : "Draft restored");
+    } catch { /* ignore */ }
+  };
+
+  const dismissDraft = () => {
+    localStorage.removeItem(draftKey);
+    setHasDraft(false);
+  };
 
   const Icon = tpl.icon;
 
@@ -54,17 +94,34 @@ function TemplateRunPage() {
     setOutput("");
     setRunId(null);
     setPiiInfo("");
+    setEditingOutput(false);
     try {
       const res = await run({ data: { templateId, inputs } });
       setOutput(res.output);
       setRunId(res.id);
       setPiiInfo(res.pii ?? "");
+      // Clear the autosaved draft after successful run
+      localStorage.removeItem(draftKey);
+      setHasDraft(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error");
     } finally {
       setLoading(false);
     }
   };
+
+  // Keyboard shortcut: ⌘/Ctrl + Enter to run
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && !loading) {
+        e.preventDefault();
+        onRun();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inputs, loading]);
 
   const onRequestApproval = async () => {
     if (!runId) return;
@@ -112,6 +169,23 @@ function TemplateRunPage() {
           <p className="mt-0.5 text-sm text-muted-foreground">{lang === "th" ? tpl.descTh : tpl.descEn}</p>
         </div>
       </div>
+
+      {hasDraft && (
+        <div className="mb-4 flex items-center justify-between rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-sm">
+          <span className="inline-flex items-center gap-2 text-amber-700 dark:text-amber-300">
+            <RotateCcw className="h-4 w-4" />
+            {lang === "th" ? "พบฉบับร่างที่ยังไม่ได้บันทึก" : "Unsaved draft found"}
+          </span>
+          <div className="flex gap-2">
+            <Button size="sm" variant="ghost" onClick={dismissDraft}>
+              {lang === "th" ? "ยกเลิก" : "Dismiss"}
+            </Button>
+            <Button size="sm" variant="outline" onClick={restoreDraft}>
+              {lang === "th" ? "กู้คืน" : "Restore"}
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-4 rounded-lg border border-border bg-card p-5">
         {tpl.fields.map((f) => (
@@ -170,7 +244,12 @@ function TemplateRunPage() {
             <ShieldCheck className="h-3 w-3" />
             {lang === "th" ? "PII จะถูกปกปิดก่อนส่ง AI" : "PII redacted before sending to AI"}
           </span>
-          <Button onClick={onRun} disabled={loading}>{loading ? t("running") : t("run")}</Button>
+          <div className="flex items-center gap-2">
+            <kbd className="hidden rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground sm:inline-block">
+              ⌘↵
+            </kbd>
+            <Button onClick={onRun} disabled={loading}>{loading ? t("running") : t("run")}</Button>
+          </div>
         </div>
       </div>
 
@@ -182,6 +261,16 @@ function TemplateRunPage() {
               {piiInfo && <Badge variant="secondary" className="text-[10px]">{t("piiRedacted")}: {piiInfo}</Badge>}
             </div>
             <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setEditingOutput((v) => !v)}
+              >
+                <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                {editingOutput
+                  ? (lang === "th" ? "เสร็จสิ้น" : "Done")
+                  : (lang === "th" ? "แก้ไข" : "Edit")}
+              </Button>
               <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(output); toast.success(t("copied")); }}>
                 <Copy className="mr-1.5 h-3.5 w-3.5" />{t("copy")}
               </Button>
@@ -190,7 +279,16 @@ function TemplateRunPage() {
               </Button>
             </div>
           </div>
-          <pre className="whitespace-pre-wrap text-sm text-foreground">{output}</pre>
+          {editingOutput ? (
+            <Textarea
+              value={output}
+              onChange={(e) => setOutput(e.target.value)}
+              rows={Math.max(10, output.split("\n").length + 2)}
+              className="resize-none font-sans text-sm leading-relaxed"
+            />
+          ) : (
+            <pre className="whitespace-pre-wrap text-sm text-foreground">{output}</pre>
+          )}
         </div>
       )}
     </div>
