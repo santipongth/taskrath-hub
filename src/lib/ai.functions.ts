@@ -21,7 +21,21 @@ const TEMPLATE_PROMPTS: Record<string, string> = {
   "agenda": "จงร่างวาระการประชุมตามรูปแบบราชการไทย: วาระที่ 1 เรื่องประธานแจ้ง, วาระที่ 2 รับรองรายงานการประชุม, วาระที่ 3 เรื่องสืบเนื่อง, วาระที่ 4 เรื่องเพื่อพิจารณา, วาระที่ 5 เรื่องอื่น ๆ",
 };
 
-async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
+export type AIUsage = { promptTokens: number; completionTokens: number; costUsd: number };
+
+// Approximate pricing (USD) per 1M tokens for google/gemini-2.5-flash.
+// Refs: https://ai.google.dev/pricing (≈ $0.30 input, $2.50 output per 1M tokens).
+const PRICE_IN_PER_MTOK = 0.3;
+const PRICE_OUT_PER_MTOK = 2.5;
+
+function computeCost(promptTokens: number, completionTokens: number) {
+  return (promptTokens / 1_000_000) * PRICE_IN_PER_MTOK + (completionTokens / 1_000_000) * PRICE_OUT_PER_MTOK;
+}
+
+async function callAI(
+  systemPrompt: string,
+  userPrompt: string,
+): Promise<{ text: string; usage: AIUsage }> {
   const key = process.env.LOVABLE_API_KEY;
   if (!key) throw new Error("AI service not configured");
 
@@ -41,7 +55,12 @@ async function callAI(systemPrompt: string, userPrompt: string): Promise<string>
     });
     if (!res.ok) throw new Error(`HiClaw error ${res.status}`);
     const json = await res.json();
-    return json.choices?.[0]?.message?.content ?? "";
+    const pt = json.usage?.prompt_tokens ?? 0;
+    const ct = json.usage?.completion_tokens ?? 0;
+    return {
+      text: json.choices?.[0]?.message?.content ?? "",
+      usage: { promptTokens: pt, completionTokens: ct, costUsd: 0 },
+    };
   }
 
   const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -59,7 +78,12 @@ async function callAI(systemPrompt: string, userPrompt: string): Promise<string>
   if (res.status === 402) throw new Error("AI credits exhausted. Please add credits in workspace settings.");
   if (!res.ok) throw new Error(`AI error ${res.status}`);
   const json = await res.json();
-  return json.choices?.[0]?.message?.content ?? "";
+  const pt = json.usage?.prompt_tokens ?? 0;
+  const ct = json.usage?.completion_tokens ?? 0;
+  return {
+    text: json.choices?.[0]?.message?.content ?? "",
+    usage: { promptTokens: pt, completionTokens: ct, costUsd: computeCost(pt, ct) },
+  };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
