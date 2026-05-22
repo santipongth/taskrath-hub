@@ -98,6 +98,7 @@ function TemplateRunPage() {
     setOutput("");
     setRunId(null);
     setPiiInfo("");
+    setRevisions([]);
     setEditingOutput(false);
     try {
       const res = await run({ data: { templateId, inputs } });
