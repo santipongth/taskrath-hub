@@ -9,7 +9,16 @@ import { useI18n } from "@/lib/i18n";
 import { Sparkles, ListChecks, LibraryBig } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/")({
-  head: () => ({ meta: [{ title: "หน้าหลัก · TaskRath" }] }),
+  head: () => ({
+    meta: [
+      { title: "หน้าหลัก · TaskRath" },
+      { name: "description", content: "หน้าหลัก TaskRath — เลือกเทมเพลต AI สำหรับร่างหนังสือราชการ สรุปการประชุม ตอบประชาชน และวิเคราะห์งบประมาณ สำหรับเจ้าหน้าที่ภาครัฐไทย" },
+      { property: "og:title", content: "หน้าหลัก · TaskRath" },
+      { property: "og:description", content: "เลือกเทมเพลต AI สำหรับงานราชการของเจ้าหน้าที่ภาครัฐไทย" },
+      { property: "og:url", content: "https://taskrath-hub.lovable.app/" },
+    ],
+    links: [{ rel: "canonical", href: "https://taskrath-hub.lovable.app/" }],
+  }),
   component: Dashboard,
 });
 
