@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listHistory, getRun } from "@/lib/ai.functions";
+import { getAgencySettings } from "@/lib/admin.functions";
 import { TEMPLATES_BY_ID } from "@/lib/templates";
 import { useI18n } from "@/lib/i18n";
 import { Badge } from "@/components/ui/badge";
@@ -23,13 +24,15 @@ function HistoryPage() {
   const { t, lang } = useI18n();
   const fetchHistory = useServerFn(listHistory);
   const fetchRun = useServerFn(getRun);
+  const fetchAgency = useServerFn(getAgencySettings);
   const { data, isLoading } = useQuery({ queryKey: ["history"], queryFn: () => fetchHistory() });
+  const { data: agency } = useQuery({ queryKey: ["agency"], queryFn: () => fetchAgency() });
 
   async function handleExport(runId: string, title: string, kind: "pdf" | "docx") {
     const res = await fetchRun({ data: { id: runId } });
     if (!res?.run) return;
     if (kind === "pdf") exportRunToPdf(res.run, title);
-    else { await exportRunToDocx(res.run, title); toast.success("DOCX"); }
+    else { await exportRunToDocx(res.run, title, agency ?? null); toast.success("DOCX"); }
   }
 
   return (
