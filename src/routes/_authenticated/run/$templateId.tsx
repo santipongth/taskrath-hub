@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { runTemplate, requestApproval, extractTextFromImage } from "@/lib/ai.functions";
 import { TEMPLATES_BY_ID } from "@/lib/templates";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Copy, CheckCircle2, ImagePlus, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Copy, CheckCircle2, ImagePlus, ShieldCheck, RotateCcw, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/run/$templateId")({
@@ -41,11 +41,51 @@ function TemplateRunPage() {
   const ocr = useServerFn(extractTextFromImage);
   const [inputs, setInputs] = useState<Record<string, string>>({});
   const [output, setOutput] = useState("");
+  const [editingOutput, setEditingOutput] = useState(false);
   const [runId, setRunId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [piiInfo, setPiiInfo] = useState<string>("");
   const [ocrLoading, setOcrLoading] = useState<string | null>(null);
+  const [hasDraft, setHasDraft] = useState(false);
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  const draftKey = `taskrath:draft:${templateId}`;
+
+  // Detect existing draft on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Record<string, string>;
+        if (Object.values(parsed).some((v) => v && v.trim())) setHasDraft(true);
+      }
+    } catch { /* ignore */ }
+  }, [draftKey]);
+
+  // Autosave on inputs change (debounced)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try {
+        const hasAny = Object.values(inputs).some((v) => v && v.trim());
+        if (hasAny) localStorage.setItem(draftKey, JSON.stringify(inputs));
+      } catch { /* ignore */ }
+    }, 500);
+    return () => clearTimeout(t);
+  }, [inputs, draftKey]);
+
+  const restoreDraft = () => {
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (raw) setInputs(JSON.parse(raw));
+      setHasDraft(false);
+      toast.success(lang === "th" ? "กู้คืนฉบับร่างแล้ว" : "Draft restored");
+    } catch { /* ignore */ }
+  };
+
+  const dismissDraft = () => {
+    localStorage.removeItem(draftKey);
+    setHasDraft(false);
+  };
 
   const Icon = tpl.icon;
 
