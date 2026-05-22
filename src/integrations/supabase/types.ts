@@ -16,33 +16,42 @@ export type Database = {
     Tables: {
       ai_runs: {
         Row: {
+          completion_tokens: number
+          cost_usd: number
           created_at: string
           id: string
           input: Json
           needs_approval: boolean
           output: string | null
+          prompt_tokens: number
           status: string
           template_id: string | null
           title: string | null
           user_id: string
         }
         Insert: {
+          completion_tokens?: number
+          cost_usd?: number
           created_at?: string
           id?: string
           input?: Json
           needs_approval?: boolean
           output?: string | null
+          prompt_tokens?: number
           status?: string
           template_id?: string | null
           title?: string | null
           user_id: string
         }
         Update: {
+          completion_tokens?: number
+          cost_usd?: number
           created_at?: string
           id?: string
           input?: Json
           needs_approval?: boolean
           output?: string | null
+          prompt_tokens?: number
           status?: string
           template_id?: string | null
           title?: string | null
