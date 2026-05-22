@@ -50,6 +50,7 @@ function TemplateRunPage() {
   const [piiInfo, setPiiInfo] = useState<string>("");
   const [ocrLoading, setOcrLoading] = useState<string | null>(null);
   const [hasDraft, setHasDraft] = useState(false);
+  const [revisions, setRevisions] = useState<Revision[]>([]);
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const draftKey = `taskrath:draft:${templateId}`;
