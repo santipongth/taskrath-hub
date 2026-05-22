@@ -391,7 +391,7 @@ export const revertRun = createServerFn({ method: "POST" })
     if (e1) throw new Error(e1.message);
 
     await logAudit(supabase, userId, "ai.revert", data.runId, { index: data.index });
-    return { output: target.output, revisionCount: newRevisions.length };
+    return { output: target.output, revisions: newRevisions };
   });
 
 export const requestApproval = createServerFn({ method: "POST" })
