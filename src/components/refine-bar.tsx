@@ -66,7 +66,7 @@ export function RefineBar({ runId, revisions, onUpdated }: Props) {
     setLoading(`rev-${index}`);
     try {
       const res = await revert({ data: { runId, index } });
-      onUpdated(res.output, revisions);
+      onUpdated(res.output, res.revisions as Revision[]);
       toast.success(lang === "th" ? "กู้คืนเวอร์ชันแล้ว" : "Reverted");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error");
