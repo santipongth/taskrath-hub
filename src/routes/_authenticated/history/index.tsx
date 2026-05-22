@@ -31,7 +31,7 @@ function HistoryPage() {
   async function handleExport(runId: string, title: string, kind: "pdf" | "docx") {
     const res = await fetchRun({ data: { id: runId } });
     if (!res?.run) return;
-    if (kind === "pdf") exportRunToPdf(res.run, title);
+    if (kind === "pdf") { await exportRunToPdf(res.run, title, agency ?? null); toast.success("PDF"); }
     else { await exportRunToDocx(res.run, title, agency ?? null); toast.success("DOCX"); }
   }
 

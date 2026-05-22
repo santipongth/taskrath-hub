@@ -73,7 +73,7 @@ function RunDetail() {
             <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(run.output ?? ""); toast.success(t("copied")); }}>
               <Copy className="mr-1.5 h-3.5 w-3.5" />{t("copy")}
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => exportRunToPdf(run, tpl ? (lang === "th" ? tpl.titleTh : tpl.titleEn) : "Document")}>
+            <Button variant="ghost" size="sm" onClick={async () => { await exportRunToPdf(run, tpl ? (lang === "th" ? tpl.titleTh : tpl.titleEn) : "Document", agency ?? null); toast.success("PDF"); }}>
               <FileDown className="mr-1.5 h-3.5 w-3.5" />PDF
             </Button>
             <Button variant="ghost" size="sm" onClick={async () => { await exportRunToDocx(run, tpl ? (lang === "th" ? tpl.titleTh : tpl.titleEn) : "Document", agency ?? null); toast.success("DOCX"); }}>
