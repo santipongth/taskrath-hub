@@ -1,15 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { useState, useEffect } from "react";
 import { getRun } from "@/lib/ai.functions";
 import { getAgencySettings } from "@/lib/admin.functions";
 import { TEMPLATES_BY_ID } from "@/lib/templates";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Copy, FileDown, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { exportRunToPdf, exportRunToDocx } from "@/lib/export";
+import { RefineBar } from "@/components/refine-bar";
+
+type Revision = { output: string; instruction: string; preset?: string; at: string };
 
 export const Route = createFileRoute("/_authenticated/history/$runId")({
   head: () => ({ meta: [{ title: "รายละเอียดงาน · TaskRath" }] }),
