@@ -188,11 +188,11 @@ export const runFreeform = createServerFn({ method: "POST" })
       throw new Error("พบรูปแบบคำสั่งที่อาจเป็น prompt injection — ปฏิเสธการประมวลผล");
     }
     const r = data.redactPii ? redactPII(data.prompt) : { text: data.prompt, map: {}, counts: {} };
-    const aiOutput = await callAI(
+    const ai = await callAI(
       "คุณเป็นผู้ช่วย AI สำหรับเจ้าหน้าที่ราชการไทย ตอบอย่างกระชับ สุภาพ และใช้ภาษาทางการ",
       r.text,
     );
-    const output = data.redactPii ? restorePII(aiOutput, r.map) : aiOutput;
+    const output = data.redactPii ? restorePII(ai.text, r.map) : ai.text;
     const { data: run, error } = await supabase
       .from("ai_runs")
       .insert({
@@ -201,12 +201,15 @@ export const runFreeform = createServerFn({ method: "POST" })
         input: { prompt: data.prompt },
         output,
         status: "completed",
+        prompt_tokens: ai.usage.promptTokens,
+        completion_tokens: ai.usage.completionTokens,
+        cost_usd: ai.usage.costUsd,
       })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
-    await logAudit(supabase, userId, "ai.run", null, { run_id: run.id, pii: piiSummary(r.counts), guard_score: guard.score });
-    return { id: run.id, output, pii: piiSummary(r.counts), guard: { score: guard.score, decision: guard.decision } };
+    await logAudit(supabase, userId, "ai.run", null, { run_id: run.id, pii: piiSummary(r.counts), guard_score: guard.score, usage: ai.usage });
+    return { id: run.id, output, pii: piiSummary(r.counts), guard: { score: guard.score, decision: guard.decision }, usage: ai.usage };
   });
 
 // OCR via Gemini Vision (multimodal). Accepts base64-encoded image data URL.
