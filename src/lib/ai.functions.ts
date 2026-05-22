@@ -21,7 +21,21 @@ const TEMPLATE_PROMPTS: Record<string, string> = {
   "agenda": "จงร่างวาระการประชุมตามรูปแบบราชการไทย: วาระที่ 1 เรื่องประธานแจ้ง, วาระที่ 2 รับรองรายงานการประชุม, วาระที่ 3 เรื่องสืบเนื่อง, วาระที่ 4 เรื่องเพื่อพิจารณา, วาระที่ 5 เรื่องอื่น ๆ",
 };
 
-async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
+export type AIUsage = { promptTokens: number; completionTokens: number; costUsd: number };
+
+// Approximate pricing (USD) per 1M tokens for google/gemini-2.5-flash.
+// Refs: https://ai.google.dev/pricing (≈ $0.30 input, $2.50 output per 1M tokens).
+const PRICE_IN_PER_MTOK = 0.3;
+const PRICE_OUT_PER_MTOK = 2.5;
+
+function computeCost(promptTokens: number, completionTokens: number) {
+  return (promptTokens / 1_000_000) * PRICE_IN_PER_MTOK + (completionTokens / 1_000_000) * PRICE_OUT_PER_MTOK;
+}
+
+async function callAI(
+  systemPrompt: string,
+  userPrompt: string,
+): Promise<{ text: string; usage: AIUsage }> {
   const key = process.env.LOVABLE_API_KEY;
   if (!key) throw new Error("AI service not configured");
 
@@ -41,7 +55,12 @@ async function callAI(systemPrompt: string, userPrompt: string): Promise<string>
     });
     if (!res.ok) throw new Error(`HiClaw error ${res.status}`);
     const json = await res.json();
-    return json.choices?.[0]?.message?.content ?? "";
+    const pt = json.usage?.prompt_tokens ?? 0;
+    const ct = json.usage?.completion_tokens ?? 0;
+    return {
+      text: json.choices?.[0]?.message?.content ?? "",
+      usage: { promptTokens: pt, completionTokens: ct, costUsd: 0 },
+    };
   }
 
   const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -59,7 +78,12 @@ async function callAI(systemPrompt: string, userPrompt: string): Promise<string>
   if (res.status === 402) throw new Error("AI credits exhausted. Please add credits in workspace settings.");
   if (!res.ok) throw new Error(`AI error ${res.status}`);
   const json = await res.json();
-  return json.choices?.[0]?.message?.content ?? "";
+  const pt = json.usage?.prompt_tokens ?? 0;
+  const ct = json.usage?.completion_tokens ?? 0;
+  return {
+    text: json.choices?.[0]?.message?.content ?? "",
+    usage: { promptTokens: pt, completionTokens: ct, costUsd: computeCost(pt, ct) },
+  };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -110,15 +134,18 @@ export const runTemplate = createServerFn({ method: "POST" })
       piiCounts = r.counts;
     }
 
-    let aiOutput: string;
+    let aiText: string;
+    let usage: AIUsage;
     try {
-      aiOutput = await callAI(systemPrompt, userPromptForAI);
+      const r = await callAI(systemPrompt, userPromptForAI);
+      aiText = r.text;
+      usage = r.usage;
     } catch (e) {
       await logAudit(supabase, userId, "ai.error", data.templateId, { error: e instanceof Error ? e.message : "unknown" });
       throw e;
     }
 
-    const output = data.redactPii ? restorePII(aiOutput, piiMap) : aiOutput;
+    const output = data.redactPii ? restorePII(aiText, piiMap) : aiText;
 
     const { data: run, error } = await supabase
       .from("ai_runs")
@@ -129,6 +156,9 @@ export const runTemplate = createServerFn({ method: "POST" })
         input: data.inputs,
         output,
         status: "completed",
+        prompt_tokens: usage.promptTokens,
+        completion_tokens: usage.completionTokens,
+        cost_usd: usage.costUsd,
       })
       .select("id")
       .single();
@@ -139,9 +169,10 @@ export const runTemplate = createServerFn({ method: "POST" })
       pii: piiSummary(piiCounts),
       guard_score: guard.score,
       guard_hits: guard.hits,
+      usage,
     });
 
-    return { id: run.id, output, pii: piiSummary(piiCounts), guard: { score: guard.score, decision: guard.decision } };
+    return { id: run.id, output, pii: piiSummary(piiCounts), guard: { score: guard.score, decision: guard.decision }, usage };
   });
 
 export const runFreeform = createServerFn({ method: "POST" })
@@ -157,11 +188,11 @@ export const runFreeform = createServerFn({ method: "POST" })
       throw new Error("พบรูปแบบคำสั่งที่อาจเป็น prompt injection — ปฏิเสธการประมวลผล");
     }
     const r = data.redactPii ? redactPII(data.prompt) : { text: data.prompt, map: {}, counts: {} };
-    const aiOutput = await callAI(
+    const ai = await callAI(
       "คุณเป็นผู้ช่วย AI สำหรับเจ้าหน้าที่ราชการไทย ตอบอย่างกระชับ สุภาพ และใช้ภาษาทางการ",
       r.text,
     );
-    const output = data.redactPii ? restorePII(aiOutput, r.map) : aiOutput;
+    const output = data.redactPii ? restorePII(ai.text, r.map) : ai.text;
     const { data: run, error } = await supabase
       .from("ai_runs")
       .insert({
@@ -170,12 +201,15 @@ export const runFreeform = createServerFn({ method: "POST" })
         input: { prompt: data.prompt },
         output,
         status: "completed",
+        prompt_tokens: ai.usage.promptTokens,
+        completion_tokens: ai.usage.completionTokens,
+        cost_usd: ai.usage.costUsd,
       })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
-    await logAudit(supabase, userId, "ai.run", null, { run_id: run.id, pii: piiSummary(r.counts), guard_score: guard.score });
-    return { id: run.id, output, pii: piiSummary(r.counts), guard: { score: guard.score, decision: guard.decision } };
+    await logAudit(supabase, userId, "ai.run", null, { run_id: run.id, pii: piiSummary(r.counts), guard_score: guard.score, usage: ai.usage });
+    return { id: run.id, output, pii: piiSummary(r.counts), guard: { score: guard.score, decision: guard.decision }, usage: ai.usage };
   });
 
 // OCR via Gemini Vision (multimodal). Accepts base64-encoded image data URL.
@@ -338,4 +372,86 @@ export const listAuditLogs = createServerFn({ method: "GET" })
       .limit(200);
     if (error) throw new Error(error.message);
     return { logs: data ?? [] };
+  });
+
+export const checkIsAdmin = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+    return { isAdmin: data === true };
+  });
+
+export const adminUsageStats = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data: isAdminData } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+    if (isAdminData !== true) throw new Error("Forbidden: admin role required");
+
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: runs, error } = await supabase
+      .from("ai_runs")
+      .select("user_id, template_id, prompt_tokens, completion_tokens, cost_usd, created_at")
+      .gte("created_at", since)
+      .order("created_at", { ascending: false })
+      .limit(5000);
+    if (error) throw new Error(error.message);
+
+    type Row = NonNullable<typeof runs>[number];
+    const list: Row[] = runs ?? [];
+
+    let totalPromptTokens = 0;
+    let totalCompletionTokens = 0;
+    let totalCost = 0;
+    const byDay = new Map<string, { tokens: number; cost: number; runs: number }>();
+    const byUser = new Map<string, { runs: number; tokens: number; cost: number }>();
+    const byTemplate = new Map<string, { runs: number; tokens: number; cost: number }>();
+
+    for (const r of list) {
+      const pt = r.prompt_tokens ?? 0;
+      const ct = r.completion_tokens ?? 0;
+      const cost = Number(r.cost_usd ?? 0);
+      const tokens = pt + ct;
+      totalPromptTokens += pt;
+      totalCompletionTokens += ct;
+      totalCost += cost;
+      const day = r.created_at.slice(0, 10);
+      const d = byDay.get(day) ?? { tokens: 0, cost: 0, runs: 0 };
+      d.tokens += tokens; d.cost += cost; d.runs += 1;
+      byDay.set(day, d);
+      const u = byUser.get(r.user_id) ?? { runs: 0, tokens: 0, cost: 0 };
+      u.runs += 1; u.tokens += tokens; u.cost += cost;
+      byUser.set(r.user_id, u);
+      const tid = r.template_id ?? "(freeform)";
+      const t = byTemplate.get(tid) ?? { runs: 0, tokens: 0, cost: 0 };
+      t.runs += 1; t.tokens += tokens; t.cost += cost;
+      byTemplate.set(tid, t);
+    }
+
+    const userIds = [...byUser.keys()];
+    const { data: profiles } = userIds.length
+      ? await supabase.from("profiles").select("id, display_name").in("id", userIds)
+      : { data: [] as { id: string; display_name: string | null }[] };
+    const nameMap = new Map((profiles ?? []).map((p) => [p.id, p.display_name ?? p.id.slice(0, 8)]));
+
+    return {
+      totals: {
+        runs: list.length,
+        promptTokens: totalPromptTokens,
+        completionTokens: totalCompletionTokens,
+        costUsd: totalCost,
+      },
+      daily: [...byDay.entries()]
+        .map(([day, v]) => ({ day, ...v }))
+        .sort((a, b) => a.day.localeCompare(b.day)),
+      topUsers: [...byUser.entries()]
+        .map(([id, v]) => ({ id, name: nameMap.get(id) ?? id.slice(0, 8), ...v }))
+        .sort((a, b) => b.cost - a.cost)
+        .slice(0, 10),
+      topTemplates: [...byTemplate.entries()]
+        .map(([id, v]) => ({ id, ...v }))
+        .sort((a, b) => b.runs - a.runs)
+        .slice(0, 10),
+    };
   });

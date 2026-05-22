@@ -24,6 +24,7 @@ import { Route as AuthenticatedRunIndexRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedHistoryIndexRouteImport } from './routes/_authenticated/history/index'
 import { Route as AuthenticatedRunTemplateIdRouteImport } from './routes/_authenticated/run/$templateId'
 import { Route as AuthenticatedHistoryRunIdRouteImport } from './routes/_authenticated/history/$runId'
+import { Route as AuthenticatedAdminUsageRouteImport } from './routes/_authenticated/admin/usage'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -103,6 +104,11 @@ const AuthenticatedHistoryRunIdRoute =
     path: '/history/$runId',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAdminUsageRoute = AuthenticatedAdminUsageRouteImport.update({
+  id: '/admin/usage',
+  path: '/admin/usage',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -115,6 +121,7 @@ export interface FileRoutesByFullPath {
   '/integrations': typeof AuthenticatedIntegrationsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/templates': typeof AuthenticatedTemplatesRoute
+  '/admin/usage': typeof AuthenticatedAdminUsageRoute
   '/history/$runId': typeof AuthenticatedHistoryRunIdRoute
   '/run/$templateId': typeof AuthenticatedRunTemplateIdRoute
   '/history/': typeof AuthenticatedHistoryIndexRoute
@@ -131,6 +138,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedSettingsRoute
   '/templates': typeof AuthenticatedTemplatesRoute
   '/': typeof AuthenticatedIndexRoute
+  '/admin/usage': typeof AuthenticatedAdminUsageRoute
   '/history/$runId': typeof AuthenticatedHistoryRunIdRoute
   '/run/$templateId': typeof AuthenticatedRunTemplateIdRoute
   '/history': typeof AuthenticatedHistoryIndexRoute
@@ -149,6 +157,7 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/templates': typeof AuthenticatedTemplatesRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/admin/usage': typeof AuthenticatedAdminUsageRoute
   '/_authenticated/history/$runId': typeof AuthenticatedHistoryRunIdRoute
   '/_authenticated/run/$templateId': typeof AuthenticatedRunTemplateIdRoute
   '/_authenticated/history/': typeof AuthenticatedHistoryIndexRoute
@@ -167,6 +176,7 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/settings'
     | '/templates'
+    | '/admin/usage'
     | '/history/$runId'
     | '/run/$templateId'
     | '/history/'
@@ -183,6 +193,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/templates'
     | '/'
+    | '/admin/usage'
     | '/history/$runId'
     | '/run/$templateId'
     | '/history'
@@ -200,6 +211,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings'
     | '/_authenticated/templates'
     | '/_authenticated/'
+    | '/_authenticated/admin/usage'
     | '/_authenticated/history/$runId'
     | '/_authenticated/run/$templateId'
     | '/_authenticated/history/'
@@ -320,6 +332,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedHistoryRunIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/admin/usage': {
+      id: '/_authenticated/admin/usage'
+      path: '/admin/usage'
+      fullPath: '/admin/usage'
+      preLoaderRoute: typeof AuthenticatedAdminUsageRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
   }
 }
 
@@ -331,6 +350,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedTemplatesRoute: typeof AuthenticatedTemplatesRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedAdminUsageRoute: typeof AuthenticatedAdminUsageRoute
   AuthenticatedHistoryRunIdRoute: typeof AuthenticatedHistoryRunIdRoute
   AuthenticatedRunTemplateIdRoute: typeof AuthenticatedRunTemplateIdRoute
   AuthenticatedHistoryIndexRoute: typeof AuthenticatedHistoryIndexRoute
@@ -345,6 +365,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedTemplatesRoute: AuthenticatedTemplatesRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedAdminUsageRoute: AuthenticatedAdminUsageRoute,
   AuthenticatedHistoryRunIdRoute: AuthenticatedHistoryRunIdRoute,
   AuthenticatedRunTemplateIdRoute: AuthenticatedRunTemplateIdRoute,
   AuthenticatedHistoryIndexRoute: AuthenticatedHistoryIndexRoute,

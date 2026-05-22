@@ -1,15 +1,18 @@
 import { Link, useRouterState } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import {
   LayoutDashboard, Sparkles, LibraryBig, History, Bot, Plug,
-  CheckCircle2, ShieldCheck, Settings,
+  CheckCircle2, ShieldCheck, Settings, BarChart3,
 } from "lucide-react";
 import {
-  Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
+  Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useI18n } from "@/lib/i18n";
 import type { MessageKey } from "@/lib/messages";
+import { checkIsAdmin } from "@/lib/ai.functions";
 
 const ITEMS: { to: string; key: MessageKey; icon: typeof LayoutDashboard }[] = [
   { to: "/", key: "nav_dashboard", icon: LayoutDashboard },
@@ -26,8 +29,15 @@ const ITEMS: { to: string; key: MessageKey; icon: typeof LayoutDashboard }[] = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const pathname = useRouterState({ select: (r) => r.location.pathname });
+  const fetchIsAdmin = useServerFn(checkIsAdmin);
+  const { data: adminData } = useQuery({
+    queryKey: ["is-admin"],
+    queryFn: () => fetchIsAdmin(),
+    staleTime: 5 * 60 * 1000,
+  });
+  const isAdmin = adminData?.isAdmin ?? false;
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border">
@@ -64,6 +74,30 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {isAdmin && (
+          <SidebarGroup>
+            {!collapsed && (
+              <SidebarGroupLabel>{lang === "th" ? "ผู้ดูแลระบบ" : "Admin"}</SidebarGroupLabel>
+            )}
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname.startsWith("/admin/usage")}
+                    tooltip={lang === "th" ? "การใช้งาน" : "Usage"}
+                  >
+                    <Link to="/admin/usage" className="flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4" />
+                      {!collapsed && <span className="truncate">{lang === "th" ? "การใช้งาน" : "Usage"}</span>}
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
     </Sidebar>
   );
