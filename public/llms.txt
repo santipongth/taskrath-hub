@@ -1,0 +1,10 @@
+# TaskRath
+
+> AI assistant for Thai government officials — draft documents, summarize meetings, and automate routine tasks securely.
+
+TaskRath (ทาสก์-รัฐ) helps public-sector staff run AI-powered templates for common tasks: meeting summaries, official letters, citizen replies, budget analysis, and legal research. All runs are auditable, with row-level access control and in-country data storage.
+
+## Pages
+
+- [Home](/): Overview of TaskRath and quick access to templates.
+- [Sign in](/login): Sign in or create an account to start using TaskRath.
