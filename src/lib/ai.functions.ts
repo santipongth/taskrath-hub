@@ -286,6 +286,114 @@ export const getRun = createServerFn({ method: "POST" })
     return { run };
   });
 
+const REFINE_PRESETS: Record<string, string> = {
+  formal: "ปรับโทนให้เป็นทางการขึ้น ใช้คำศัพท์ราชการ และโครงสร้างหนังสือทางการ",
+  shorter: "ย่อให้สั้นลงประมาณครึ่งหนึ่ง คงสาระสำคัญทั้งหมด",
+  longer: "ขยายความให้ละเอียดและครบถ้วนขึ้น เพิ่มรายละเอียดประกอบที่จำเป็น",
+  friendly: "ปรับโทนให้เป็นมิตรและอ่านง่ายขึ้น แต่ยังคงความสุภาพแบบราชการ",
+  proofread: "ตรวจแก้คำผิด ไวยากรณ์ และการเว้นวรรค คงเนื้อหาและโครงสร้างเดิม",
+};
+
+const REFINE_SYSTEM = `คุณเป็นบรรณาธิการเอกสารราชการไทย จงปรับข้อความที่ได้รับตามคำสั่งของผู้ใช้
+ห้ามเพิ่มข้อมูลใหม่ที่ไม่มีในต้นฉบับ ห้ามตัดข้อมูลสำคัญ (ชื่อบุคคล วันที่ เลขที่หนังสือ จำนวนเงิน)
+รักษารูปแบบหนังสือราชการ คืนเฉพาะข้อความที่ปรับแล้ว ไม่ต้องอธิบายเพิ่ม`;
+
+type Revision = { output: string; instruction: string; preset?: string; at: string; usage: AIUsage };
+
+export const refineRun = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        runId: z.string().uuid(),
+        preset: z.enum(["formal", "shorter", "longer", "friendly", "proofread"]).optional(),
+        instruction: z.string().min(1).max(2000).optional(),
+      })
+      .refine((d) => d.preset || d.instruction, { message: "preset or instruction required" })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: run, error: e0 } = await supabase
+      .from("ai_runs")
+      .select("id, output, metadata, prompt_tokens, completion_tokens, cost_usd")
+      .eq("id", data.runId)
+      .single();
+    if (e0) throw new Error(e0.message);
+    if (!run.output) throw new Error("Run has no output to refine");
+
+    const instruction = data.instruction ?? REFINE_PRESETS[data.preset!];
+    const guard = checkPromptInjection(instruction);
+    if (guard.decision === "block") {
+      await logAudit(supabase, userId, "ai.blocked", data.runId, { reason: "injection", at: "refine" });
+      throw new Error("คำสั่งปรับแต่งมีรูปแบบที่ไม่อนุญาต");
+    }
+
+    const userPrompt = `คำสั่ง: ${instruction}\n\nข้อความต้นฉบับ:\n${run.output}`;
+    const ai = await callAI(REFINE_SYSTEM, userPrompt);
+
+    const meta = (run.metadata ?? {}) as { revisions?: Revision[] };
+    const revisions: Revision[] = Array.isArray(meta.revisions) ? meta.revisions : [];
+    revisions.push({
+      output: run.output,
+      instruction,
+      preset: data.preset,
+      at: new Date().toISOString(),
+      usage: ai.usage,
+    });
+    const trimmed = revisions.slice(-10);
+
+    const { error: e1 } = await supabase
+      .from("ai_runs")
+      .update({
+        output: ai.text,
+        metadata: { ...meta, revisions: trimmed },
+        prompt_tokens: (run.prompt_tokens ?? 0) + ai.usage.promptTokens,
+        completion_tokens: (run.completion_tokens ?? 0) + ai.usage.completionTokens,
+        cost_usd: Number(run.cost_usd ?? 0) + ai.usage.costUsd,
+      })
+      .eq("id", data.runId);
+    if (e1) throw new Error(e1.message);
+
+    await logAudit(supabase, userId, "ai.refine", data.runId, { preset: data.preset, usage: ai.usage });
+    return { output: ai.text, revisionCount: trimmed.length, usage: ai.usage };
+  });
+
+export const revertRun = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ runId: z.string().uuid(), index: z.number().int().min(0) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: run, error: e0 } = await supabase
+      .from("ai_runs")
+      .select("output, metadata")
+      .eq("id", data.runId)
+      .single();
+    if (e0) throw new Error(e0.message);
+
+    const meta = (run.metadata ?? {}) as { revisions?: Revision[] };
+    const revisions: Revision[] = Array.isArray(meta.revisions) ? meta.revisions : [];
+    if (data.index >= revisions.length) throw new Error("Invalid revision index");
+
+    const target = revisions[data.index];
+    // Push current output as a new revision so revert is undoable
+    const newRevisions = [
+      ...revisions,
+      { output: run.output ?? "", instruction: "(สถานะก่อนกู้คืน)", at: new Date().toISOString(), usage: { promptTokens: 0, completionTokens: 0, costUsd: 0 } },
+    ].slice(-10);
+
+    const { error: e1 } = await supabase
+      .from("ai_runs")
+      .update({ output: target.output, metadata: { ...meta, revisions: newRevisions } })
+      .eq("id", data.runId);
+    if (e1) throw new Error(e1.message);
+
+    await logAudit(supabase, userId, "ai.revert", data.runId, { index: data.index });
+    return { output: target.output, revisionCount: newRevisions.length };
+  });
+
 export const requestApproval = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
