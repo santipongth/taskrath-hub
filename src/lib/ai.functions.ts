@@ -253,6 +253,7 @@ export const runFreeform = createServerFn({ method: "POST" })
       .single();
     if (error) throw new Error(error.message);
     await logAudit(supabase, userId, "ai.run", null, { run_id: run.id, pii: piiSummary(r.counts), guard_score: guard.score, usage: ai.usage });
+    await notifyEvent(supabase, "complete", `✅ TaskRath: รันคำสั่ง AI เสร็จสิ้น`);
     return { id: run.id, output, pii: piiSummary(r.counts), guard: { score: guard.score, decision: guard.decision }, usage: ai.usage };
   });
 
