@@ -75,6 +75,7 @@ export function AppShell({ children, userEmail }: { children: ReactNode; userEma
           <main className="flex-1">{children}</main>
         </div>
       </div>
+      <CommandPalette />
     </SidebarProvider>
   );
 }
