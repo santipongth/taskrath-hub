@@ -59,7 +59,7 @@ function TemplatesPage() {
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {filtered.map((tpl) => <TemplateCard key={tpl.id} template={tpl} />)}
+        {filtered.map((tpl) => <TemplateCard key={tpl.id} template={tpl} pinned={favSet.has(tpl.id)} />)}
       </div>
       {filtered.length === 0 && (
         <p className="mt-12 text-center text-sm text-muted-foreground">{t("empty")}</p>
