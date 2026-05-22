@@ -134,15 +134,18 @@ export const runTemplate = createServerFn({ method: "POST" })
       piiCounts = r.counts;
     }
 
-    let aiOutput: string;
+    let aiText: string;
+    let usage: AIUsage;
     try {
-      aiOutput = await callAI(systemPrompt, userPromptForAI);
+      const r = await callAI(systemPrompt, userPromptForAI);
+      aiText = r.text;
+      usage = r.usage;
     } catch (e) {
       await logAudit(supabase, userId, "ai.error", data.templateId, { error: e instanceof Error ? e.message : "unknown" });
       throw e;
     }
 
-    const output = data.redactPii ? restorePII(aiOutput, piiMap) : aiOutput;
+    const output = data.redactPii ? restorePII(aiText, piiMap) : aiText;
 
     const { data: run, error } = await supabase
       .from("ai_runs")
@@ -153,6 +156,9 @@ export const runTemplate = createServerFn({ method: "POST" })
         input: data.inputs,
         output,
         status: "completed",
+        prompt_tokens: usage.promptTokens,
+        completion_tokens: usage.completionTokens,
+        cost_usd: usage.costUsd,
       })
       .select("id")
       .single();
@@ -163,9 +169,10 @@ export const runTemplate = createServerFn({ method: "POST" })
       pii: piiSummary(piiCounts),
       guard_score: guard.score,
       guard_hits: guard.hits,
+      usage,
     });
 
-    return { id: run.id, output, pii: piiSummary(piiCounts), guard: { score: guard.score, decision: guard.decision } };
+    return { id: run.id, output, pii: piiSummary(piiCounts), guard: { score: guard.score, decision: guard.decision }, usage };
   });
 
 export const runFreeform = createServerFn({ method: "POST" })
