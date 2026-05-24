@@ -1,64 +1,69 @@
-# Phase 5 — Refine ผลลัพธ์ (ทางการขึ้น / สั้นลง / ฯลฯ)
 
-ให้ผู้ใช้ปรับผลลัพธ์ AI ที่ได้แล้ว โดยไม่ต้องเริ่มใหม่ พร้อมเก็บประวัติเวอร์ชันเพื่อย้อนกลับได้
+# Knowledge Base / RAG — อ้างอิงระเบียบราชการ
 
-## สิ่งที่จะสร้าง
+ให้ผู้ใช้อัปโหลดเอกสาร (ระเบียบ/หนังสือเวียน/คู่มือ) → ระบบ chunk + embed → เก็บใน pgvector → ทุก Run/Agent ดึง context ที่เกี่ยวข้องมาเสริม prompt พร้อมแสดง citations
 
-### 1. Server function: `refineRun` (`src/lib/ai.functions.ts`)
-- รับ `runId` + `instruction` (preset หรือ custom)
-- โหลด run เดิม, สั่ง AI แก้ไขผลลัพธ์ตาม instruction (system: รักษาความหมายเดิม, คงโครงสร้างราชการ)
-- ผ่าน PII redaction + prompt-guard เหมือน `runTemplate`
-- บันทึก revision ใน `ai_runs.metadata.revisions` (array: `{output, instruction, at, usage}`) — เก็บได้สูงสุด 10 เวอร์ชัน
-- อัปเดต `output` เป็นเวอร์ชันใหม่, รวม usage เข้ากับ run เดิม (เพิ่ม tokens/cost)
-- เขียน audit log `ai.refine`
+## 1. Database (migration)
 
-### 2. Migration: เพิ่มคอลัมน์ `metadata` ใน `ai_runs`
-```sql
-ALTER TABLE ai_runs ADD COLUMN IF NOT EXISTS metadata jsonb NOT NULL DEFAULT '{}'::jsonb;
-```
+เปิด `pgvector` และเพิ่ม 2 ตาราง:
 
-### 3. UI Refine bar ใน `src/routes/_authenticated/run/$templateId.tsx`
-แสดงใต้กล่องผลลัพธ์ (เมื่อมี `runId`):
+- **`kb_documents`** — เอกสารต้นฉบับ
+  - `title`, `source` (url/filename), `category` (ระเบียบ/หนังสือเวียน/คู่มือ/อื่นๆ), `uploaded_by`, `status` (processing/ready/failed), `chunk_count`
+- **`kb_chunks`** — ชิ้นเนื้อหา + vector
+  - `document_id` (FK, on delete cascade), `chunk_index`, `content` (text), `embedding vector(1536)`, `tokens`
+  - HNSW index บน `embedding vector_cosine_ops`
+- **SQL function** `match_kb_chunks(query_embedding, match_count, similarity_threshold)` คืน chunks ที่ใกล้ที่สุดพร้อม document title
 
-- ปุ่ม preset 5 ตัว: **ทางการขึ้น**, **สั้นลง**, **ละเอียดขึ้น**, **เป็นมิตรขึ้น**, **แก้คำผิด**
-- ช่องพิมพ์คำสั่งเอง + ปุ่ม "ปรับ"
-- ระหว่างโหลด: spinner + disable
-- หลังสำเร็จ: แทนที่ output, toast แจ้ง, เพิ่มจำนวน revision
+**RLS**:
+- `kb_documents`: authenticated อ่านได้ทั้งหมด (knowledge เป็น org-wide), admin เท่านั้นที่ insert/update/delete
+- `kb_chunks`: authenticated อ่านได้, admin เท่านั้นที่จัดการ
+- Storage bucket `kb-files` (private) — admin upload, authenticated read
 
-### 4. Version history & undo
-- ถ้ามี ≥1 revision แสดงปุ่ม "เวอร์ชัน (N)" → popover รายการเวอร์ชัน (เวลา + instruction)
-- เลือกเวอร์ชันใดจะ preview, มีปุ่ม "กู้คืน" → call `revertRun({runId, index})` ที่ swap output กลับ
-- ปุ่ม "Undo" ลัด = กู้คืนเวอร์ชันก่อนหน้า
+## 2. Server functions (`src/lib/kb.functions.ts`)
 
-### 5. หน้า history detail (`src/routes/_authenticated/history/$runId.tsx`)
-- แสดง badge "ปรับ N ครั้ง" ถ้ามี revisions
-- มี Refine bar + version list เดียวกัน
+- `uploadKbDocument({ title, category, fileDataUrl, mimeType })` — admin only
+  - บันทึกไฟล์ลง storage, สร้าง row `kb_documents` status=processing
+  - แตกข้อความ: PDF/DOCX → ใช้ Lovable AI (Gemini) อ่านเอกสารเป็น text; TXT/MD → อ่านตรง
+  - Chunk ~800 ตัวอักษร overlap 100
+  - เรียก Lovable AI Embeddings (`openai/text-embedding-3-small`, dim 1536) batch ละ 64 chunks
+  - Insert `kb_chunks` ทั้งหมด, อัปเดต status=ready, chunk_count
+- `listKbDocuments()` — รายการเอกสาร + chunk count
+- `deleteKbDocument({ id })` — admin (cascade ลบ chunks + storage object)
+- `reindexKbDocument({ id })` — admin
+- `searchKb({ query, topK=5 })` — embed query → rpc `match_kb_chunks` → คืน `[{content, title, source, similarity}]`
 
-## รายละเอียดเทคนิค
+## 3. ผูก RAG เข้ากับ Run/Agent
 
-System prompt สำหรับ refine:
-```
-คุณเป็นบรรณาธิการเอกสารราชการไทย จงปรับข้อความที่ได้รับตามคำสั่งของผู้ใช้
-ห้ามเพิ่มข้อมูลใหม่ที่ไม่มีในต้นฉบับ ห้ามตัดข้อมูลสำคัญ (ชื่อ วันที่ เลขที่)
-รักษารูปแบบหนังสือราชการ คืนเฉพาะข้อความที่ปรับแล้ว
-```
+แก้ `src/lib/ai.functions.ts`:
 
-User prompt: `คำสั่ง: {instruction}\n\nข้อความต้นฉบับ:\n{currentOutput}`
+- เพิ่ม helper `retrieveContext(query, opts)` คืน chunks + citations text block
+- `runTemplate`, `runFreeform`, `runAgent`, `refineRun`:
+  - ถ้า `app_settings.kb_enabled = true` (default true): สร้าง query จาก inputs → `searchKb` top 5 (threshold 0.5)
+  - แทรกเป็น `<ระเบียบที่เกี่ยวข้อง>...</ระเบียบที่เกี่ยวข้อง>` ใน system prompt + สั่งให้ AI อ้างอิงด้วย `[หมายเลข]`
+  - บันทึก `metadata.citations = [{index, title, source, similarity}]` ใน `ai_runs`
 
-Preset instructions:
-- formal: "ปรับโทนให้เป็นทางการขึ้น ใช้คำศัพท์ราชการ"
-- shorter: "ย่อให้สั้นลง คงสาระสำคัญ"
-- longer: "ขยายความให้ละเอียดและครบถ้วนขึ้น"
-- friendly: "ปรับโทนให้เป็นมิตรและอ่านง่ายขึ้น แต่ยังคงความสุภาพ"
-- proofread: "ตรวจแก้คำผิด ไวยากรณ์ และการเว้นวรรค คงโครงสร้างเดิม"
+## 4. UI
 
-## ไฟล์ที่จะแก้/สร้าง
-- new: `supabase/migrations/<timestamp>_add_runs_metadata.sql`
-- edit: `src/lib/ai.functions.ts` — เพิ่ม `refineRun`, `revertRun`
-- edit: `src/routes/_authenticated/run/$templateId.tsx` — Refine bar + version history
-- edit: `src/routes/_authenticated/history/$runId.tsx` — Refine bar + badge
+- **หน้าใหม่ `/admin/knowledge`** (admin only, เพิ่มใน sidebar)
+  - ปุ่ม Upload (drag-drop, รองรับ PDF/DOCX/TXT/MD ≤10MB)
+  - ตารางเอกสาร: title, category, status badge, chunks, uploaded_at, actions (re-index, delete)
+  - Search box ทดสอบ RAG (พิมพ์คำถาม → แสดง top chunks + similarity)
+- **Run / History / Agent result**: ถ้ามี citations แสดง section "อ้างอิง" ใต้ output — chip คลิกได้แสดง popover เนื้อหา chunk ต้นทาง
+- **Admin Settings**: toggle "เปิดใช้ Knowledge Base กับทุก Run"
 
-## ไม่ทำในรอบนี้
-- Streaming output (A1) — แยกรอบ
-- Diff view ระหว่างเวอร์ชัน (อาจเพิ่มภายหลัง)
-- Editor แบบ tiptap — ใช้ textarea เดิมที่มี Edit mode อยู่แล้ว
+## 5. Audit
+
+ทุก upload/delete/reindex เขียน `audit_logs` action `kb.upload|kb.delete|kb.reindex`
+
+## Technical notes
+
+- ใช้ Lovable AI Gateway สำหรับ embeddings (มี LOVABLE_API_KEY อยู่แล้ว) — ไม่ต้องขอ secret ใหม่
+- PDF/DOCX text extraction: ส่ง dataUrl เข้า `google/gemini-2.5-flash` พร้อม prompt "ดึงข้อความทั้งหมดออกมา preserve โครงสร้าง" (ใช้ pattern เดียวกับ `extractTextFromImage` ที่มีอยู่)
+- pgvector(1536) เลือกเพราะถูกกว่า + เร็วกว่า, คุณภาพพอใช้สำหรับเอกสารภาษาไทย
+- Chunking: split ที่ขอบประโยค/ย่อหน้า ภาษาไทย (split ด้วย `\n\n` ก่อน, fallback ตัวอักษร)
+
+## Out of scope (รอบนี้)
+
+- Re-ranking, hybrid full-text search
+- ผู้ใช้ทั่วไป upload เอกสารส่วนตัว (ตอนนี้เฉพาะ admin = องค์กร)
+- Cron auto-reindex

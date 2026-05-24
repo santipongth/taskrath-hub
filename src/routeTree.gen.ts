@@ -27,6 +27,7 @@ import { Route as AuthenticatedHistoryRunIdRouteImport } from './routes/_authent
 import { Route as AuthenticatedAdminUsageRouteImport } from './routes/_authenticated/admin/usage'
 import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authenticated/admin/settings'
 import { Route as AuthenticatedAdminNotificationsRouteImport } from './routes/_authenticated/admin/notifications'
+import { Route as AuthenticatedAdminKnowledgeRouteImport } from './routes/_authenticated/admin/knowledge'
 import { Route as AuthenticatedAdminDashboardRouteImport } from './routes/_authenticated/admin/dashboard'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -124,6 +125,12 @@ const AuthenticatedAdminNotificationsRoute =
     path: '/admin/notifications',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAdminKnowledgeRoute =
+  AuthenticatedAdminKnowledgeRouteImport.update({
+    id: '/admin/knowledge',
+    path: '/admin/knowledge',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedAdminDashboardRoute =
   AuthenticatedAdminDashboardRouteImport.update({
     id: '/admin/dashboard',
@@ -143,6 +150,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedSettingsRoute
   '/templates': typeof AuthenticatedTemplatesRoute
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
+  '/admin/knowledge': typeof AuthenticatedAdminKnowledgeRoute
   '/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/usage': typeof AuthenticatedAdminUsageRoute
@@ -163,6 +171,7 @@ export interface FileRoutesByTo {
   '/templates': typeof AuthenticatedTemplatesRoute
   '/': typeof AuthenticatedIndexRoute
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
+  '/admin/knowledge': typeof AuthenticatedAdminKnowledgeRoute
   '/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/usage': typeof AuthenticatedAdminUsageRoute
@@ -185,6 +194,7 @@ export interface FileRoutesById {
   '/_authenticated/templates': typeof AuthenticatedTemplatesRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
+  '/_authenticated/admin/knowledge': typeof AuthenticatedAdminKnowledgeRoute
   '/_authenticated/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
   '/_authenticated/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/_authenticated/admin/usage': typeof AuthenticatedAdminUsageRoute
@@ -207,6 +217,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/templates'
     | '/admin/dashboard'
+    | '/admin/knowledge'
     | '/admin/notifications'
     | '/admin/settings'
     | '/admin/usage'
@@ -227,6 +238,7 @@ export interface FileRouteTypes {
     | '/templates'
     | '/'
     | '/admin/dashboard'
+    | '/admin/knowledge'
     | '/admin/notifications'
     | '/admin/settings'
     | '/admin/usage'
@@ -248,6 +260,7 @@ export interface FileRouteTypes {
     | '/_authenticated/templates'
     | '/_authenticated/'
     | '/_authenticated/admin/dashboard'
+    | '/_authenticated/admin/knowledge'
     | '/_authenticated/admin/notifications'
     | '/_authenticated/admin/settings'
     | '/_authenticated/admin/usage'
@@ -392,6 +405,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminNotificationsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/admin/knowledge': {
+      id: '/_authenticated/admin/knowledge'
+      path: '/admin/knowledge'
+      fullPath: '/admin/knowledge'
+      preLoaderRoute: typeof AuthenticatedAdminKnowledgeRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/admin/dashboard': {
       id: '/_authenticated/admin/dashboard'
       path: '/admin/dashboard'
@@ -411,6 +431,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedTemplatesRoute: typeof AuthenticatedTemplatesRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedAdminDashboardRoute: typeof AuthenticatedAdminDashboardRoute
+  AuthenticatedAdminKnowledgeRoute: typeof AuthenticatedAdminKnowledgeRoute
   AuthenticatedAdminNotificationsRoute: typeof AuthenticatedAdminNotificationsRoute
   AuthenticatedAdminSettingsRoute: typeof AuthenticatedAdminSettingsRoute
   AuthenticatedAdminUsageRoute: typeof AuthenticatedAdminUsageRoute
@@ -429,6 +450,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedTemplatesRoute: AuthenticatedTemplatesRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedAdminDashboardRoute: AuthenticatedAdminDashboardRoute,
+  AuthenticatedAdminKnowledgeRoute: AuthenticatedAdminKnowledgeRoute,
   AuthenticatedAdminNotificationsRoute: AuthenticatedAdminNotificationsRoute,
   AuthenticatedAdminSettingsRoute: AuthenticatedAdminSettingsRoute,
   AuthenticatedAdminUsageRoute: AuthenticatedAdminUsageRoute,
@@ -451,13 +473,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

@@ -3,6 +3,16 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { redactPII, restorePII, piiSummary } from "@/lib/pii";
 import { checkPromptInjection } from "@/lib/prompt-guard";
+import { retrieveKbContext, type Citation } from "@/lib/kb.functions";
+
+const KB_INSTRUCTION =
+  "หากใช้ข้อมูลจาก <ระเบียบที่เกี่ยวข้อง> ให้อ้างอิงในรูปแบบ [หมายเลข] ท้ายประโยคที่เกี่ยวข้อง ห้ามแต่งข้อกฎหมายเอง หากไม่พบข้อมูลที่ตรงให้ระบุไว้";
+
+function withKbContext(systemPrompt: string, ctx: { block: string; citations: Citation[] } | null): string {
+  if (!ctx) return systemPrompt;
+  return `${systemPrompt}\n\n<ระเบียบที่เกี่ยวข้อง>\n${ctx.block}\n</ระเบียบที่เกี่ยวข้อง>\n\n${KB_INSTRUCTION}`;
+}
+
 
 type NotifSettings = {
   lineEnabled: boolean;
@@ -178,8 +188,10 @@ export const runTemplate = createServerFn({ method: "POST" })
 
     let aiText: string;
     let usage: AIUsage;
+    const kbCtx = await retrieveKbContext(supabase, rawUserPrompt);
+    const systemWithKb = withKbContext(systemPrompt, kbCtx);
     try {
-      const r = await callAI(systemPrompt, userPromptForAI);
+      const r = await callAI(systemWithKb, userPromptForAI);
       aiText = r.text;
       usage = r.usage;
     } catch (e) {
@@ -201,6 +213,7 @@ export const runTemplate = createServerFn({ method: "POST" })
         prompt_tokens: usage.promptTokens,
         completion_tokens: usage.completionTokens,
         cost_usd: usage.costUsd,
+        metadata: kbCtx ? { citations: kbCtx.citations } : {},
       })
       .select("id")
       .single();
@@ -212,11 +225,13 @@ export const runTemplate = createServerFn({ method: "POST" })
       guard_score: guard.score,
       guard_hits: guard.hits,
       usage,
+      kb_citations: kbCtx?.citations.length ?? 0,
     });
 
     await notifyEvent(supabase, "complete", `✅ TaskRath: รัน "${data.templateId}" เสร็จสิ้น`);
 
-    return { id: run.id, output, pii: piiSummary(piiCounts), guard: { score: guard.score, decision: guard.decision }, usage };
+    return { id: run.id, output, pii: piiSummary(piiCounts), guard: { score: guard.score, decision: guard.decision }, usage, citations: kbCtx?.citations ?? [] };
+
   });
 
 export const runFreeform = createServerFn({ method: "POST" })
@@ -232,10 +247,12 @@ export const runFreeform = createServerFn({ method: "POST" })
       throw new Error("พบรูปแบบคำสั่งที่อาจเป็น prompt injection — ปฏิเสธการประมวลผล");
     }
     const r = data.redactPii ? redactPII(data.prompt) : { text: data.prompt, map: {}, counts: {} };
-    const ai = await callAI(
+    const kbCtx = await retrieveKbContext(supabase, data.prompt);
+    const systemPrompt = withKbContext(
       "คุณเป็นผู้ช่วย AI สำหรับเจ้าหน้าที่ราชการไทย ตอบอย่างกระชับ สุภาพ และใช้ภาษาทางการ",
-      r.text,
+      kbCtx,
     );
+    const ai = await callAI(systemPrompt, r.text);
     const output = data.redactPii ? restorePII(ai.text, r.map) : ai.text;
     const { data: run, error } = await supabase
       .from("ai_runs")
@@ -248,13 +265,15 @@ export const runFreeform = createServerFn({ method: "POST" })
         prompt_tokens: ai.usage.promptTokens,
         completion_tokens: ai.usage.completionTokens,
         cost_usd: ai.usage.costUsd,
+        metadata: kbCtx ? { citations: kbCtx.citations } : {},
       })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
-    await logAudit(supabase, userId, "ai.run", null, { run_id: run.id, pii: piiSummary(r.counts), guard_score: guard.score, usage: ai.usage });
+    await logAudit(supabase, userId, "ai.run", null, { run_id: run.id, pii: piiSummary(r.counts), guard_score: guard.score, usage: ai.usage, kb_citations: kbCtx?.citations.length ?? 0 });
     await notifyEvent(supabase, "complete", `✅ TaskRath: รันคำสั่ง AI เสร็จสิ้น`);
-    return { id: run.id, output, pii: piiSummary(r.counts), guard: { score: guard.score, decision: guard.decision }, usage: ai.usage };
+    return { id: run.id, output, pii: piiSummary(r.counts), guard: { score: guard.score, decision: guard.decision }, usage: ai.usage, citations: kbCtx?.citations ?? [] };
+
   });
 
 // OCR via Gemini Vision (multimodal). Accepts base64-encoded image data URL.
@@ -703,7 +722,8 @@ export const runAgent = createServerFn({ method: "POST" })
     }
 
     const r = data.redactPii ? redactPII(data.prompt) : { text: data.prompt, map: {}, counts: {} };
-    const ai = await callAI(agent.systemPrompt, r.text);
+    const kbCtx = await retrieveKbContext(supabase, data.prompt);
+    const ai = await callAI(withKbContext(agent.systemPrompt, kbCtx), r.text);
     const output = data.redactPii ? restorePII(ai.text, r.map) : ai.text;
 
     const { data: run, error } = await supabase
@@ -718,6 +738,7 @@ export const runAgent = createServerFn({ method: "POST" })
         prompt_tokens: ai.usage.promptTokens,
         completion_tokens: ai.usage.completionTokens,
         cost_usd: ai.usage.costUsd,
+        metadata: kbCtx ? { citations: kbCtx.citations } : {},
       })
       .select("id")
       .single();
@@ -728,8 +749,10 @@ export const runAgent = createServerFn({ method: "POST" })
       pii: piiSummary(r.counts),
       guard_score: guard.score,
       usage: ai.usage,
+      kb_citations: kbCtx?.citations.length ?? 0,
     });
     await notifyEvent(supabase, "complete", `🤖 TaskRath Agent "${agent.titleTh}" ตอบเสร็จแล้ว`);
 
-    return { id: run.id, output, usage: ai.usage, pii: piiSummary(r.counts) };
+    return { id: run.id, output, usage: ai.usage, pii: piiSummary(r.counts), citations: kbCtx?.citations ?? [] };
+
   });

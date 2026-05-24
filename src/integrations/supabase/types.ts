@@ -151,6 +151,89 @@ export type Database = {
         }
         Relationships: []
       }
+      kb_chunks: {
+        Row: {
+          chunk_index: number
+          content: string
+          created_at: string
+          document_id: string
+          embedding: string | null
+          id: string
+          tokens: number
+        }
+        Insert: {
+          chunk_index: number
+          content: string
+          created_at?: string
+          document_id: string
+          embedding?: string | null
+          id?: string
+          tokens?: number
+        }
+        Update: {
+          chunk_index?: number
+          content?: string
+          created_at?: string
+          document_id?: string
+          embedding?: string | null
+          id?: string
+          tokens?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kb_chunks_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "kb_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kb_documents: {
+        Row: {
+          category: string
+          chunk_count: number
+          created_at: string
+          error: string | null
+          id: string
+          mime_type: string | null
+          source: string | null
+          status: string
+          storage_path: string | null
+          title: string
+          updated_at: string
+          uploaded_by: string
+        }
+        Insert: {
+          category?: string
+          chunk_count?: number
+          created_at?: string
+          error?: string | null
+          id?: string
+          mime_type?: string | null
+          source?: string | null
+          status?: string
+          storage_path?: string | null
+          title: string
+          updated_at?: string
+          uploaded_by: string
+        }
+        Update: {
+          category?: string
+          chunk_count?: number
+          created_at?: string
+          error?: string | null
+          id?: string
+          mime_type?: string | null
+          source?: string | null
+          status?: string
+          storage_path?: string | null
+          title?: string
+          updated_at?: string
+          uploaded_by?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -231,6 +314,23 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      match_kb_chunks: {
+        Args: {
+          match_count?: number
+          query_embedding: string
+          similarity_threshold?: number
+        }
+        Returns: {
+          category: string
+          chunk_index: number
+          content: string
+          document_id: string
+          id: string
+          similarity: number
+          source: string
+          title: string
+        }[]
       }
     }
     Enums: {
