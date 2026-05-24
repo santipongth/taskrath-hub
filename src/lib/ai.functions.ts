@@ -188,8 +188,10 @@ export const runTemplate = createServerFn({ method: "POST" })
 
     let aiText: string;
     let usage: AIUsage;
+    const kbCtx = await retrieveKbContext(supabase, rawUserPrompt);
+    const systemWithKb = withKbContext(systemPrompt, kbCtx);
     try {
-      const r = await callAI(systemPrompt, userPromptForAI);
+      const r = await callAI(systemWithKb, userPromptForAI);
       aiText = r.text;
       usage = r.usage;
     } catch (e) {
@@ -211,6 +213,7 @@ export const runTemplate = createServerFn({ method: "POST" })
         prompt_tokens: usage.promptTokens,
         completion_tokens: usage.completionTokens,
         cost_usd: usage.costUsd,
+        metadata: kbCtx ? { citations: kbCtx.citations } : {},
       })
       .select("id")
       .single();
@@ -222,11 +225,13 @@ export const runTemplate = createServerFn({ method: "POST" })
       guard_score: guard.score,
       guard_hits: guard.hits,
       usage,
+      kb_citations: kbCtx?.citations.length ?? 0,
     });
 
     await notifyEvent(supabase, "complete", `✅ TaskRath: รัน "${data.templateId}" เสร็จสิ้น`);
 
-    return { id: run.id, output, pii: piiSummary(piiCounts), guard: { score: guard.score, decision: guard.decision }, usage };
+    return { id: run.id, output, pii: piiSummary(piiCounts), guard: { score: guard.score, decision: guard.decision }, usage, citations: kbCtx?.citations ?? [] };
+
   });
 
 export const runFreeform = createServerFn({ method: "POST" })
