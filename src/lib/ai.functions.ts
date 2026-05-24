@@ -247,10 +247,12 @@ export const runFreeform = createServerFn({ method: "POST" })
       throw new Error("พบรูปแบบคำสั่งที่อาจเป็น prompt injection — ปฏิเสธการประมวลผล");
     }
     const r = data.redactPii ? redactPII(data.prompt) : { text: data.prompt, map: {}, counts: {} };
-    const ai = await callAI(
+    const kbCtx = await retrieveKbContext(supabase, data.prompt);
+    const systemPrompt = withKbContext(
       "คุณเป็นผู้ช่วย AI สำหรับเจ้าหน้าที่ราชการไทย ตอบอย่างกระชับ สุภาพ และใช้ภาษาทางการ",
-      r.text,
+      kbCtx,
     );
+    const ai = await callAI(systemPrompt, r.text);
     const output = data.redactPii ? restorePII(ai.text, r.map) : ai.text;
     const { data: run, error } = await supabase
       .from("ai_runs")
@@ -263,13 +265,15 @@ export const runFreeform = createServerFn({ method: "POST" })
         prompt_tokens: ai.usage.promptTokens,
         completion_tokens: ai.usage.completionTokens,
         cost_usd: ai.usage.costUsd,
+        metadata: kbCtx ? { citations: kbCtx.citations } : {},
       })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
-    await logAudit(supabase, userId, "ai.run", null, { run_id: run.id, pii: piiSummary(r.counts), guard_score: guard.score, usage: ai.usage });
+    await logAudit(supabase, userId, "ai.run", null, { run_id: run.id, pii: piiSummary(r.counts), guard_score: guard.score, usage: ai.usage, kb_citations: kbCtx?.citations.length ?? 0 });
     await notifyEvent(supabase, "complete", `✅ TaskRath: รันคำสั่ง AI เสร็จสิ้น`);
-    return { id: run.id, output, pii: piiSummary(r.counts), guard: { score: guard.score, decision: guard.decision }, usage: ai.usage };
+    return { id: run.id, output, pii: piiSummary(r.counts), guard: { score: guard.score, decision: guard.decision }, usage: ai.usage, citations: kbCtx?.citations ?? [] };
+
   });
 
 // OCR via Gemini Vision (multimodal). Accepts base64-encoded image data URL.
