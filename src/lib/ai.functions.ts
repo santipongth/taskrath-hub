@@ -722,7 +722,8 @@ export const runAgent = createServerFn({ method: "POST" })
     }
 
     const r = data.redactPii ? redactPII(data.prompt) : { text: data.prompt, map: {}, counts: {} };
-    const ai = await callAI(agent.systemPrompt, r.text);
+    const kbCtx = await retrieveKbContext(supabase, data.prompt);
+    const ai = await callAI(withKbContext(agent.systemPrompt, kbCtx), r.text);
     const output = data.redactPii ? restorePII(ai.text, r.map) : ai.text;
 
     const { data: run, error } = await supabase
@@ -737,6 +738,7 @@ export const runAgent = createServerFn({ method: "POST" })
         prompt_tokens: ai.usage.promptTokens,
         completion_tokens: ai.usage.completionTokens,
         cost_usd: ai.usage.costUsd,
+        metadata: kbCtx ? { citations: kbCtx.citations } : {},
       })
       .select("id")
       .single();
@@ -747,8 +749,10 @@ export const runAgent = createServerFn({ method: "POST" })
       pii: piiSummary(r.counts),
       guard_score: guard.score,
       usage: ai.usage,
+      kb_citations: kbCtx?.citations.length ?? 0,
     });
     await notifyEvent(supabase, "complete", `🤖 TaskRath Agent "${agent.titleTh}" ตอบเสร็จแล้ว`);
 
-    return { id: run.id, output, usage: ai.usage, pii: piiSummary(r.counts) };
+    return { id: run.id, output, usage: ai.usage, pii: piiSummary(r.counts), citations: kbCtx?.citations ?? [] };
+
   });
