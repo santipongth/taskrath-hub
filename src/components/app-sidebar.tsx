@@ -3,8 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   LayoutDashboard, Sparkles, LibraryBig, History, Bot, Plug,
-  CheckCircle2, ShieldCheck, Settings, BarChart3, PieChart, Building2, Bell,
+  CheckCircle2, ShieldCheck, Settings, BarChart3, PieChart, Building2, Bell, BookText,
 } from "lucide-react";
+
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
