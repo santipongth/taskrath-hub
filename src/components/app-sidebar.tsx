@@ -85,8 +85,10 @@ export function AppSidebar() {
               <SidebarMenu>
                 <AdminItem to="/admin/dashboard" icon={PieChart} labelTh="แดชบอร์ดผู้บริหาร" labelEn="Executive" pathname={pathname} collapsed={collapsed} lang={lang} />
                 <AdminItem to="/admin/usage" icon={BarChart3} labelTh="การใช้งาน" labelEn="Usage" pathname={pathname} collapsed={collapsed} lang={lang} />
+                <AdminItem to="/admin/knowledge" icon={BookText} labelTh="คลังความรู้" labelEn="Knowledge" pathname={pathname} collapsed={collapsed} lang={lang} />
                 <AdminItem to="/admin/notifications" icon={Bell} labelTh="การแจ้งเตือน" labelEn="Notifications" pathname={pathname} collapsed={collapsed} lang={lang} />
                 <AdminItem to="/admin/settings" icon={Building2} labelTh="ตั้งค่าหน่วยงาน" labelEn="Agency" pathname={pathname} collapsed={collapsed} lang={lang} />
+
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
