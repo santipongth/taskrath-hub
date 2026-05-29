@@ -119,5 +119,5 @@ function AdminItem({
         </Link>
       </SidebarMenuButton>
     </SidebarMenuItem>
-  );
+  to: "/admin/dashboard" | "/admin/usage" | "/admin/knowledge" | "/admin/notifications" | "/admin/settings";
 }
