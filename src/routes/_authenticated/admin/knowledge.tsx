@@ -98,17 +98,38 @@ function KnowledgePage() {
     }
     setTitle((t) => t || file.name.replace(/\.[^.]+$/, ""));
     setSource((s) => s || file.name);
-    if (file.type === "application/pdf") {
-      const dataUrl = await fileToDataUrl(file);
-      // Stash as content placeholder so user knows file is loaded
-      setContent(`__PDF__${dataUrl}`);
-      toast.success(`โหลด PDF "${file.name}" แล้ว — กดอัปโหลดเพื่อประมวลผล`);
-    } else {
-      const text = await fileToText(file);
-      setContent(text);
-      toast.success(`โหลดไฟล์ "${file.name}" แล้ว`);
+    const name = file.name.toLowerCase();
+    try {
+      if (file.type === "application/pdf" || name.endsWith(".pdf")) {
+        const dataUrl = await fileToDataUrl(file);
+        setContent(`__PDF__${dataUrl}`);
+        toast.success(`โหลด PDF "${file.name}" แล้ว — กดอัปโหลดเพื่อประมวลผล`);
+      } else if (
+        name.endsWith(".docx") ||
+        file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      ) {
+        // @ts-expect-error - no types for browser build
+        const mammoth: { extractRawText: (i: { arrayBuffer: ArrayBuffer }) => Promise<{ value: string }> } = await import("mammoth/mammoth.browser");
+
+
+        const buf = await file.arrayBuffer();
+        const { value } = await mammoth.extractRawText({ arrayBuffer: buf });
+        if (!value.trim()) {
+          toast.error("ไม่พบข้อความใน DOCX");
+          return;
+        }
+        setContent(value);
+        toast.success(`โหลด DOCX "${file.name}" แล้ว`);
+      } else {
+        const text = await fileToText(file);
+        setContent(text);
+        toast.success(`โหลดไฟล์ "${file.name}" แล้ว`);
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "อ่านไฟล์ไม่สำเร็จ");
     }
   };
+
 
   const onUpload = async () => {
     if (!title.trim() || !content.trim()) {
