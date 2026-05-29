@@ -101,7 +101,7 @@ export function AppSidebar() {
 function AdminItem({
   to, icon: Icon, labelTh, labelEn, pathname, collapsed, lang,
 }: {
-  to: "/admin/dashboard" | "/admin/usage" | "/admin/notifications" | "/admin/settings";
+  to: "/admin/dashboard" | "/admin/usage" | "/admin/knowledge" | "/admin/notifications" | "/admin/settings";
   icon: typeof LayoutDashboard;
   labelTh: string;
   labelEn: string;
