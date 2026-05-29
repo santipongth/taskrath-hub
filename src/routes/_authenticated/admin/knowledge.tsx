@@ -108,9 +108,9 @@ function KnowledgePage() {
         name.endsWith(".docx") ||
         file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
       ) {
-        const mammoth = (await import("mammoth/mammoth.browser" as string)) as {
-          extractRawText: (input: { arrayBuffer: ArrayBuffer }) => Promise<{ value: string }>;
-        };
+        // @ts-expect-error - no types for browser build
+        const mammoth: { extractRawText: (i: { arrayBuffer: ArrayBuffer }) => Promise<{ value: string }> } = await import("mammoth/mammoth.browser");
+
 
         const buf = await file.arrayBuffer();
         const { value } = await mammoth.extractRawText({ arrayBuffer: buf });
