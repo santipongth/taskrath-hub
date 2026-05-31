@@ -21,14 +21,13 @@ export const executiveStats = createServerFn({ method: "POST" })
     await assertAdmin(supabase, userId);
 
     const since = new Date(Date.now() - data.days * 24 * 60 * 60 * 1000).toISOString();
-    const [{ data: runs, error: runsErr }, { data: profiles }, { data: pending }] = await Promise.all([
+    const [{ data: runs, error: runsErr }, { data: profiles }] = await Promise.all([
       supabase
         .from("ai_runs")
         .select("user_id, template_id, status, needs_approval, cost_usd, prompt_tokens, completion_tokens, created_at")
         .gte("created_at", since)
         .limit(10000),
       supabase.from("profiles").select("id, display_name, department"),
-      supabase.from("approvals").select("id, status").eq("status", "pending"),
     ]);
     if (runsErr) throw new Error(runsErr.message);
 
@@ -72,7 +71,6 @@ export const executiveStats = createServerFn({ method: "POST" })
         costUsd: totalCost,
         tokens: totalTokens,
         activeUsers: activeUsers.size,
-        pendingApprovals: (pending ?? []).length,
         avgCost: list.length ? totalCost / list.length : 0,
       },
       byDepartment: [...byDept.entries()].map(([name, v]) => ({ name, ...v })).sort((a, b) => b.runs - a.runs),

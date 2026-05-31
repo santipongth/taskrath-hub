@@ -1,7 +1,7 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { runTemplate, requestApproval, extractTextFromImage } from "@/lib/ai.functions";
+import { runTemplate, extractTextFromImage } from "@/lib/ai.functions";
 import { TEMPLATES_BY_ID } from "@/lib/templates";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Copy, CheckCircle2, ImagePlus, ShieldCheck, RotateCcw, Pencil } from "lucide-react";
+import { ArrowLeft, Copy, ImagePlus, ShieldCheck, RotateCcw, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { RefineBar } from "@/components/refine-bar";
 
@@ -40,7 +40,6 @@ function TemplateRunPage() {
   const tpl = TEMPLATES_BY_ID[templateId];
   const { t, lang } = useI18n();
   const run = useServerFn(runTemplate);
-  const reqApproval = useServerFn(requestApproval);
   const ocr = useServerFn(extractTextFromImage);
   const [inputs, setInputs] = useState<Record<string, string>>({});
   const [output, setOutput] = useState("");
@@ -128,15 +127,7 @@ function TemplateRunPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inputs, loading]);
 
-  const onRequestApproval = async () => {
-    if (!runId) return;
-    try {
-      await reqApproval({ data: { runId } });
-      toast.success(lang === "th" ? "ส่งขออนุมัติแล้ว" : "Approval requested");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Error");
-    }
-  };
+
 
   const onUpload = async (fieldName: string, file: File) => {
     if (!file.type.startsWith("image/")) {
@@ -279,10 +270,8 @@ function TemplateRunPage() {
               <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(output); toast.success(t("copied")); }}>
                 <Copy className="mr-1.5 h-3.5 w-3.5" />{t("copy")}
               </Button>
-              <Button variant="outline" size="sm" onClick={onRequestApproval}>
-                <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />{t("requestApproval")}
-              </Button>
             </div>
+          </div>
           </div>
           {editingOutput ? (
             <Textarea

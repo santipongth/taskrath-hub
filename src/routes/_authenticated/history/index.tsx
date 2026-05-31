@@ -42,8 +42,7 @@ function HistoryPage() {
     const needle = q.trim().toLowerCase();
     return all.filter((r) => {
       if (tplFilter !== "all" && r.template_id !== tplFilter) return false;
-      if (statusFilter === "approval" && !r.needs_approval) return false;
-      if (statusFilter !== "all" && statusFilter !== "approval" && r.status !== statusFilter) return false;
+      if (statusFilter !== "all" && r.status !== statusFilter) return false;
       if (!needle) return true;
       const tpl = r.template_id ? TEMPLATES_BY_ID[r.template_id] : null;
       const haystack = [
@@ -99,7 +98,6 @@ function HistoryPage() {
           <SelectContent>
             <SelectItem value="all">{lang === "th" ? "ทุกสถานะ" : "All statuses"}</SelectItem>
             <SelectItem value="completed">{lang === "th" ? "เสร็จสิ้น" : "Completed"}</SelectItem>
-            <SelectItem value="approval">{lang === "th" ? "รออนุมัติ" : "Pending approval"}</SelectItem>
             <SelectItem value="failed">{lang === "th" ? "ล้มเหลว" : "Failed"}</SelectItem>
           </SelectContent>
         </Select>
@@ -150,7 +148,7 @@ function HistoryPage() {
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{r.title ?? "—"}</td>
                     <td className="px-4 py-3">
-                      {r.needs_approval ? <Badge variant="outline">{t("requestApproval")}</Badge> : <Badge variant="secondary">{r.status}</Badge>}
+                      <Badge variant="secondary">{r.status}</Badge>
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">
                       {new Date(r.created_at).toLocaleString(lang === "th" ? "th-TH" : "en-US")}
