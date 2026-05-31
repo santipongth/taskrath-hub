@@ -272,7 +272,6 @@ function TemplateRunPage() {
               </Button>
             </div>
           </div>
-          </div>
           {editingOutput ? (
             <Textarea
               value={output}
