@@ -16,7 +16,6 @@ export const messages = {
   nav_history: { th: "ประวัติการใช้งาน", en: "History" },
   nav_agents: { th: "Agent & Skills", en: "Agents & Skills" },
   nav_integrations: { th: "เชื่อมระบบ", en: "Integrations" },
-  nav_approvals: { th: "อนุมัติ & ประวัติ", en: "Approvals" },
   nav_governance: { th: "ธรรมาภิบาล", en: "Governance" },
   nav_settings: { th: "ตั้งค่า", en: "Settings" },
 
@@ -36,9 +35,6 @@ export const messages = {
   copy: { th: "คัดลอก", en: "Copy" },
   copied: { th: "คัดลอกแล้ว", en: "Copied" },
   save: { th: "บันทึก", en: "Save" },
-  requestApproval: { th: "ขออนุมัติ", en: "Request approval" },
-  approve: { th: "อนุมัติ", en: "Approve" },
-  reject: { th: "ไม่อนุมัติ", en: "Reject" },
   empty: { th: "ยังไม่มีข้อมูล", en: "No data yet" },
 
   // Dashboard
@@ -46,7 +42,6 @@ export const messages = {
   greetingAfternoon: { th: "สวัสดีตอนบ่าย", en: "Good afternoon" },
   greetingEvening: { th: "สวัสดีตอนเย็น", en: "Good evening" },
   statRunsWeek: { th: "งานสัปดาห์นี้", en: "Tasks this week" },
-  statPending: { th: "รออนุมัติ", en: "Pending approvals" },
   statTemplates: { th: "เทมเพลตทั้งหมด", en: "Templates" },
   quickActions: { th: "คลังงานสำเร็จรูป", en: "Template Library" },
   quickActionsDesc: {
@@ -79,9 +74,6 @@ export const messages = {
   historyTitle: { th: "ประวัติการใช้งาน", en: "History" },
   historyEmpty: { th: "ยังไม่มีประวัติงาน", en: "No past runs yet" },
 
-  // Approvals
-  approvalsTitle: { th: "อนุมัติ & ประวัติ", en: "Approvals" },
-  approvalsEmpty: { th: "ไม่มีรายการรออนุมัติ", en: "Nothing waiting for approval" },
 
   // Governance
   governanceTitle: { th: "ธรรมาภิบาล", en: "Governance" },
