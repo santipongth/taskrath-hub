@@ -458,80 +458,17 @@ export const revertRun = createServerFn({ method: "POST" })
     return { output: target.output, revisions: newRevisions };
   });
 
-export const requestApproval = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
-    z.object({ runId: z.string().uuid(), note: z.string().max(2000).optional() }).parse(input),
-  )
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { error: e1 } = await supabase
-      .from("ai_runs")
-      .update({ needs_approval: true })
-      .eq("id", data.runId);
-    if (e1) throw new Error(e1.message);
-    const { error: e2 } = await supabase.from("approvals").insert({
-      run_id: data.runId,
-      requester_id: userId,
-      status: "pending",
-      note: data.note ?? null,
-    });
-    if (e2) throw new Error(e2.message);
-    await logAudit(supabase, userId, "approval.request", data.runId, { note: data.note ?? null });
-    await notifyEvent(supabase, "approval", `🔔 TaskRath: มีคำขออนุมัติใหม่ (run ${data.runId.slice(0, 8)})${data.note ? `\nหมายเหตุ: ${data.note}` : ""}`);
-    return { ok: true };
-  });
-
-export const listPendingApprovals = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { supabase } = context;
-    const { data, error } = await supabase
-      .from("approvals")
-      .select("id, run_id, requester_id, status, note, created_at, decided_at")
-      .order("created_at", { ascending: false })
-      .limit(100);
-    if (error) throw new Error(error.message);
-    return { approvals: data ?? [] };
-  });
-
-export const decideApproval = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
-    z
-      .object({
-        approvalId: z.string().uuid(),
-        decision: z.enum(["approved", "rejected"]),
-        note: z.string().max(2000).optional(),
-      })
-      .parse(input),
-  )
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { error } = await supabase
-      .from("approvals")
-      .update({
-        status: data.decision,
-        approver_id: userId,
-        note: data.note ?? null,
-        decided_at: new Date().toISOString(),
-      })
-      .eq("id", data.approvalId);
-    if (error) throw new Error(error.message);
-    await logAudit(supabase, userId, `approval.${data.decision}`, data.approvalId, { note: data.note ?? null });
-    return { ok: true };
-  });
-
 export const dashboardStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const [runs, pending] = await Promise.all([
-      supabase.from("ai_runs").select("id", { count: "exact", head: true }).eq("user_id", userId).gte("created_at", weekAgo),
-      supabase.from("approvals").select("id", { count: "exact", head: true }).eq("status", "pending"),
-    ]);
-    return { runsThisWeek: runs.count ?? 0, pendingApprovals: pending.count ?? 0 };
+    const { count } = await supabase
+      .from("ai_runs")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .gte("created_at", weekAgo);
+    return { runsThisWeek: count ?? 0 };
   });
 
 export const listAuditLogs = createServerFn({ method: "GET" })

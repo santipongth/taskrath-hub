@@ -1,69 +1,46 @@
+## เป้าหมาย
 
-# Knowledge Base / RAG — อ้างอิงระเบียบราชการ
+1. ย้าย 3 เมนูนี้จากแถบหลัก → กลุ่ม **ผู้ดูแลระบบ** (เห็นเฉพาะ admin):
+   - Agents & Skills (`/agents`)
+   - เชื่อมระบบ (`/integrations`)
+   - ธรรมาภิบาล (`/governance`)
+2. **ยกเลิกฟีเจอร์ Approvals ทั้งหมด** ออกจากโปรเจกต์
+3. ตรวจ codebase ให้ไม่มีลิงก์/อิมพอร์ต/typegen หลงเหลือที่ทำให้บิลด์/รันพัง
 
-ให้ผู้ใช้อัปโหลดเอกสาร (ระเบียบ/หนังสือเวียน/คู่มือ) → ระบบ chunk + embed → เก็บใน pgvector → ทุก Run/Agent ดึง context ที่เกี่ยวข้องมาเสริม prompt พร้อมแสดง citations
+## ไฟล์ที่จะแก้
 
-## 1. Database (migration)
+### A) Sidebar — `src/components/app-sidebar.tsx`
+- ลบ `/agents`, `/integrations`, `/governance`, `/approvals` ออกจาก `ITEMS` (แถบหลัก)
+- เพิ่ม 3 รายการแรกเข้ากลุ่ม admin (ใช้ `AdminItem`) — Approvals ตัดทิ้ง
+- ขยาย union ของ `AdminItem.to` ให้รวม `/agents | /integrations | /governance`
+- เอา import `CheckCircle2` ออก (ไม่ได้ใช้แล้ว)
 
-เปิด `pgvector` และเพิ่ม 2 ตาราง:
+### B) Command palette — `src/components/command-palette.tsx`
+- ลบรายการ `/approvals` ออกจากลิสต์
 
-- **`kb_documents`** — เอกสารต้นฉบับ
-  - `title`, `source` (url/filename), `category` (ระเบียบ/หนังสือเวียน/คู่มือ/อื่นๆ), `uploaded_by`, `status` (processing/ready/failed), `chunk_count`
-- **`kb_chunks`** — ชิ้นเนื้อหา + vector
-  - `document_id` (FK, on delete cascade), `chunk_index`, `content` (text), `embedding vector(1536)`, `tokens`
-  - HNSW index บน `embedding vector_cosine_ops`
-- **SQL function** `match_kb_chunks(query_embedding, match_count, similarity_threshold)` คืน chunks ที่ใกล้ที่สุดพร้อม document title
+### C) Approvals — ถอดทั้งฟีเจอร์
+- ลบไฟล์ `src/routes/_authenticated/approvals.tsx`
+- ลบ server functions ใน `src/lib/ai.functions.ts`:
+  - `requestApproval`, `listPendingApprovals`, `decideApproval`
+  - ใน `runTemplate` ยังคงปล่อยให้ตั้ง `needs_approval` ตามนโยบาย/PII ได้ แต่ตัดเส้นทาง "ขออนุมัติ" และ workflow อนุมัติออก (เก็บแค่เป็น flag ภายในไม่มี UI)  
+    *(หรือถ้าต้องการเอาออกสะอาด แจ้งได้ในขั้น build — ค่า default คือเก็บคอลัมน์ DB ไว้เพื่อไม่ต้องทำ migration)*
+- ใน `src/routes/_authenticated/run/$templateId.tsx`: ลบปุ่ม "ขออนุมัติ", state/handler ที่เรียก `requestApproval`, และ import ที่เกี่ยวข้อง
+- ใน `src/routes/_authenticated/history/index.tsx`: ลบ badge `requestApproval` (แสดงสถานะปกติแทน)
+- ใน `src/routes/_authenticated/admin/dashboard.tsx`: ลบ KPI "Pending approvals" (และ field `pendingApprovals` ใน `src/lib/admin.functions.ts` query)
+- ใน `src/lib/admin.functions.ts`: เอา query `approvals` ออก, ลบ field `pendingApprovals` จาก return
+- ใน `src/lib/messages.ts`: ลบ keys `nav_approvals`, `approvalsTitle`, `approvalsEmpty`, `requestApproval`, `statPending` (และอัปเดต `MessageKey` ที่ใช้)
 
-**RLS**:
-- `kb_documents`: authenticated อ่านได้ทั้งหมด (knowledge เป็น org-wide), admin เท่านั้นที่ insert/update/delete
-- `kb_chunks`: authenticated อ่านได้, admin เท่านั้นที่จัดการ
-- Storage bucket `kb-files` (private) — admin upload, authenticated read
+### D) Route tree
+- `src/routeTree.gen.ts` จะ regenerate อัตโนมัติเมื่อไฟล์ route ถูกลบ — ไม่ต้องแก้มือ
+- เก็บไฟล์ route `/agents`, `/integrations`, `/governance` ไว้ที่เดิม (path ไม่เปลี่ยน) เพื่อไม่ต้องย้ายไฟล์ — แค่ย้าย "เมนู" ใน sidebar เท่านั้น
 
-## 2. Server functions (`src/lib/kb.functions.ts`)
+### E) DB
+- ไม่มี migration. ตาราง `approvals` และ column `needs_approval` ยังคงอยู่แต่ไม่ถูกใช้ (ปลอดภัย, ไม่กระทบ runtime). แจ้งผู้ใช้ว่าหากต้องการล้างจริงค่อย drop ภายหลัง
 
-- `uploadKbDocument({ title, category, fileDataUrl, mimeType })` — admin only
-  - บันทึกไฟล์ลง storage, สร้าง row `kb_documents` status=processing
-  - แตกข้อความ: PDF/DOCX → ใช้ Lovable AI (Gemini) อ่านเอกสารเป็น text; TXT/MD → อ่านตรง
-  - Chunk ~800 ตัวอักษร overlap 100
-  - เรียก Lovable AI Embeddings (`openai/text-embedding-3-small`, dim 1536) batch ละ 64 chunks
-  - Insert `kb_chunks` ทั้งหมด, อัปเดต status=ready, chunk_count
-- `listKbDocuments()` — รายการเอกสาร + chunk count
-- `deleteKbDocument({ id })` — admin (cascade ลบ chunks + storage object)
-- `reindexKbDocument({ id })` — admin
-- `searchKb({ query, topK=5 })` — embed query → rpc `match_kb_chunks` → คืน `[{content, title, source, similarity}]`
-
-## 3. ผูก RAG เข้ากับ Run/Agent
-
-แก้ `src/lib/ai.functions.ts`:
-
-- เพิ่ม helper `retrieveContext(query, opts)` คืน chunks + citations text block
-- `runTemplate`, `runFreeform`, `runAgent`, `refineRun`:
-  - ถ้า `app_settings.kb_enabled = true` (default true): สร้าง query จาก inputs → `searchKb` top 5 (threshold 0.5)
-  - แทรกเป็น `<ระเบียบที่เกี่ยวข้อง>...</ระเบียบที่เกี่ยวข้อง>` ใน system prompt + สั่งให้ AI อ้างอิงด้วย `[หมายเลข]`
-  - บันทึก `metadata.citations = [{index, title, source, similarity}]` ใน `ai_runs`
-
-## 4. UI
-
-- **หน้าใหม่ `/admin/knowledge`** (admin only, เพิ่มใน sidebar)
-  - ปุ่ม Upload (drag-drop, รองรับ PDF/DOCX/TXT/MD ≤10MB)
-  - ตารางเอกสาร: title, category, status badge, chunks, uploaded_at, actions (re-index, delete)
-  - Search box ทดสอบ RAG (พิมพ์คำถาม → แสดง top chunks + similarity)
-- **Run / History / Agent result**: ถ้ามี citations แสดง section "อ้างอิง" ใต้ output — chip คลิกได้แสดง popover เนื้อหา chunk ต้นทาง
-- **Admin Settings**: toggle "เปิดใช้ Knowledge Base กับทุก Run"
-
-## 5. Audit
-
-ทุก upload/delete/reindex เขียน `audit_logs` action `kb.upload|kb.delete|kb.reindex`
-
-## Technical notes
-
-- ใช้ Lovable AI Gateway สำหรับ embeddings (มี LOVABLE_API_KEY อยู่แล้ว) — ไม่ต้องขอ secret ใหม่
-- PDF/DOCX text extraction: ส่ง dataUrl เข้า `google/gemini-2.5-flash` พร้อม prompt "ดึงข้อความทั้งหมดออกมา preserve โครงสร้าง" (ใช้ pattern เดียวกับ `extractTextFromImage` ที่มีอยู่)
-- pgvector(1536) เลือกเพราะถูกกว่า + เร็วกว่า, คุณภาพพอใช้สำหรับเอกสารภาษาไทย
-- Chunking: split ที่ขอบประโยค/ย่อหน้า ภาษาไทย (split ด้วย `\n\n` ก่อน, fallback ตัวอักษร)
-
-## Out of scope (รอบนี้)
-
-- Re-ranking, hybrid full-text search
-- ผู้ใช้ทั่วไป upload เอกสารส่วนตัว (ตอนนี้เฉพาะ admin = องค์กร)
-- Cron auto-reindex
+## Smoke checklist หลังบิลด์
+- Sidebar: หน้าหลักไม่มี Agents/Integrations/Governance/Approvals; admin เห็นทั้ง 3 ใหม่
+- Command palette: ไม่มี Approvals
+- Run page: ไม่มีปุ่มขออนุมัติ, ไม่มี import ค้าง
+- History: render ปกติ ไม่มี badge อนุมัติ
+- Admin dashboard: KPI โหลดไม่ error
+- `tsc` ผ่าน (ไม่มี import/type หลงเหลือของ approvals)

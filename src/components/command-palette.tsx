@@ -8,7 +8,7 @@ import { TEMPLATES } from "@/lib/templates";
 import { useI18n } from "@/lib/i18n";
 import {
   LayoutDashboard, Sparkles, LibraryBig, History as HistoryIcon,
-  CheckCircle2, Settings, PieChart, Bell,
+  Settings, PieChart, Bell,
 } from "lucide-react";
 
 const PAGES = [
@@ -16,7 +16,6 @@ const PAGES = [
   { to: "/run", labelTh: "สั่งงานอิสระ", labelEn: "Freeform Run", icon: Sparkles },
   { to: "/templates", labelTh: "เทมเพลตทั้งหมด", labelEn: "All Templates", icon: LibraryBig },
   { to: "/history", labelTh: "ประวัติการใช้งาน", labelEn: "History", icon: HistoryIcon },
-  { to: "/approvals", labelTh: "การอนุมัติ", labelEn: "Approvals", icon: CheckCircle2 },
   { to: "/settings", labelTh: "ตั้งค่า", labelEn: "Settings", icon: Settings },
   { to: "/admin/dashboard", labelTh: "แดชบอร์ดผู้บริหาร", labelEn: "Executive Dashboard", icon: PieChart },
   { to: "/admin/notifications", labelTh: "การแจ้งเตือน", labelEn: "Notifications", icon: Bell },

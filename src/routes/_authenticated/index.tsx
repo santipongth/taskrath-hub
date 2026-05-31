@@ -7,7 +7,7 @@ import { listFavorites } from "@/lib/favorites.functions";
 import { TEMPLATES, TEMPLATES_BY_ID } from "@/lib/templates";
 import { TemplateCard } from "@/components/template-card";
 import { useI18n } from "@/lib/i18n";
-import { Sparkles, ListChecks, LibraryBig, Star } from "lucide-react";
+import { Sparkles, LibraryBig, Star } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
@@ -60,9 +60,8 @@ function Dashboard() {
         <p className="mt-1 text-sm text-muted-foreground">{t("appTagline")}</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <StatCard icon={<Sparkles className="h-4 w-4" />} label={t("statRunsWeek")} value={data?.runsThisWeek ?? "—"} />
-        <StatCard icon={<ListChecks className="h-4 w-4" />} label={t("statPending")} value={data?.pendingApprovals ?? "—"} />
         <StatCard icon={<LibraryBig className="h-4 w-4" />} label={t("statTemplates")} value={TEMPLATES.length} />
       </div>
 

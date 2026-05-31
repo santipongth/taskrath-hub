@@ -6,7 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import { executiveStats } from "@/lib/admin.functions";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Activity, Coins, Users, Clock, Building2, Download } from "lucide-react";
+import { Activity, Coins, Users, Building2, Download } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
   PieChart, Pie, Cell, Legend, LineChart, Line,
@@ -93,11 +93,10 @@ function ExecutiveDashboard() {
         </div>
       ) : data ? (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-3">
             <Kpi icon={Activity} label={L("งานทั้งหมด", "Total runs")} value={data.totals.runs.toLocaleString()} />
             <Kpi icon={Users} label={L("ผู้ใช้ active", "Active users")} value={data.totals.activeUsers.toLocaleString()} />
             <Kpi icon={Coins} label={L("ต้นทุนรวม", "Total cost")} value={fmtCost(data.totals.costUsd)} sub={`avg ${fmtCost(data.totals.avgCost)}/run`} />
-            <Kpi icon={Clock} label={L("รออนุมัติ", "Pending approvals")} value={data.totals.pendingApprovals.toLocaleString()} />
           </div>
 
           <div className="mt-6 grid gap-4 lg:grid-cols-2">
