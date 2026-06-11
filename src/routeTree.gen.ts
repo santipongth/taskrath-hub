@@ -21,8 +21,10 @@ import { Route as AuthenticatedGovernanceRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAgentsRouteImport } from './routes/_authenticated/agents'
 import { Route as AuthenticatedRunIndexRouteImport } from './routes/_authenticated/run/index'
 import { Route as AuthenticatedHistoryIndexRouteImport } from './routes/_authenticated/history/index'
+import { Route as AuthenticatedChatIndexRouteImport } from './routes/_authenticated/chat/index'
 import { Route as AuthenticatedRunTemplateIdRouteImport } from './routes/_authenticated/run/$templateId'
 import { Route as AuthenticatedHistoryRunIdRouteImport } from './routes/_authenticated/history/$runId'
+import { Route as AuthenticatedChatThreadIdRouteImport } from './routes/_authenticated/chat/$threadId'
 import { Route as AuthenticatedAdminUsageRouteImport } from './routes/_authenticated/admin/usage'
 import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authenticated/admin/settings'
 import { Route as AuthenticatedAdminNotificationsRouteImport } from './routes/_authenticated/admin/notifications'
@@ -90,6 +92,11 @@ const AuthenticatedHistoryIndexRoute =
     path: '/history/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedChatIndexRoute = AuthenticatedChatIndexRouteImport.update({
+  id: '/chat/',
+  path: '/chat/',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedRunTemplateIdRoute =
   AuthenticatedRunTemplateIdRouteImport.update({
     id: '/run/$templateId',
@@ -100,6 +107,12 @@ const AuthenticatedHistoryRunIdRoute =
   AuthenticatedHistoryRunIdRouteImport.update({
     id: '/history/$runId',
     path: '/history/$runId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedChatThreadIdRoute =
+  AuthenticatedChatThreadIdRouteImport.update({
+    id: '/chat/$threadId',
+    path: '/chat/$threadId',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedAdminUsageRoute = AuthenticatedAdminUsageRouteImport.update({
@@ -147,8 +160,10 @@ export interface FileRoutesByFullPath {
   '/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/usage': typeof AuthenticatedAdminUsageRoute
+  '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/history/$runId': typeof AuthenticatedHistoryRunIdRoute
   '/run/$templateId': typeof AuthenticatedRunTemplateIdRoute
+  '/chat/': typeof AuthenticatedChatIndexRoute
   '/history/': typeof AuthenticatedHistoryIndexRoute
   '/run/': typeof AuthenticatedRunIndexRoute
 }
@@ -167,8 +182,10 @@ export interface FileRoutesByTo {
   '/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/usage': typeof AuthenticatedAdminUsageRoute
+  '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/history/$runId': typeof AuthenticatedHistoryRunIdRoute
   '/run/$templateId': typeof AuthenticatedRunTemplateIdRoute
+  '/chat': typeof AuthenticatedChatIndexRoute
   '/history': typeof AuthenticatedHistoryIndexRoute
   '/run': typeof AuthenticatedRunIndexRoute
 }
@@ -189,8 +206,10 @@ export interface FileRoutesById {
   '/_authenticated/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
   '/_authenticated/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/_authenticated/admin/usage': typeof AuthenticatedAdminUsageRoute
+  '/_authenticated/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/_authenticated/history/$runId': typeof AuthenticatedHistoryRunIdRoute
   '/_authenticated/run/$templateId': typeof AuthenticatedRunTemplateIdRoute
+  '/_authenticated/chat/': typeof AuthenticatedChatIndexRoute
   '/_authenticated/history/': typeof AuthenticatedHistoryIndexRoute
   '/_authenticated/run/': typeof AuthenticatedRunIndexRoute
 }
@@ -211,8 +230,10 @@ export interface FileRouteTypes {
     | '/admin/notifications'
     | '/admin/settings'
     | '/admin/usage'
+    | '/chat/$threadId'
     | '/history/$runId'
     | '/run/$templateId'
+    | '/chat/'
     | '/history/'
     | '/run/'
   fileRoutesByTo: FileRoutesByTo
@@ -231,8 +252,10 @@ export interface FileRouteTypes {
     | '/admin/notifications'
     | '/admin/settings'
     | '/admin/usage'
+    | '/chat/$threadId'
     | '/history/$runId'
     | '/run/$templateId'
+    | '/chat'
     | '/history'
     | '/run'
   id:
@@ -252,8 +275,10 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/notifications'
     | '/_authenticated/admin/settings'
     | '/_authenticated/admin/usage'
+    | '/_authenticated/chat/$threadId'
     | '/_authenticated/history/$runId'
     | '/_authenticated/run/$templateId'
+    | '/_authenticated/chat/'
     | '/_authenticated/history/'
     | '/_authenticated/run/'
   fileRoutesById: FileRoutesById
@@ -351,6 +376,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedHistoryIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/chat/': {
+      id: '/_authenticated/chat/'
+      path: '/chat'
+      fullPath: '/chat/'
+      preLoaderRoute: typeof AuthenticatedChatIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/run/$templateId': {
       id: '/_authenticated/run/$templateId'
       path: '/run/$templateId'
@@ -363,6 +395,13 @@ declare module '@tanstack/react-router' {
       path: '/history/$runId'
       fullPath: '/history/$runId'
       preLoaderRoute: typeof AuthenticatedHistoryRunIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/chat/$threadId': {
+      id: '/_authenticated/chat/$threadId'
+      path: '/chat/$threadId'
+      fullPath: '/chat/$threadId'
+      preLoaderRoute: typeof AuthenticatedChatThreadIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/admin/usage': {
@@ -415,8 +454,10 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminNotificationsRoute: typeof AuthenticatedAdminNotificationsRoute
   AuthenticatedAdminSettingsRoute: typeof AuthenticatedAdminSettingsRoute
   AuthenticatedAdminUsageRoute: typeof AuthenticatedAdminUsageRoute
+  AuthenticatedChatThreadIdRoute: typeof AuthenticatedChatThreadIdRoute
   AuthenticatedHistoryRunIdRoute: typeof AuthenticatedHistoryRunIdRoute
   AuthenticatedRunTemplateIdRoute: typeof AuthenticatedRunTemplateIdRoute
+  AuthenticatedChatIndexRoute: typeof AuthenticatedChatIndexRoute
   AuthenticatedHistoryIndexRoute: typeof AuthenticatedHistoryIndexRoute
   AuthenticatedRunIndexRoute: typeof AuthenticatedRunIndexRoute
 }
@@ -433,8 +474,10 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminNotificationsRoute: AuthenticatedAdminNotificationsRoute,
   AuthenticatedAdminSettingsRoute: AuthenticatedAdminSettingsRoute,
   AuthenticatedAdminUsageRoute: AuthenticatedAdminUsageRoute,
+  AuthenticatedChatThreadIdRoute: AuthenticatedChatThreadIdRoute,
   AuthenticatedHistoryRunIdRoute: AuthenticatedHistoryRunIdRoute,
   AuthenticatedRunTemplateIdRoute: AuthenticatedRunTemplateIdRoute,
+  AuthenticatedChatIndexRoute: AuthenticatedChatIndexRoute,
   AuthenticatedHistoryIndexRoute: AuthenticatedHistoryIndexRoute,
   AuthenticatedRunIndexRoute: AuthenticatedRunIndexRoute,
 }
@@ -452,13 +495,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

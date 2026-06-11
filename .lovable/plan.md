@@ -1,46 +1,66 @@
-## เป้าหมาย
+# Multi-turn Chat กับ Knowledge Base
 
-1. ย้าย 3 เมนูนี้จากแถบหลัก → กลุ่ม **ผู้ดูแลระบบ** (เห็นเฉพาะ admin):
-   - Agents & Skills (`/agents`)
-   - เชื่อมระบบ (`/integrations`)
-   - ธรรมาภิบาล (`/governance`)
-2. **ยกเลิกฟีเจอร์ Approvals ทั้งหมด** ออกจากโปรเจกต์
-3. ตรวจ codebase ให้ไม่มีลิงก์/อิมพอร์ต/typegen หลงเหลือที่ทำให้บิลด์/รันพัง
+ระบบถาม-ตอบกฎระเบียบแบบสนทนาต่อเนื่อง ใช้เอกสาร KB ที่ admin อัปโหลดไว้ พร้อมแสดง citations ของ chunk ที่ AI ใช้ตอบ
 
-## ไฟล์ที่จะแก้
+## ตัวเลือกที่เลือกให้ (defaults)
+- **รูปแบบ**: หลายห้องสนทนา (threads) — ผู้ใช้สร้าง/ตั้งชื่อ/ลบได้เอง
+- **เก็บประวัติ**: ใน Lovable Cloud (database) ผูกกับผู้ใช้ — ใช้งานข้ามอุปกรณ์ได้
+- **ขอบเขต KB**: ค้นทั้งหมด + ตัวกรอง category (optional dropdown)
+- **โมเดล**: `google/gemini-3-flash-preview` (ผ่าน Lovable AI Gateway, streaming)
 
-### A) Sidebar — `src/components/app-sidebar.tsx`
-- ลบ `/agents`, `/integrations`, `/governance`, `/approvals` ออกจาก `ITEMS` (แถบหลัก)
-- เพิ่ม 3 รายการแรกเข้ากลุ่ม admin (ใช้ `AdminItem`) — Approvals ตัดทิ้ง
-- ขยาย union ของ `AdminItem.to` ให้รวม `/agents | /integrations | /governance`
-- เอา import `CheckCircle2` ออก (ไม่ได้ใช้แล้ว)
+## โครงสร้างใหม่
 
-### B) Command palette — `src/components/command-palette.tsx`
-- ลบรายการ `/approvals` ออกจากลิสต์
+### 1. Database (migration)
+- `chat_threads`: `user_id`, `title`, `category_filter` (nullable)
+- `chat_messages`: `thread_id`, `role` (user/assistant), `content`, `citations` (jsonb — array ของ `{doc_id, chunk_id, title, score, snippet}`)
+- RLS: ผู้ใช้เห็น/แก้เฉพาะของตัวเอง
+- GRANT + RLS ครบตามมาตรฐาน
 
-### C) Approvals — ถอดทั้งฟีเจอร์
-- ลบไฟล์ `src/routes/_authenticated/approvals.tsx`
-- ลบ server functions ใน `src/lib/ai.functions.ts`:
-  - `requestApproval`, `listPendingApprovals`, `decideApproval`
-  - ใน `runTemplate` ยังคงปล่อยให้ตั้ง `needs_approval` ตามนโยบาย/PII ได้ แต่ตัดเส้นทาง "ขออนุมัติ" และ workflow อนุมัติออก (เก็บแค่เป็น flag ภายในไม่มี UI)  
-    *(หรือถ้าต้องการเอาออกสะอาด แจ้งได้ในขั้น build — ค่า default คือเก็บคอลัมน์ DB ไว้เพื่อไม่ต้องทำ migration)*
-- ใน `src/routes/_authenticated/run/$templateId.tsx`: ลบปุ่ม "ขออนุมัติ", state/handler ที่เรียก `requestApproval`, และ import ที่เกี่ยวข้อง
-- ใน `src/routes/_authenticated/history/index.tsx`: ลบ badge `requestApproval` (แสดงสถานะปกติแทน)
-- ใน `src/routes/_authenticated/admin/dashboard.tsx`: ลบ KPI "Pending approvals" (และ field `pendingApprovals` ใน `src/lib/admin.functions.ts` query)
-- ใน `src/lib/admin.functions.ts`: เอา query `approvals` ออก, ลบ field `pendingApprovals` จาก return
-- ใน `src/lib/messages.ts`: ลบ keys `nav_approvals`, `approvalsTitle`, `approvalsEmpty`, `requestApproval`, `statPending` (และอัปเดต `MessageKey` ที่ใช้)
+### 2. Routes (TanStack file-based)
+- `src/routes/_authenticated/chat/index.tsx` — redirect ไป thread ล่าสุด หรือสร้างใหม่
+- `src/routes/_authenticated/chat/$threadId.tsx` — หน้า chat หลัก (thread list ซ้าย + conversation ขวา)
+- `src/routes/api/chat.ts` — streaming endpoint (`streamText` + RAG tool)
 
-### D) Route tree
-- `src/routeTree.gen.ts` จะ regenerate อัตโนมัติเมื่อไฟล์ route ถูกลบ — ไม่ต้องแก้มือ
-- เก็บไฟล์ route `/agents`, `/integrations`, `/governance` ไว้ที่เดิม (path ไม่เปลี่ยน) เพื่อไม่ต้องย้ายไฟล์ — แค่ย้าย "เมนู" ใน sidebar เท่านั้น
+### 3. Server functions (`src/lib/chat.functions.ts`)
+- `listThreads`, `createThread`, `renameThread`, `deleteThread`
+- `getThreadMessages(threadId)`
+- `searchKb({query, categoryFilter, k})` — reuse logic จาก `kb.functions.ts` (embed query → cosine similarity → top-k chunks)
 
-### E) DB
-- ไม่มี migration. ตาราง `approvals` และ column `needs_approval` ยังคงอยู่แต่ไม่ถูกใช้ (ปลอดภัย, ไม่กระทบ runtime). แจ้งผู้ใช้ว่าหากต้องการล้างจริงค่อย drop ภายหลัง
+### 4. Chat backend (`src/routes/api/chat.ts`)
+- รับ `messages[]`, `threadId`, `categoryFilter`
+- **RAG flow ก่อนเรียก LLM**: embed ข้อความล่าสุดของผู้ใช้ → ดึง top-5 chunks จาก `kb_chunks` → ใส่ใน system prompt เป็น context พร้อมหมายเลข [1][2]...
+- เรียก `streamText` ด้วย system ภาษาไทย ("คุณคือผู้ช่วยตอบกฎระเบียบราชการ อ้างอิงเฉพาะจาก context ที่ให้...")
+- `onFinish`: บันทึก assistant message + citations array ลง DB
 
-## Smoke checklist หลังบิลด์
-- Sidebar: หน้าหลักไม่มี Agents/Integrations/Governance/Approvals; admin เห็นทั้ง 3 ใหม่
-- Command palette: ไม่มี Approvals
-- Run page: ไม่มีปุ่มขออนุมัติ, ไม่มี import ค้าง
-- History: render ปกติ ไม่มี badge อนุมัติ
-- Admin dashboard: KPI โหลดไม่ error
-- `tsc` ผ่าน (ไม่มี import/type หลงเหลือของ approvals)
+### 5. UI (AI Elements)
+ติดตั้ง: `bun x ai-elements@latest add conversation message prompt-input shimmer`
+- **Layout**: sidebar thread list (เหมือน ChatGPT) + main conversation
+- **Composer**: PromptInput + dropdown กรอง category KB (optional)
+- **Message**: render markdown ผ่าน `MessageResponse`; ใต้ข้อความ assistant แสดง `<CitationsList citations={...} />` (reuse component ที่มีอยู่แล้ว `src/components/citations-list.tsx`)
+- **Empty state**: แสดงคำถามตัวอย่าง 4 ข้อ ("ระเบียบการลาป่วยกี่วันต้องมีใบรับรองแพทย์?", ฯลฯ)
+- ปุ่ม "สนทนาใหม่", rename inline, ลบ (พร้อม confirm)
+
+### 6. Sidebar & i18n
+- เพิ่มเมนู **"ถาม-ตอบ KB"** (`/chat`) ใน `app-sidebar.tsx` กลุ่มหลัก (ใต้ Run)
+- เพิ่ม keys ใน `messages.ts`: `nav_chat`, `chatTitle`, `chatEmptyHint`, `newChat`, ฯลฯ
+- เพิ่มเข้า command palette
+
+## ส่วนที่ reuse ของเดิม
+- `kb_documents` + `kb_chunks` + embedding logic จาก `src/lib/kb.functions.ts`
+- `src/components/citations-list.tsx`
+- Auth middleware + bearer attacher (มีอยู่แล้ว)
+- PII redaction ก่อนส่ง embed/LLM (จาก `src/lib/pii.ts`)
+
+## ไม่ทำในรอบนี้
+- Voice input, file attachment ใน chat, แชร์ thread กับเพื่อนร่วมงาน, export thread เป็น PDF (เก็บเป็น phase 2)
+
+## หลังบิลด์เสร็จ smoke test
+1. สร้าง thread → ส่งคำถาม → เห็น streaming + citations
+2. รีโหลดหน้า → ข้อความยังอยู่
+3. สร้าง thread ที่ 2 → สลับไปมา ไม่มีข้อความปนกัน
+4. ลบ thread → หายจากลิสต์
+5. ถามคำถามนอก KB → AI ตอบว่า "ไม่พบในเอกสารอ้างอิง"
+
+---
+
+อนุมัติแผนนี้เพื่อเริ่ม implement ได้เลยครับ
