@@ -14,6 +14,7 @@ export const messages = {
   nav_run: { th: "สั่งงาน AI", en: "Run AI" },
   nav_templates: { th: "คลังงานสำเร็จรูป", en: "Template Library" },
   nav_history: { th: "ประวัติการใช้งาน", en: "History" },
+  nav_chat: { th: "ถาม-ตอบ KB", en: "KB Chat" },
   nav_agents: { th: "Agent & Skills", en: "Agents & Skills" },
   nav_integrations: { th: "เชื่อมระบบ", en: "Integrations" },
   nav_governance: { th: "ธรรมาภิบาล", en: "Governance" },
