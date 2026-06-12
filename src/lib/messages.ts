@@ -109,6 +109,21 @@ export const messages = {
   piiRedacted: { th: "ปกปิด PII", en: "PII redacted" },
   auditLogTitle: { th: "บันทึกการใช้งาน", en: "Audit log" },
   auditLogEmpty: { th: "ยังไม่มีบันทึก", en: "No audit entries yet" },
+
+  // Export dialog
+  export_title: { th: "ส่งออกเอกสาร", en: "Export document" },
+  export_classification: { th: "ชั้นความลับ", en: "Classification" },
+  export_urgency: { th: "ชั้นความเร็ว", en: "Urgency" },
+  export_refNo: { th: "เลขที่หนังสือ", en: "Reference No." },
+  export_recipient: { th: "เรียน (ผู้รับ)", en: "Recipient" },
+  export_includeLetterhead: { th: "ใส่ตราครุฑ/หัวกระดาษ", en: "Include letterhead" },
+  export_letterheadMissing: { th: "ยังไม่ได้อัปโหลดตราครุฑในตั้งค่าหน่วยงาน", en: "No letterhead uploaded in Agency settings" },
+  export_downloadPdf: { th: "ดาวน์โหลด PDF", en: "Download PDF" },
+  export_downloadDocx: { th: "ดาวน์โหลด DOCX", en: "Download DOCX" },
+  export_button: { th: "ส่งออก", en: "Export" },
+
+  // Admin templates
+  nav_admin_templates: { th: "เทมเพลตของหน่วยงาน", en: "Custom Templates" },
 } as const;
 
 export type MessageKey = keyof typeof messages;

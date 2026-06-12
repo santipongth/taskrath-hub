@@ -163,7 +163,16 @@ export const runTemplate = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const systemPrompt = TEMPLATE_PROMPTS[data.templateId] ?? "คุณเป็นผู้ช่วยที่เชี่ยวชาญงานราชการไทย";
+    let systemPrompt = TEMPLATE_PROMPTS[data.templateId];
+    if (!systemPrompt) {
+      const { data: customTpl } = await supabase
+        .from("custom_templates")
+        .select("system_prompt_th")
+        .eq("slug", data.templateId)
+        .eq("is_active", true)
+        .maybeSingle();
+      systemPrompt = customTpl?.system_prompt_th ?? "คุณเป็นผู้ช่วยที่เชี่ยวชาญงานราชการไทย";
+    }
     const rawUserPrompt = Object.entries(data.inputs)
       .map(([k, v]) => `${k}:\n${v}`)
       .join("\n\n");
