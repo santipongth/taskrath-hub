@@ -29,7 +29,8 @@ const TemplateSchema = z.object({
 
 export type CustomTemplateInput = z.infer<typeof TemplateSchema>;
 
-async function assertAdmin(supabase: { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown }> }, userId: string) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function assertAdmin(supabase: any, userId: string) {
   const { data } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
   if (data !== true) throw new Error("Forbidden: admin role required");
 }
