@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   LayoutDashboard, Sparkles, LibraryBig, History, Bot, Plug,
   ShieldCheck, Settings, BarChart3, PieChart, Building2, Bell, BookText, MessageSquare,
+  LayoutTemplate,
 } from "lucide-react";
 
 import {
@@ -83,6 +84,7 @@ export function AppSidebar() {
                 <AdminItem to="/admin/dashboard" icon={PieChart} labelTh="แดชบอร์ดผู้บริหาร" labelEn="Executive" pathname={pathname} collapsed={collapsed} lang={lang} />
                 <AdminItem to="/admin/usage" icon={BarChart3} labelTh="การใช้งาน" labelEn="Usage" pathname={pathname} collapsed={collapsed} lang={lang} />
                 <AdminItem to="/admin/knowledge" icon={BookText} labelTh="คลังความรู้" labelEn="Knowledge" pathname={pathname} collapsed={collapsed} lang={lang} />
+                <AdminItem to="/admin/templates" icon={LayoutTemplate} labelTh="เทมเพลตของหน่วยงาน" labelEn="Custom Templates" pathname={pathname} collapsed={collapsed} lang={lang} />
                 <AdminItem to="/agents" icon={Bot} labelTh="Agent & Skills" labelEn="Agents & Skills" pathname={pathname} collapsed={collapsed} lang={lang} />
                 <AdminItem to="/integrations" icon={Plug} labelTh="เชื่อมระบบ" labelEn="Integrations" pathname={pathname} collapsed={collapsed} lang={lang} />
                 <AdminItem to="/governance" icon={ShieldCheck} labelTh="ธรรมาภิบาล" labelEn="Governance" pathname={pathname} collapsed={collapsed} lang={lang} />
@@ -100,7 +102,7 @@ export function AppSidebar() {
 function AdminItem({
   to, icon: Icon, labelTh, labelEn, pathname, collapsed, lang,
 }: {
-  to: "/admin/dashboard" | "/admin/usage" | "/admin/knowledge" | "/admin/notifications" | "/admin/settings" | "/agents" | "/integrations" | "/governance";
+  to: "/admin/dashboard" | "/admin/usage" | "/admin/knowledge" | "/admin/templates" | "/admin/notifications" | "/admin/settings" | "/agents" | "/integrations" | "/governance";
   icon: typeof LayoutDashboard;
   labelTh: string;
   labelEn: string;
