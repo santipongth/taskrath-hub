@@ -216,6 +216,57 @@ export type Database = {
         }
         Relationships: []
       }
+      custom_templates: {
+        Row: {
+          category: string
+          created_at: string
+          created_by: string | null
+          desc_en: string
+          desc_th: string
+          fields: Json
+          icon: string
+          id: string
+          is_active: boolean
+          slug: string
+          system_prompt_th: string
+          title_en: string
+          title_th: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          desc_en?: string
+          desc_th?: string
+          fields?: Json
+          icon?: string
+          id?: string
+          is_active?: boolean
+          slug: string
+          system_prompt_th: string
+          title_en?: string
+          title_th: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          desc_en?: string
+          desc_th?: string
+          fields?: Json
+          icon?: string
+          id?: string
+          is_active?: boolean
+          slug?: string
+          system_prompt_th?: string
+          title_en?: string
+          title_th?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       kb_chunks: {
         Row: {
           chunk_index: number
