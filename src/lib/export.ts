@@ -2,7 +2,7 @@ import { jsPDF } from "jspdf";
 import {
   Document, Packer, Paragraph, TextRun, AlignmentType,
   Table, TableRow, TableCell, WidthType, BorderStyle, PageNumber,
-  Footer,
+  Footer, ImageRun,
 } from "docx";
 import type { AgencySettings } from "@/lib/admin.functions";
 import { ensureSarabun } from "@/lib/pdf-fonts";
@@ -16,6 +16,19 @@ type RunLike = {
   template_id?: string | null;
 };
 
+export type Classification = "ปกติ" | "ลับ" | "ลับมาก" | "ลับที่สุด";
+export type Urgency = "ปกติ" | "ด่วน" | "ด่วนมาก" | "ด่วนที่สุด";
+
+export type ExportOptions = {
+  classification?: Classification;
+  urgency?: Urgency;
+  refNo?: string;
+  recipient?: string;
+  includeLetterhead?: boolean;
+  letterheadBytes?: Uint8Array | null;
+  letterheadMime?: "png" | "jpg";
+};
+
 const TH_MONTHS = [
   "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
   "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
@@ -26,14 +39,10 @@ function thaiDate(iso: string): string {
   return `${d.getDate()} ${TH_MONTHS[d.getMonth()]} ${d.getFullYear() + 543}`;
 }
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleString("th-TH", { dateStyle: "long", timeStyle: "short" });
-}
-
 const FONT = "Sarabun";
-const SIZE_BODY = 32;     // half-points → 16pt
-const SIZE_HEADER = 36;   // 18pt
-const SIZE_TITLE = 40;    // 20pt
+const SIZE_BODY = 32;
+const SIZE_HEADER = 36;
+const SIZE_CLASS = 44;
 
 function tr(text: string, opts: { bold?: boolean; size?: number; italics?: boolean; color?: string } = {}) {
   return new TextRun({
@@ -54,25 +63,52 @@ function p(text: string, opts: Parameters<typeof tr>[1] & { align?: typeof Align
   });
 }
 
-/**
- * Thai government official letter (หนังสือราชการภายนอก) DOCX.
- * Layout follows ระเบียบสำนักนายกรัฐมนตรีว่าด้วยงานสารบรรณ:
- * - ส่วนราชการเจ้าของเรื่อง + ที่ + วันที่
- * - เรื่อง / เรียน
- * - เนื้อหา
- * - คำลงท้าย + ลงนาม + ตำแหน่ง
- */
+function borderless() {
+  const none = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
+  return { top: none, bottom: none, left: none, right: none, insideHorizontal: none, insideVertical: none };
+}
+
 export async function exportRunToDocx(
   run: RunLike,
   templateTitle: string,
   agency?: AgencySettings | null,
+  options: ExportOptions = {},
 ) {
   const ag = agency ?? null;
-  const refNo = `ที่ ${run.template_id ?? "อว"}/${run.id.slice(0, 6).toUpperCase()}`;
+  const refNo = options.refNo?.trim() || `ที่ ${run.template_id ?? "อว"}/${run.id.slice(0, 6).toUpperCase()}`;
   const date = thaiDate(run.created_at);
   const subject = run.title?.trim() || templateTitle;
+  const classification = options.classification && options.classification !== "ปกติ" ? options.classification : null;
+  const urgency = options.urgency && options.urgency !== "ปกติ" ? options.urgency : null;
+  const inputs = (run.input ?? {}) as Record<string, unknown>;
+  const recipient = options.recipient?.trim() ||
+    (typeof inputs.recipient === "string" && inputs.recipient) ||
+    (typeof inputs.to === "string" && inputs.to) ||
+    "ผู้เกี่ยวข้อง";
 
-  // Header table: left = agency block, right = ref no + date
+  const topBlocks: Paragraph[] = [];
+
+  if (options.includeLetterhead && options.letterheadBytes && options.letterheadBytes.length > 0) {
+    topBlocks.push(new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 120 },
+      children: [new ImageRun({
+        type: options.letterheadMime === "jpg" ? "jpg" : "png",
+        data: options.letterheadBytes,
+        transformation: { width: 70, height: 70 },
+        altText: { title: "ตราครุฑ", description: "Garuda emblem", name: "garuda" },
+      })],
+    }));
+  }
+
+  if (classification) {
+    topBlocks.push(new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 60 },
+      children: [tr(classification, { bold: true, color: "C00000", size: SIZE_CLASS })],
+    }));
+  }
+
   const headerTable = new Table({
     width: { size: 9360, type: WidthType.DXA },
     columnWidths: [5400, 3960],
@@ -85,6 +121,7 @@ export async function exportRunToDocx(
             margins: { top: 60, bottom: 60, left: 0, right: 80 },
             children: [
               p(ag?.name || "ส่วนราชการ", { bold: true, size: SIZE_HEADER }),
+              ...(ag?.subUnit ? [p(ag.subUnit)] : []),
               ...(ag?.address ? [p(ag.address)] : []),
               ...(ag?.phone || ag?.email
                 ? [p([ag?.phone && `โทร. ${ag.phone}`, ag?.email && `อีเมล ${ag.email}`].filter(Boolean).join("  "))]
@@ -98,6 +135,10 @@ export async function exportRunToDocx(
             children: [
               p(refNo, { align: AlignmentType.RIGHT }),
               p(date, { align: AlignmentType.RIGHT }),
+              ...(urgency ? [new Paragraph({
+                alignment: AlignmentType.RIGHT,
+                children: [tr(urgency, { bold: true, color: "C00000" })],
+              })] : []),
             ],
           }),
         ],
@@ -110,11 +151,6 @@ export async function exportRunToDocx(
     children: [tr("เรื่อง  ", { bold: true }), tr(subject)],
   });
 
-  // 'เรียน' from inputs.recipient if present, else generic
-  const inputs = (run.input ?? {}) as Record<string, unknown>;
-  const recipient = (typeof inputs.recipient === "string" && inputs.recipient) ||
-    (typeof inputs.to === "string" && inputs.to) ||
-    "ผู้เกี่ยวข้อง";
   const recipientLine = new Paragraph({
     spacing: { line: 360 },
     children: [tr("เรียน  ", { bold: true }), tr(String(recipient))],
@@ -133,7 +169,6 @@ export async function exportRunToDocx(
     body.push(new Paragraph({ spacing: { before: 120, line: 360 }, indent: { firstLine: 720 }, children }));
   }
 
-  // Sign-off block (right-aligned)
   const signOff: Paragraph[] = [
     new Paragraph({ spacing: { before: 480 }, alignment: AlignmentType.CENTER, children: [tr("ขอแสดงความนับถือ")] }),
     new Paragraph({ spacing: { before: 720 }, alignment: AlignmentType.CENTER, children: [tr(ag?.signerName || "(……………………………)", { bold: true })] }),
@@ -143,15 +178,13 @@ export async function exportRunToDocx(
   const doc = new Document({
     creator: "TaskRath",
     title: subject,
-    styles: {
-      default: { document: { run: { font: FONT, size: SIZE_BODY } } },
-    },
+    styles: { default: { document: { run: { font: FONT, size: SIZE_BODY } } } },
     sections: [
       {
         properties: {
           page: {
-            size: { width: 11906, height: 16838 }, // A4
-            margin: { top: 1701, right: 1134, bottom: 1701, left: 1701 }, // ขอบ ๓ ซม. บน/ล่าง/ซ้าย, ๒ ซม. ขวา
+            size: { width: 11906, height: 16838 },
+            margin: { top: 1701, right: 1134, bottom: 1701, left: 1701 },
           },
         },
         footers: {
@@ -169,6 +202,7 @@ export async function exportRunToDocx(
           }),
         },
         children: [
+          ...topBlocks,
           headerTable,
           new Paragraph({ children: [new TextRun("")], spacing: { before: 120 } }),
           subjectLine,
@@ -182,11 +216,6 @@ export async function exportRunToDocx(
 
   const blob = await Packer.toBlob(doc);
   triggerDownload(blob, `${sanitize(subject)}-${run.id.slice(0, 8)}.docx`);
-}
-
-function borderless() {
-  const none = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
-  return { top: none, bottom: none, left: none, right: none, insideHorizontal: none, insideVertical: none };
 }
 
 function triggerDownload(blob: Blob, filename: string) {
@@ -204,14 +233,17 @@ function sanitize(s: string) {
   return s.replace(/[^\w\u0E00-\u0E7F-]+/g, "_").slice(0, 60) || "document";
 }
 
-/**
- * PDF export with embedded Sarabun font for full Thai support.
- * Loads ~180KB of TTF data lazily on first export.
- */
+function bytesToBase64(bytes: Uint8Array): string {
+  let bin = "";
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+
 export async function exportRunToPdf(
   run: RunLike,
   templateTitle: string,
   agency?: AgencySettings | null,
+  options: ExportOptions = {},
 ) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   await ensureSarabun(doc);
@@ -222,30 +254,67 @@ export async function exportRunToPdf(
   const usable = pageWidth - margin * 2;
   let y = margin;
 
+  const classification = options.classification && options.classification !== "ปกติ" ? options.classification : null;
+  const urgency = options.urgency && options.urgency !== "ปกติ" ? options.urgency : null;
+
+  if (options.includeLetterhead && options.letterheadBytes && options.letterheadBytes.length > 0) {
+    try {
+      const fmt = options.letterheadMime === "jpg" ? "JPEG" : "PNG";
+      const dataUrl = `data:image/${options.letterheadMime ?? "png"};base64,${bytesToBase64(options.letterheadBytes)}`;
+      const imgSize = 60;
+      doc.addImage(dataUrl, fmt, pageWidth / 2 - imgSize / 2, y, imgSize, imgSize);
+      y += imgSize + 8;
+    } catch {
+      /* ignore image errors */
+    }
+  }
+
+  if (classification) {
+    doc.setFont("Sarabun", "bold");
+    doc.setFontSize(16);
+    doc.setTextColor(192, 0, 0);
+    doc.text(classification, pageWidth / 2, y + 6, { align: "center" });
+    y += 22;
+  }
+
   if (agency?.name) {
     doc.setFont("Sarabun", "bold");
     doc.setFontSize(14);
     doc.setTextColor(20);
     doc.text(agency.name, margin, y);
     y += 18;
+    if (agency.subUnit) {
+      doc.setFont("Sarabun", "normal");
+      doc.setFontSize(11);
+      doc.setTextColor(60);
+      doc.text(agency.subUnit, margin, y);
+      y += 14;
+    }
     if (agency.address) {
       doc.setFont("Sarabun", "normal");
       doc.setFontSize(10);
       doc.setTextColor(90);
-      const addrLines = doc.splitTextToSize(agency.address, usable) as string[];
+      const addrLines = doc.splitTextToSize(agency.address, usable - 200) as string[];
       for (const l of addrLines) { doc.text(l, margin, y); y += 12; }
     }
   }
 
-  const refNo = `ที่ ${run.template_id ?? "อว"}/${run.id.slice(0, 6).toUpperCase()}`;
+  const refNo = options.refNo?.trim() || `ที่ ${run.template_id ?? "อว"}/${run.id.slice(0, 6).toUpperCase()}`;
   const date = thaiDate(run.created_at);
   doc.setFont("Sarabun", "normal");
   doc.setFontSize(10);
   doc.setTextColor(60);
-  doc.text(refNo, pageWidth - margin, margin, { align: "right" });
-  doc.text(date, pageWidth - margin, margin + 14, { align: "right" });
+  const topRightY = options.includeLetterhead && options.letterheadBytes ? margin + 70 : margin;
+  doc.text(refNo, pageWidth - margin, topRightY, { align: "right" });
+  doc.text(date, pageWidth - margin, topRightY + 14, { align: "right" });
+  if (urgency) {
+    doc.setFont("Sarabun", "bold");
+    doc.setTextColor(192, 0, 0);
+    doc.text(urgency, pageWidth - margin, topRightY + 30, { align: "right" });
+    doc.setTextColor(60);
+  }
 
-  y = Math.max(y, margin + 40);
+  y = Math.max(y, topRightY + 50);
   doc.setDrawColor(200);
   doc.line(margin, y, pageWidth - margin, y);
   y += 16;
@@ -256,7 +325,16 @@ export async function exportRunToPdf(
   doc.setTextColor(20);
   const titleLines = doc.splitTextToSize(`เรื่อง  ${subject}`, usable) as string[];
   for (const l of titleLines) { doc.text(l, margin, y); y += 18; }
-  y += 6;
+  y += 4;
+
+  const inputs = (run.input ?? {}) as Record<string, unknown>;
+  const recipient = options.recipient?.trim() ||
+    (typeof inputs.recipient === "string" && inputs.recipient) ||
+    (typeof inputs.to === "string" && inputs.to) ||
+    "ผู้เกี่ยวข้อง";
+  doc.setFont("Sarabun", "bold");
+  doc.text(`เรียน  ${recipient}`, margin, y);
+  y += 22;
 
   doc.setFont("Sarabun", "normal");
   doc.setFontSize(12);

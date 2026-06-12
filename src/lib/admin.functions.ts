@@ -81,20 +81,24 @@ export const executiveStats = createServerFn({ method: "POST" })
 
 export type AgencySettings = {
   name: string;
+  subUnit: string;
   address: string;
   phone: string;
   email: string;
   signerName: string;
   signerPosition: string;
+  letterheadPath: string;
 };
 
 const DEFAULT_AGENCY: AgencySettings = {
   name: "ส่วนราชการ",
+  subUnit: "",
   address: "",
   phone: "",
   email: "",
   signerName: "",
   signerPosition: "",
+  letterheadPath: "",
 };
 
 export const getAgencySettings = createServerFn({ method: "GET" })
@@ -115,11 +119,13 @@ export const updateAgencySettings = createServerFn({ method: "POST" })
     z
       .object({
         name: z.string().min(1).max(200),
+        subUnit: z.string().max(200).default(""),
         address: z.string().max(500).default(""),
         phone: z.string().max(50).default(""),
         email: z.string().max(120).default(""),
         signerName: z.string().max(120).default(""),
         signerPosition: z.string().max(120).default(""),
+        letterheadPath: z.string().max(300).default(""),
       })
       .parse(input),
   )
