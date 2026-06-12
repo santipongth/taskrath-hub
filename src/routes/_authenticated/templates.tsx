@@ -2,9 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { TEMPLATES, type TemplateCategory } from "@/lib/templates";
+import { TEMPLATES, type Template, type TemplateCategory } from "@/lib/templates";
 import { TemplateCard } from "@/components/template-card";
 import { listFavorites } from "@/lib/favorites.functions";
+import { listCustomTemplates, type CustomTemplateField } from "@/lib/custom-templates.functions";
+import { getTemplateIcon } from "@/lib/template-icons";
 import { useI18n } from "@/lib/i18n";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
@@ -21,17 +23,34 @@ function TemplatesPage() {
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<TemplateCategory | "all">("all");
   const fetchFavs = useServerFn(listFavorites);
+  const fetchCustom = useServerFn(listCustomTemplates);
   const { data: favs } = useQuery({ queryKey: ["favorites"], queryFn: () => fetchFavs() });
+  const { data: customData } = useQuery({ queryKey: ["custom-templates"], queryFn: () => fetchCustom() });
   const favSet = useMemo(() => new Set(favs?.ids ?? []), [favs]);
 
+  const allTemplates = useMemo<Template[]>(() => {
+    const custom: Template[] = (customData?.templates ?? []).map((c) => ({
+      id: c.slug,
+      icon: getTemplateIcon(c.icon),
+      titleTh: c.title_th,
+      titleEn: c.title_en,
+      descTh: c.desc_th,
+      descEn: c.desc_en,
+      category: c.category as TemplateCategory,
+      systemPromptTh: c.system_prompt_th,
+      fields: ((c.fields as unknown) as CustomTemplateField[]) ?? [],
+    }));
+    return [...custom, ...TEMPLATES];
+  }, [customData]);
+
   const filtered = useMemo(() => {
-    return TEMPLATES.filter((tpl) => {
+    return allTemplates.filter((tpl) => {
       if (cat !== "all" && tpl.category !== cat) return false;
       if (!q) return true;
       const hay = `${tpl.titleTh} ${tpl.titleEn} ${tpl.descTh} ${tpl.descEn}`.toLowerCase();
       return hay.includes(q.toLowerCase());
     });
-  }, [q, cat]);
+  }, [q, cat, allTemplates]);
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-8">
