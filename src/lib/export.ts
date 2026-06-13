@@ -278,6 +278,7 @@ export async function exportRunToDocx(
           recipientLine,
           ...body,
           ...signOff,
+          ...(signOffTable ? [signOffTable] : []),
         ],
       },
     ],
