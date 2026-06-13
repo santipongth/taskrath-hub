@@ -19,6 +19,17 @@ type RunLike = {
 export type Classification = "ปกติ" | "ลับ" | "ลับมาก" | "ลับที่สุด";
 export type Urgency = "ปกติ" | "ด่วน" | "ด่วนมาก" | "ด่วนที่สุด";
 
+export type SignatureBlock = {
+  signerName: string;
+  signerPosition: string;
+  signatureImageDataUrl?: string | null; // data:image/png;base64,...
+  qrDataUrl: string;                      // data:image/png;base64,... linking to verify
+  verifyUrl: string;
+  signatureId: string;
+  contentHash: string;
+  signedAtIso: string;
+};
+
 export type ExportOptions = {
   classification?: Classification;
   urgency?: Urgency;
@@ -27,6 +38,7 @@ export type ExportOptions = {
   includeLetterhead?: boolean;
   letterheadBytes?: Uint8Array | null;
   letterheadMime?: "png" | "jpg";
+  signature?: SignatureBlock | null;
 };
 
 const TH_MONTHS = [
@@ -169,11 +181,68 @@ export async function exportRunToDocx(
     body.push(new Paragraph({ spacing: { before: 120, line: 360 }, indent: { firstLine: 720 }, children }));
   }
 
+  const sig = options.signature ?? null;
+  const signerNameLine = sig?.signerName || ag?.signerName || "(……………………………)";
+  const signerPosLine = sig?.signerPosition || ag?.signerPosition || "ตำแหน่ง";
+
   const signOff: Paragraph[] = [
     new Paragraph({ spacing: { before: 480 }, alignment: AlignmentType.CENTER, children: [tr("ขอแสดงความนับถือ")] }),
-    new Paragraph({ spacing: { before: 720 }, alignment: AlignmentType.CENTER, children: [tr(ag?.signerName || "(……………………………)", { bold: true })] }),
-    new Paragraph({ alignment: AlignmentType.CENTER, children: [tr(ag?.signerPosition || "ตำแหน่ง")] }),
   ];
+
+  if (sig?.signatureImageDataUrl) {
+    const sigBytes = dataUrlToBytes(sig.signatureImageDataUrl);
+    if (sigBytes) {
+      signOff.push(new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 200, after: 0 },
+        children: [new ImageRun({
+          type: sig.signatureImageDataUrl.includes("image/jpeg") ? "jpg" : "png",
+          data: sigBytes,
+          transformation: { width: 140, height: 60 },
+          altText: { title: "ลายเซ็น", description: "Digital signature", name: "signature" },
+        })],
+      }));
+    }
+  } else {
+    signOff.push(new Paragraph({ spacing: { before: 720 }, children: [tr(" ")] }));
+  }
+
+  signOff.push(
+    new Paragraph({ alignment: AlignmentType.CENTER, children: [tr(signerNameLine, { bold: true })] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, children: [tr(signerPosLine)] }),
+  );
+
+  const signOffTable = sig ? new Table({
+    width: { size: 9360, type: WidthType.DXA },
+    columnWidths: [1600, 7760],
+    rows: [new TableRow({ children: [
+      (() => {
+        const qrBytes = dataUrlToBytes(sig.qrDataUrl);
+        return qrBytes ? new TableCell({
+          borders: borderless(),
+          width: { size: 1600, type: WidthType.DXA },
+          children: [new Paragraph({ children: [new ImageRun({
+            type: "png", data: qrBytes,
+            transformation: { width: 90, height: 90 },
+            altText: { title: "QR", description: sig.verifyUrl, name: "verify-qr" },
+          })] })],
+        }) : new TableCell({ borders: borderless(), width: { size: 1600, type: WidthType.DXA }, children: [p(" ")] });
+      })(),
+      new TableCell({
+        borders: borderless(),
+        width: { size: 7760, type: WidthType.DXA },
+        margins: { top: 0, bottom: 0, left: 120, right: 0 },
+        children: [
+          new Paragraph({ children: [tr("ลงนามด้วยลายเซ็นอิเล็กทรอนิกส์", { bold: true, size: 22 })] }),
+          new Paragraph({ children: [tr(`เมื่อ ${new Date(sig.signedAtIso).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })}`, { size: 20, color: "555555" })] }),
+          new Paragraph({ children: [tr(`รหัสลายเซ็น: ${sig.signatureId}`, { size: 18, color: "777777" })] }),
+          new Paragraph({ children: [tr(`SHA-256: ${sig.contentHash.slice(0, 32)}…`, { size: 18, color: "777777" })] }),
+          new Paragraph({ children: [tr(`ตรวจสอบที่ ${sig.verifyUrl}`, { size: 18, color: "1155CC" })] }),
+          new Paragraph({ children: [tr("ตาม พ.ร.บ.ว่าด้วยธุรกรรมทางอิเล็กทรอนิกส์ พ.ศ. 2544", { size: 18, italics: true, color: "777777" })] }),
+        ],
+      }),
+    ]})],
+  }) : null;
 
   const doc = new Document({
     creator: "TaskRath",
@@ -209,6 +278,7 @@ export async function exportRunToDocx(
           recipientLine,
           ...body,
           ...signOff,
+          ...(signOffTable ? [signOffTable] : []),
         ],
       },
     ],
@@ -237,6 +307,20 @@ function bytesToBase64(bytes: Uint8Array): string {
   let bin = "";
   for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
   return btoa(bin);
+}
+
+function dataUrlToBytes(dataUrl: string): Uint8Array | null {
+  try {
+    const idx = dataUrl.indexOf(",");
+    if (idx < 0) return null;
+    const b64 = dataUrl.slice(idx + 1);
+    const bin = atob(b64);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  } catch {
+    return null;
+  }
 }
 
 export async function exportRunToPdf(
@@ -351,20 +435,63 @@ export async function exportRunToPdf(
     y += 8;
   }
 
-  if (agency?.signerName || agency?.signerPosition) {
-    if (y > pageHeight - margin - 80) { doc.addPage(); y = margin; }
+  const sig = options.signature ?? null;
+  const signerName = sig?.signerName || agency?.signerName || "";
+  const signerPos = sig?.signerPosition || agency?.signerPosition || "";
+
+  if (signerName || signerPos || sig) {
+    if (y > pageHeight - margin - 140) { doc.addPage(); y = margin; }
     y += 24;
     doc.setFont("Sarabun", "normal");
+    doc.setFontSize(12);
+    doc.setTextColor(30);
     doc.text("ขอแสดงความนับถือ", pageWidth / 2, y, { align: "center" });
-    y += 36;
-    if (agency.signerName) {
+    y += 18;
+
+    if (sig?.signatureImageDataUrl) {
+      try {
+        const fmt = sig.signatureImageDataUrl.includes("image/jpeg") ? "JPEG" : "PNG";
+        const w = 110, h = 44;
+        doc.addImage(sig.signatureImageDataUrl, fmt, pageWidth / 2 - w / 2, y, w, h);
+        y += h + 4;
+      } catch { y += 36; }
+    } else {
+      y += 36;
+    }
+
+    if (signerName) {
       doc.setFont("Sarabun", "bold");
-      doc.text(agency.signerName, pageWidth / 2, y, { align: "center" });
+      doc.text(signerName, pageWidth / 2, y, { align: "center" });
       y += 16;
     }
-    if (agency.signerPosition) {
+    if (signerPos) {
       doc.setFont("Sarabun", "normal");
-      doc.text(agency.signerPosition, pageWidth / 2, y, { align: "center" });
+      doc.text(signerPos, pageWidth / 2, y, { align: "center" });
+      y += 16;
+    }
+
+    if (sig) {
+      if (y > pageHeight - margin - 110) { doc.addPage(); y = margin; }
+      y += 16;
+      const qrSize = 80;
+      try { doc.addImage(sig.qrDataUrl, "PNG", margin, y, qrSize, qrSize); } catch { /* ignore */ }
+      const textX = margin + qrSize + 12;
+      doc.setFont("Sarabun", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(20);
+      doc.text("ลงนามด้วยลายเซ็นอิเล็กทรอนิกส์", textX, y + 10);
+      doc.setFont("Sarabun", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(80);
+      const stamp = new Date(sig.signedAtIso).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" });
+      doc.text(`เมื่อ ${stamp}`, textX, y + 24);
+      doc.text(`รหัสลายเซ็น: ${sig.signatureId}`, textX, y + 36);
+      doc.text(`SHA-256: ${sig.contentHash.slice(0, 40)}…`, textX, y + 48);
+      doc.setTextColor(17, 85, 204);
+      doc.textWithLink(`ตรวจสอบที่ ${sig.verifyUrl}`, textX, y + 60, { url: sig.verifyUrl });
+      doc.setTextColor(120);
+      doc.text("ตาม พ.ร.บ.ว่าด้วยธุรกรรมทางอิเล็กทรอนิกส์ พ.ศ. 2544", textX, y + 72);
+      y += qrSize + 8;
     }
   }
 
