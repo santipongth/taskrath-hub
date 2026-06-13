@@ -19,6 +19,17 @@ type RunLike = {
 export type Classification = "ปกติ" | "ลับ" | "ลับมาก" | "ลับที่สุด";
 export type Urgency = "ปกติ" | "ด่วน" | "ด่วนมาก" | "ด่วนที่สุด";
 
+export type SignatureBlock = {
+  signerName: string;
+  signerPosition: string;
+  signatureImageDataUrl?: string | null; // data:image/png;base64,...
+  qrDataUrl: string;                      // data:image/png;base64,... linking to verify
+  verifyUrl: string;
+  signatureId: string;
+  contentHash: string;
+  signedAtIso: string;
+};
+
 export type ExportOptions = {
   classification?: Classification;
   urgency?: Urgency;
@@ -27,6 +38,7 @@ export type ExportOptions = {
   includeLetterhead?: boolean;
   letterheadBytes?: Uint8Array | null;
   letterheadMime?: "png" | "jpg";
+  signature?: SignatureBlock | null;
 };
 
 const TH_MONTHS = [

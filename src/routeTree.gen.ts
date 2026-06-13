@@ -14,6 +14,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as VerifyIdRouteImport } from './routes/verify.$id'
 import { Route as AuthenticatedTemplatesRouteImport } from './routes/_authenticated/templates'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authenticated/integrations'
@@ -55,6 +56,11 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthenticatedRoute,
+} as any)
+const VerifyIdRoute = VerifyIdRouteImport.update({
+  id: '/verify/$id',
+  path: '/verify/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedTemplatesRoute = AuthenticatedTemplatesRouteImport.update({
   id: '/templates',
@@ -162,6 +168,7 @@ export interface FileRoutesByFullPath {
   '/integrations': typeof AuthenticatedIntegrationsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/templates': typeof AuthenticatedTemplatesRoute
+  '/verify/$id': typeof VerifyIdRoute
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
   '/admin/knowledge': typeof AuthenticatedAdminKnowledgeRoute
   '/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
@@ -184,6 +191,7 @@ export interface FileRoutesByTo {
   '/integrations': typeof AuthenticatedIntegrationsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/templates': typeof AuthenticatedTemplatesRoute
+  '/verify/$id': typeof VerifyIdRoute
   '/': typeof AuthenticatedIndexRoute
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
   '/admin/knowledge': typeof AuthenticatedAdminKnowledgeRoute
@@ -209,6 +217,7 @@ export interface FileRoutesById {
   '/_authenticated/integrations': typeof AuthenticatedIntegrationsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/templates': typeof AuthenticatedTemplatesRoute
+  '/verify/$id': typeof VerifyIdRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
   '/_authenticated/admin/knowledge': typeof AuthenticatedAdminKnowledgeRoute
@@ -235,6 +244,7 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/settings'
     | '/templates'
+    | '/verify/$id'
     | '/admin/dashboard'
     | '/admin/knowledge'
     | '/admin/notifications'
@@ -257,6 +267,7 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/settings'
     | '/templates'
+    | '/verify/$id'
     | '/'
     | '/admin/dashboard'
     | '/admin/knowledge'
@@ -281,6 +292,7 @@ export interface FileRouteTypes {
     | '/_authenticated/integrations'
     | '/_authenticated/settings'
     | '/_authenticated/templates'
+    | '/verify/$id'
     | '/_authenticated/'
     | '/_authenticated/admin/dashboard'
     | '/_authenticated/admin/knowledge'
@@ -301,6 +313,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  VerifyIdRoute: typeof VerifyIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -339,6 +352,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/verify/$id': {
+      id: '/verify/$id'
+      path: '/verify/$id'
+      fullPath: '/verify/$id'
+      preLoaderRoute: typeof VerifyIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/templates': {
       id: '/_authenticated/templates'
@@ -513,6 +533,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  VerifyIdRoute: VerifyIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
