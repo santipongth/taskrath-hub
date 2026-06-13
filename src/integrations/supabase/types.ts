@@ -357,6 +357,8 @@ export type Database = {
           display_name: string | null
           id: string
           language_pref: string
+          signature_data_url: string | null
+          signer_position: string | null
           updated_at: string
         }
         Insert: {
@@ -365,6 +367,8 @@ export type Database = {
           display_name?: string | null
           id: string
           language_pref?: string
+          signature_data_url?: string | null
+          signer_position?: string | null
           updated_at?: string
         }
         Update: {
@@ -373,9 +377,61 @@ export type Database = {
           display_name?: string | null
           id?: string
           language_pref?: string
+          signature_data_url?: string | null
+          signer_position?: string | null
           updated_at?: string
         }
         Relationships: []
+      }
+      signed_documents: {
+        Row: {
+          agency_name: string
+          content_hash: string
+          created_at: string
+          document_subject: string
+          id: string
+          ref_no: string
+          run_id: string | null
+          signed_at: string
+          signer_name: string
+          signer_position: string
+          user_id: string
+        }
+        Insert: {
+          agency_name?: string
+          content_hash: string
+          created_at?: string
+          document_subject?: string
+          id?: string
+          ref_no?: string
+          run_id?: string | null
+          signed_at?: string
+          signer_name: string
+          signer_position?: string
+          user_id: string
+        }
+        Update: {
+          agency_name?: string
+          content_hash?: string
+          created_at?: string
+          document_subject?: string
+          id?: string
+          ref_no?: string
+          run_id?: string | null
+          signed_at?: string
+          signer_name?: string
+          signer_position?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signed_documents_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "ai_runs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       template_favorites: {
         Row: {
