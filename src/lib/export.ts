@@ -435,20 +435,63 @@ export async function exportRunToPdf(
     y += 8;
   }
 
-  if (agency?.signerName || agency?.signerPosition) {
-    if (y > pageHeight - margin - 80) { doc.addPage(); y = margin; }
+  const sig = options.signature ?? null;
+  const signerName = sig?.signerName || agency?.signerName || "";
+  const signerPos = sig?.signerPosition || agency?.signerPosition || "";
+
+  if (signerName || signerPos || sig) {
+    if (y > pageHeight - margin - 140) { doc.addPage(); y = margin; }
     y += 24;
     doc.setFont("Sarabun", "normal");
+    doc.setFontSize(12);
+    doc.setTextColor(30);
     doc.text("ขอแสดงความนับถือ", pageWidth / 2, y, { align: "center" });
-    y += 36;
-    if (agency.signerName) {
+    y += 18;
+
+    if (sig?.signatureImageDataUrl) {
+      try {
+        const fmt = sig.signatureImageDataUrl.includes("image/jpeg") ? "JPEG" : "PNG";
+        const w = 110, h = 44;
+        doc.addImage(sig.signatureImageDataUrl, fmt, pageWidth / 2 - w / 2, y, w, h);
+        y += h + 4;
+      } catch { y += 36; }
+    } else {
+      y += 36;
+    }
+
+    if (signerName) {
       doc.setFont("Sarabun", "bold");
-      doc.text(agency.signerName, pageWidth / 2, y, { align: "center" });
+      doc.text(signerName, pageWidth / 2, y, { align: "center" });
       y += 16;
     }
-    if (agency.signerPosition) {
+    if (signerPos) {
       doc.setFont("Sarabun", "normal");
-      doc.text(agency.signerPosition, pageWidth / 2, y, { align: "center" });
+      doc.text(signerPos, pageWidth / 2, y, { align: "center" });
+      y += 16;
+    }
+
+    if (sig) {
+      if (y > pageHeight - margin - 110) { doc.addPage(); y = margin; }
+      y += 16;
+      const qrSize = 80;
+      try { doc.addImage(sig.qrDataUrl, "PNG", margin, y, qrSize, qrSize); } catch { /* ignore */ }
+      const textX = margin + qrSize + 12;
+      doc.setFont("Sarabun", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(20);
+      doc.text("ลงนามด้วยลายเซ็นอิเล็กทรอนิกส์", textX, y + 10);
+      doc.setFont("Sarabun", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(80);
+      const stamp = new Date(sig.signedAtIso).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" });
+      doc.text(`เมื่อ ${stamp}`, textX, y + 24);
+      doc.text(`รหัสลายเซ็น: ${sig.signatureId}`, textX, y + 36);
+      doc.text(`SHA-256: ${sig.contentHash.slice(0, 40)}…`, textX, y + 48);
+      doc.setTextColor(17, 85, 204);
+      doc.textWithLink(`ตรวจสอบที่ ${sig.verifyUrl}`, textX, y + 60, { url: sig.verifyUrl });
+      doc.setTextColor(120);
+      doc.text("ตาม พ.ร.บ.ว่าด้วยธุรกรรมทางอิเล็กทรอนิกส์ พ.ศ. 2544", textX, y + 72);
+      y += qrSize + 8;
     }
   }
 
