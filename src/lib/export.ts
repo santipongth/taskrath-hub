@@ -309,6 +309,20 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(bin);
 }
 
+function dataUrlToBytes(dataUrl: string): Uint8Array | null {
+  try {
+    const idx = dataUrl.indexOf(",");
+    if (idx < 0) return null;
+    const b64 = dataUrl.slice(idx + 1);
+    const bin = atob(b64);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  } catch {
+    return null;
+  }
+}
+
 export async function exportRunToPdf(
   run: RunLike,
   templateTitle: string,
