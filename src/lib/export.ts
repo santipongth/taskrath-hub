@@ -181,11 +181,104 @@ export async function exportRunToDocx(
     body.push(new Paragraph({ spacing: { before: 120, line: 360 }, indent: { firstLine: 720 }, children }));
   }
 
+  const sig = options.signature ?? null;
+  const signerNameLine = sig?.signerName || ag?.signerName || "(……………………………)";
+  const signerPosLine = sig?.signerPosition || ag?.signerPosition || "ตำแหน่ง";
+
   const signOff: Paragraph[] = [
     new Paragraph({ spacing: { before: 480 }, alignment: AlignmentType.CENTER, children: [tr("ขอแสดงความนับถือ")] }),
-    new Paragraph({ spacing: { before: 720 }, alignment: AlignmentType.CENTER, children: [tr(ag?.signerName || "(……………………………)", { bold: true })] }),
-    new Paragraph({ alignment: AlignmentType.CENTER, children: [tr(ag?.signerPosition || "ตำแหน่ง")] }),
   ];
+
+  if (sig?.signatureImageDataUrl) {
+    const sigBytes = dataUrlToBytes(sig.signatureImageDataUrl);
+    if (sigBytes) {
+      signOff.push(new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 200, after: 0 },
+        children: [new ImageRun({
+          type: sig.signatureImageDataUrl.includes("image/jpeg") ? "jpg" : "png",
+          data: sigBytes,
+          transformation: { width: 140, height: 60 },
+          altText: { title: "ลายเซ็น", description: "Digital signature", name: "signature" },
+        })],
+      }));
+    }
+  } else {
+    signOff.push(new Paragraph({ spacing: { before: 720 }, children: [tr(" ")] }));
+  }
+
+  signOff.push(
+    new Paragraph({ alignment: AlignmentType.CENTER, children: [tr(signerNameLine, { bold: true })] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, children: [tr(signerPosLine)] }),
+  );
+
+  if (sig) {
+    const qrBytes = dataUrlToBytes(sig.qrDataUrl);
+    const verifyDate = new Date(sig.signedAtIso).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" });
+    const qrCell = qrBytes ? new TableCell({
+      borders: borderless(),
+      width: { size: 1600, type: WidthType.DXA },
+      children: [new Paragraph({
+        children: [new ImageRun({
+          type: "png", data: qrBytes,
+          transformation: { width: 90, height: 90 },
+          altText: { title: "QR ตรวจสอบลายเซ็น", description: sig.verifyUrl, name: "verify-qr" },
+        })],
+      })],
+    }) : new TableCell({ borders: borderless(), width: { size: 1600, type: WidthType.DXA }, children: [p(" ")] });
+
+    const infoCell = new TableCell({
+      borders: borderless(),
+      width: { size: 7760, type: WidthType.DXA },
+      margins: { top: 0, bottom: 0, left: 120, right: 0 },
+      children: [
+        new Paragraph({ children: [tr("ลงนามด้วยลายเซ็นอิเล็กทรอนิกส์", { bold: true, size: 22 })] }),
+        new Paragraph({ children: [tr(`เมื่อ ${verifyDate}`, { size: 20, color: "555555" })] }),
+        new Paragraph({ children: [tr(`รหัสลายเซ็น: ${sig.signatureId}`, { size: 18, color: "777777" })] }),
+        new Paragraph({ children: [tr(`SHA-256: ${sig.contentHash.slice(0, 32)}…`, { size: 18, color: "777777" })] }),
+        new Paragraph({ children: [tr(`ตรวจสอบที่ ${sig.verifyUrl}`, { size: 18, color: "1155CC" })] }),
+        new Paragraph({ children: [tr("ตาม พ.ร.บ.ว่าด้วยธุรกรรมทางอิเล็กทรอนิกส์ พ.ศ. 2544", { size: 18, italics: true, color: "777777" })] }),
+      ],
+    });
+
+    signOff.push(new Paragraph({ spacing: { before: 360 }, children: [tr(" ")] }));
+    signOff.push(new Paragraph({
+      children: [tr(" ")],
+    }));
+    // Insert QR + info as a borderless table
+    // docx Paragraph children only accept Paragraph in section.children; we'll push table by appending sentinel and adding to section below via signOffTable
+  }
+  const signOffTable = sig ? new Table({
+    width: { size: 9360, type: WidthType.DXA },
+    columnWidths: [1600, 7760],
+    rows: [new TableRow({ children: [
+      (() => {
+        const qrBytes = dataUrlToBytes(sig.qrDataUrl);
+        return qrBytes ? new TableCell({
+          borders: borderless(),
+          width: { size: 1600, type: WidthType.DXA },
+          children: [new Paragraph({ children: [new ImageRun({
+            type: "png", data: qrBytes,
+            transformation: { width: 90, height: 90 },
+            altText: { title: "QR", description: sig.verifyUrl, name: "verify-qr" },
+          })] })],
+        }) : new TableCell({ borders: borderless(), width: { size: 1600, type: WidthType.DXA }, children: [p(" ")] });
+      })(),
+      new TableCell({
+        borders: borderless(),
+        width: { size: 7760, type: WidthType.DXA },
+        margins: { top: 0, bottom: 0, left: 120, right: 0 },
+        children: [
+          new Paragraph({ children: [tr("ลงนามด้วยลายเซ็นอิเล็กทรอนิกส์", { bold: true, size: 22 })] }),
+          new Paragraph({ children: [tr(`เมื่อ ${new Date(sig.signedAtIso).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })}`, { size: 20, color: "555555" })] }),
+          new Paragraph({ children: [tr(`รหัสลายเซ็น: ${sig.signatureId}`, { size: 18, color: "777777" })] }),
+          new Paragraph({ children: [tr(`SHA-256: ${sig.contentHash.slice(0, 32)}…`, { size: 18, color: "777777" })] }),
+          new Paragraph({ children: [tr(`ตรวจสอบที่ ${sig.verifyUrl}`, { size: 18, color: "1155CC" })] }),
+          new Paragraph({ children: [tr("ตาม พ.ร.บ.ว่าด้วยธุรกรรมทางอิเล็กทรอนิกส์ พ.ศ. 2544", { size: 18, italics: true, color: "777777" })] }),
+        ],
+      }),
+    ]})],
+  }) : null;
 
   const doc = new Document({
     creator: "TaskRath",
