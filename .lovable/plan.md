@@ -1,66 +1,71 @@
-# Multi-turn Chat กับ Knowledge Base
+# Master Prompt Pack สำหรับ TaskRath (ผู้ช่วย AI งานราชการ)
 
-ระบบถาม-ตอบกฎระเบียบแบบสนทนาต่อเนื่อง ใช้เอกสาร KB ที่ admin อัปโหลดไว้ พร้อมแสดง citations ของ chunk ที่ AI ใช้ตอบ
+จะสร้างชุดเอกสาร `.md` ไว้ที่โฟลเดอร์ `docs/master-prompts/` เพื่อใช้เป็น context/บรีฟต่อให้ Claude Code พัฒนาโปรเจกต์ต่อ ครอบคลุมทั้ง **Design System** และ **Core Engine** ของระบบที่มีอยู่จริงในโค้ดเบสนี้
 
-## ตัวเลือกที่เลือกให้ (defaults)
-- **รูปแบบ**: หลายห้องสนทนา (threads) — ผู้ใช้สร้าง/ตั้งชื่อ/ลบได้เอง
-- **เก็บประวัติ**: ใน Lovable Cloud (database) ผูกกับผู้ใช้ — ใช้งานข้ามอุปกรณ์ได้
-- **ขอบเขต KB**: ค้นทั้งหมด + ตัวกรอง category (optional dropdown)
-- **โมเดล**: `google/gemini-3-flash-preview` (ผ่าน Lovable AI Gateway, streaming)
+## โครงสร้างไฟล์ที่จะสร้าง
 
-## โครงสร้างใหม่
+```text
+docs/master-prompts/
+├── 00-index.md                  # สารบัญ + วิธีใช้กับ Claude Code
+├── 01-product-overview.md       # วิสัยทัศน์ ผู้ใช้ ฟีเจอร์หลัก domain ราชการไทย
+├── 02-tech-stack.md             # TanStack Start v1, React 19, Vite 7, Tailwind v4,
+│                                # Lovable Cloud (Supabase), AI Gateway, Cloudflare Workers
+├── 03-architecture.md           # โครงสร้างโฟลเดอร์ + flow: route → serverFn → Supabase/AI
+│                                # + กฎ client.server.ts vs auth-middleware vs browser client
+├── 04-design-system.md          # โทนภาพรวม, typography (Inter + Noto Sans Thai),
+│                                # palette OKLCH, semantic tokens, spacing, motion,
+│                                # ความเป็นทางการแบบราชการ + accessibility
+├── 05-ui-components.md          # shadcn + AI Elements, AppShell, Sidebar, ExportDialog,
+│                                # CitationsList, RefineBar, TemplateCard, CommandPalette
+├── 06-routing-map.md            # ทุก route ที่มี (public, _authenticated, admin/*, api/*)
+│                                # พร้อมหน้าที่และ data dependencies
+├── 07-database-schema.md        # 13 tables + RLS + GRANT pattern + has_role + user_roles
+├── 08-core-engine-ai.md         # ai.functions.ts: streaming, model gateway,
+│                                # PII redaction, prompt-guard, refine loop, cost tracking
+├── 09-rag-kb-chat.md            # kb.functions.ts + chat.functions.ts: embedding, chunking,
+│                                # cosine search, citations, multi-turn threads
+├── 10-templates-engine.md       # templates.ts (hard-coded) + custom_templates (DB),
+│                                # field schema, system prompt convention,
+│                                # 5 government templates (committee/kpr/tor/py12/budget)
+├── 11-export-signatures.md      # export.ts (PDF/DOCX) + letterhead (ตราครุฑ) +
+│                                # signatures.functions.ts (SHA-256 + QR verify) + /verify/$id
+├── 12-admin-governance.md       # admin pages, audit logs, agency settings, approvals,
+│                                # executive stats, notifications
+├── 13-i18n-localization.md      # messages.ts (th/en), Thai gov tone, ใช้ key อย่างไร
+├── 14-security-compliance.md    # RLS, PII, prompt injection guard, พ.ร.บ.ธุรกรรมฯ,
+│                                # ระเบียบสารบรรณ, classification/urgency
+├── 15-coding-conventions.md     # naming, file layout, serverFn pattern (.middleware →
+│                                # .inputValidator → .handler), Zod, import rules
+├── 16-task-prompts.md           # Master prompt templates พร้อมใช้ใน Claude Code:
+│                                #  - "เพิ่มเทมเพลตใหม่"
+│                                #  - "เพิ่ม serverFn + migration"
+│                                #  - "เพิ่มหน้า admin"
+│                                #  - "debug build error"
+│                                #  - "เพิ่มภาษา/ปรับ wording"
+└── 17-roadmap-backlog.md        # สิ่งที่ยังไม่ทำ (voice input, attachment, share thread,
+                                 # co-sign, PKI, template versioning) สำหรับ context ต่อยอด
+```
 
-### 1. Database (migration)
-- `chat_threads`: `user_id`, `title`, `category_filter` (nullable)
-- `chat_messages`: `thread_id`, `role` (user/assistant), `content`, `citations` (jsonb — array ของ `{doc_id, chunk_id, title, score, snippet}`)
-- RLS: ผู้ใช้เห็น/แก้เฉพาะของตัวเอง
-- GRANT + RLS ครบตามมาตรฐาน
+## เนื้อหาแต่ละไฟล์ (สรุปสาระสำคัญ)
 
-### 2. Routes (TanStack file-based)
-- `src/routes/_authenticated/chat/index.tsx` — redirect ไป thread ล่าสุด หรือสร้างใหม่
-- `src/routes/_authenticated/chat/$threadId.tsx` — หน้า chat หลัก (thread list ซ้าย + conversation ขวา)
-- `src/routes/api/chat.ts` — streaming endpoint (`streamText` + RAG tool)
+- **อ้างอิงโค้ดจริง**: ทุกไฟล์จะอ้าง path และ symbol ที่มีอยู่ในโปรเจกต์ เช่น `src/lib/ai.functions.ts`, `requireSupabaseAuth`, `attachSupabaseAuth`, ตาราง `ai_runs`/`chat_messages`/`custom_templates`/`signed_documents`
+- **มี code snippet ตัวอย่าง**: pattern ของ `createServerFn`, migration พร้อม GRANT + RLS, การเรียก Lovable AI Gateway, การ render letterhead/QR
+- **เขียนเป็นภาษาไทยเป็นหลัก** (สอดคล้องกับ domain) มี term อังกฤษกำกับเฉพาะที่จำเป็น
+- **ไฟล์ 16 (task prompts)** เขียนเป็น "prompt สำเร็จรูป" ที่ก๊อปไปวาง Claude Code ได้ทันที โดยอ้าง 00-15 เป็น context
 
-### 3. Server functions (`src/lib/chat.functions.ts`)
-- `listThreads`, `createThread`, `renameThread`, `deleteThread`
-- `getThreadMessages(threadId)`
-- `searchKb({query, categoryFilter, k})` — reuse logic จาก `kb.functions.ts` (embed query → cosine similarity → top-k chunks)
+## วิธีนำไปใช้ใน Claude Code
 
-### 4. Chat backend (`src/routes/api/chat.ts`)
-- รับ `messages[]`, `threadId`, `categoryFilter`
-- **RAG flow ก่อนเรียก LLM**: embed ข้อความล่าสุดของผู้ใช้ → ดึง top-5 chunks จาก `kb_chunks` → ใส่ใน system prompt เป็น context พร้อมหมายเลข [1][2]...
-- เรียก `streamText` ด้วย system ภาษาไทย ("คุณคือผู้ช่วยตอบกฎระเบียบราชการ อ้างอิงเฉพาะจาก context ที่ให้...")
-- `onFinish`: บันทึก assistant message + citations array ลง DB
+ไฟล์ `00-index.md` จะอธิบายว่า:
+1. โหลด `00`–`07` เป็น context ตั้งต้นทุก session
+2. โหลดไฟล์เฉพาะทาง (08–14) เมื่อทำงานในส่วนนั้น ๆ
+3. ใช้ `15` เป็น style guide
+4. ก๊อป prompt จาก `16` เมื่อจะสั่งงานใหม่
 
-### 5. UI (AI Elements)
-ติดตั้ง: `bun x ai-elements@latest add conversation message prompt-input shimmer`
-- **Layout**: sidebar thread list (เหมือน ChatGPT) + main conversation
-- **Composer**: PromptInput + dropdown กรอง category KB (optional)
-- **Message**: render markdown ผ่าน `MessageResponse`; ใต้ข้อความ assistant แสดง `<CitationsList citations={...} />` (reuse component ที่มีอยู่แล้ว `src/components/citations-list.tsx`)
-- **Empty state**: แสดงคำถามตัวอย่าง 4 ข้อ ("ระเบียบการลาป่วยกี่วันต้องมีใบรับรองแพทย์?", ฯลฯ)
-- ปุ่ม "สนทนาใหม่", rename inline, ลบ (พร้อม confirm)
-
-### 6. Sidebar & i18n
-- เพิ่มเมนู **"ถาม-ตอบ KB"** (`/chat`) ใน `app-sidebar.tsx` กลุ่มหลัก (ใต้ Run)
-- เพิ่ม keys ใน `messages.ts`: `nav_chat`, `chatTitle`, `chatEmptyHint`, `newChat`, ฯลฯ
-- เพิ่มเข้า command palette
-
-## ส่วนที่ reuse ของเดิม
-- `kb_documents` + `kb_chunks` + embedding logic จาก `src/lib/kb.functions.ts`
-- `src/components/citations-list.tsx`
-- Auth middleware + bearer attacher (มีอยู่แล้ว)
-- PII redaction ก่อนส่ง embed/LLM (จาก `src/lib/pii.ts`)
-
-## ไม่ทำในรอบนี้
-- Voice input, file attachment ใน chat, แชร์ thread กับเพื่อนร่วมงาน, export thread เป็น PDF (เก็บเป็น phase 2)
-
-## หลังบิลด์เสร็จ smoke test
-1. สร้าง thread → ส่งคำถาม → เห็น streaming + citations
-2. รีโหลดหน้า → ข้อความยังอยู่
-3. สร้าง thread ที่ 2 → สลับไปมา ไม่มีข้อความปนกัน
-4. ลบ thread → หายจากลิสต์
-5. ถามคำถามนอก KB → AI ตอบว่า "ไม่พบในเอกสารอ้างอิง"
+## สิ่งที่จะไม่ทำในรอบนี้
+- ไม่แก้โค้ดแอป ไม่เพิ่ม route/feature — เป็นเอกสารล้วน ๆ
+- ไม่สร้าง diagram เป็นรูป (ใช้ ASCII/Mermaid ใน markdown แทน)
+- ไม่ copy zip ออกไป — ไฟล์ทั้งหมดอยู่ใน repo ที่ `docs/master-prompts/`
 
 ---
 
-อนุมัติแผนนี้เพื่อเริ่ม implement ได้เลยครับ
+อนุมัติแผนนี้เพื่อให้เริ่มสร้างไฟล์ทั้งหมดได้เลยครับ หรือบอกได้ถ้าอยากตัด/เพิ่ม/รวมไฟล์ไหน
