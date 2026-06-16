@@ -421,15 +421,17 @@ export const runDeptAgent = createServerFn({ method: "POST" })
         skill: skill?.name ?? null,
         department: agent.department,
         pii: piiSummary(r.counts),
-        usage: ai.usage,
+        usage,
         kb_citations: kbCtx?.citations.length ?? 0,
+        provider_kind: providerKind,
+        provider_id: providerId,
       },
     });
 
     return {
       id: run.id,
       output,
-      usage: ai.usage,
+      usage,
       pii: piiSummary(r.counts),
       citations: kbCtx?.citations ?? [],
       needsApproval,
