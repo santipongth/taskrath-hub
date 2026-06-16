@@ -266,7 +266,12 @@ function AgentsPage() {
                 onValueChange={(v) => {
                   const s = (activeDept.skills ?? []).find((x) => x.id === v) ?? null;
                   setActiveSkill(s);
-                  setSkillFields({});
+                  // Prefill from example values
+                  const init: Record<string, string> = {};
+                  for (const f of s?.fields ?? []) {
+                    if (f.example) init[f.key] = f.example;
+                  }
+                  setSkillFields(init);
                 }}
               >
                 <SelectTrigger><SelectValue placeholder="เลือก skill" /></SelectTrigger>
@@ -282,15 +287,39 @@ function AgentsPage() {
 
           {activeSkill && activeSkill.fields.length > 0 && (
             <div className="mb-3 grid gap-2">
-              {activeSkill.fields.map((f) => (
-                <div key={f.key}>
-                  <Label className="text-xs">{f.label}{f.required && " *"}</Label>
-                  <Input
-                    value={skillFields[f.key] ?? ""}
-                    onChange={(e) => setSkillFields({ ...skillFields, [f.key]: e.target.value })}
-                  />
-                </div>
-              ))}
+              {activeSkill.fields.map((f) => {
+                const err = fieldErrors[f.key];
+                const isTextarea = f.type === "textarea";
+                const inputType = f.type === "number" ? "number" : f.type === "date" ? "date" : f.type === "email" ? "email" : f.type === "url" ? "url" : "text";
+                return (
+                  <div key={f.key}>
+                    <Label className="text-xs">
+                      {f.label}{f.required && <span className="text-red-500"> *</span>}
+                    </Label>
+                    {isTextarea ? (
+                      <Textarea
+                        rows={3}
+                        placeholder={f.placeholder ?? f.example ?? ""}
+                        value={skillFields[f.key] ?? ""}
+                        onChange={(e) => setSkillFields({ ...skillFields, [f.key]: e.target.value })}
+                        className={err ? "border-red-400" : ""}
+                      />
+                    ) : (
+                      <Input
+                        type={inputType}
+                        placeholder={f.placeholder ?? f.example ?? ""}
+                        value={skillFields[f.key] ?? ""}
+                        onChange={(e) => setSkillFields({ ...skillFields, [f.key]: e.target.value })}
+                        className={err ? "border-red-400" : ""}
+                      />
+                    )}
+                    {err && <p className="mt-1 text-[11px] text-red-500">{err}</p>}
+                    {!err && f.example && !skillFields[f.key] && (
+                      <p className="mt-1 text-[11px] text-muted-foreground">ตัวอย่าง: {f.example}</p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
 
@@ -312,11 +341,20 @@ function AgentsPage() {
               />
             </div>
           </div>
-          <div className="mt-3 flex justify-end">
-            <Button onClick={active ? onRun : onRunDept} disabled={loading || !prompt.trim()}>
+          <div className="mt-3 flex items-center justify-between gap-2">
+            <div className="text-[11px] text-muted-foreground">
+              {activeDept && hasFieldErrors && (
+                <span className="text-red-500">กรอกข้อมูลให้ครบและถูกต้องก่อนรัน ({Object.keys(fieldErrors).length} ช่อง)</span>
+              )}
+            </div>
+            <Button
+              onClick={active ? onRun : onRunDept}
+              disabled={loading || !prompt.trim() || (activeDept !== null && hasFieldErrors)}
+            >
               {loading ? t("running") : t("run")}
             </Button>
           </div>
+
 
           {output && (
             <div className="mt-5 rounded-md border border-border bg-background p-4">
