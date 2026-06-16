@@ -487,6 +487,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      log_audit: {
+        Args: { p_action: string; p_metadata?: Json; p_resource: string }
+        Returns: undefined
+      }
       match_kb_chunks: {
         Args: {
           match_count?: number
