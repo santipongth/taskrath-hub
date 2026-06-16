@@ -87,10 +87,7 @@ function LoginPage() {
         <div className="mb-8 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
             <img src={logo.url} alt="RathCoWork" className="h-9 w-9 object-contain" />
-            <div className="flex flex-col leading-tight">
-              <span className="text-sm font-semibold">RathCoWork</span>
-              <span className="text-[11px] text-muted-foreground"></span>
-            </div>
+            <span className="text-sm font-semibold">RathCoWork</span>
           </Link>
           <div className="flex items-center rounded-md border border-border p-0.5 text-xs">
             <button onClick={() => setLang("th")} className={`rounded px-2 py-1 ${lang === "th" ? "bg-muted" : "text-muted-foreground"}`}>TH</button>
