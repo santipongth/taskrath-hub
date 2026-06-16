@@ -117,11 +117,11 @@ export const sendLineNotification = createServerFn({ method: "POST" })
       await callLine("message/push", { to: target, messages });
     }
 
-    await supabase.from("audit_logs").insert({
-      user_id: userId,
-      action: "line.notify",
-      resource: broadcast ? "broadcast" : target,
-      metadata: { length: data.message.length },
+    void userId;
+    await supabase.rpc("log_audit", {
+      p_action: "line.notify",
+      p_resource: broadcast ? "broadcast" : target,
+      p_metadata: { length: data.message.length },
     });
 
     return { ok: true };
