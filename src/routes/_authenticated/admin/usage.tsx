@@ -171,8 +171,10 @@ function AdminUsagePage() {
       } else {
         const blob = await buildMonthlyPdf(preview, {
           signer,
-          signatureDataUrl,
-          stampDataUrl,
+          signatureDataUrl: processedSig ?? signatureDataUrl,
+          stampDataUrl: processedStamp ?? stampDataUrl,
+          locale: reportLocale,
+          dateFormat,
         });
         downloadBlob(reportFilename(preview, "pdf"), "application/pdf", blob);
       }
