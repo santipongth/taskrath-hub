@@ -12,9 +12,9 @@ import { Sparkles, LibraryBig, Star } from "lucide-react";
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
     meta: [
-      { title: "หน้าหลัก · TaskRath" },
-      { name: "description", content: "หน้าหลัก TaskRath — เลือกเทมเพลต AI สำหรับร่างหนังสือราชการ สรุปการประชุม ตอบประชาชน และวิเคราะห์งบประมาณ สำหรับเจ้าหน้าที่ภาครัฐไทย" },
-      { property: "og:title", content: "หน้าหลัก · TaskRath" },
+      { title: "หน้าหลัก · RathCoWork" },
+      { name: "description", content: "หน้าหลัก RathCoWork — เลือกเทมเพลต AI สำหรับร่างหนังสือราชการ สรุปการประชุม ตอบประชาชน และวิเคราะห์งบประมาณ สำหรับเจ้าหน้าที่ภาครัฐไทย" },
+      { property: "og:title", content: "หน้าหลัก · RathCoWork" },
       { property: "og:description", content: "เลือกเทมเพลต AI สำหรับงานราชการของเจ้าหน้าที่ภาครัฐไทย" },
       { property: "og:url", content: "https://taskrath-hub.lovable.app/" },
     ],

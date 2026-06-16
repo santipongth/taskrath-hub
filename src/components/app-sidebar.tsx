@@ -13,6 +13,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useI18n } from "@/lib/i18n";
+import logo from "@/assets/rathcowork-logo.png.asset.json";
 import type { MessageKey } from "@/lib/messages";
 import { checkIsAdmin } from "@/lib/ai.functions";
 
@@ -42,12 +43,10 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r border-border">
       <SidebarHeader className="px-3 py-4">
         <Link to="/" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground text-sm font-semibold">
-            T
-          </div>
+          <img src={logo.url} alt="RathCoWork" className="h-8 w-8 object-contain" />
           {!collapsed && (
             <div className="flex flex-col leading-tight">
-              <span className="text-sm font-semibold text-foreground">TaskRath</span>
+              <span className="text-sm font-semibold text-foreground">RathCoWork</span>
               <span className="text-[11px] text-muted-foreground">ทาสก์-รัฐ</span>
             </div>
           )}

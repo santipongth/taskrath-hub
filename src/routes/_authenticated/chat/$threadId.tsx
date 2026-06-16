@@ -26,7 +26,7 @@ import { useI18n } from "@/lib/i18n";
 import { VoiceInputButton } from "@/components/voice-input-button";
 
 export const Route = createFileRoute("/_authenticated/chat/$threadId")({
-  head: () => ({ meta: [{ title: "ถาม-ตอบ KB · TaskRath" }] }),
+  head: () => ({ meta: [{ title: "ถาม-ตอบ KB · RathCoWork" }] }),
   component: ChatPage,
   notFoundComponent: () => <div className="p-8 text-sm">ไม่พบห้องสนทนา</div>,
   errorComponent: ({ error }) => <div className="p-8 text-sm text-destructive">{error.message}</div>,

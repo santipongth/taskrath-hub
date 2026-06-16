@@ -3,7 +3,7 @@ export type Lang = "th" | "en";
 export type Msg = { th: string; en: string };
 
 export const messages = {
-  appName: { th: "ทาสก์-รัฐ", en: "TaskRath" },
+  appName: { th: "RathCoWork", en: "RathCoWork" },
   appTagline: {
     th: "ผู้ช่วย AI สำหรับงานราชการ",
     en: "AI assistant for government work",

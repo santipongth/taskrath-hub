@@ -25,7 +25,7 @@ type Revision = { output: string; instruction: string; preset?: string; at: stri
 export const Route = createFileRoute("/_authenticated/run/$templateId")({
   head: ({ params }) => {
     const tpl = TEMPLATES_BY_ID[params.templateId];
-    return { meta: [{ title: `${tpl?.titleTh ?? "Run"} · TaskRath` }] };
+    return { meta: [{ title: `${tpl?.titleTh ?? "Run"} · RathCoWork` }] };
   },
   component: TemplateRunPage,
 });
