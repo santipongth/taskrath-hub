@@ -339,9 +339,37 @@ export const runDeptAgent = createServerFn({ method: "POST" })
       "คุณคือผู้ช่วย AI ของหน่วยงานราชการไทย ตอบเป็นภาษาทางการ กระชับ ชัดเจน";
 
     const kbCtx = await retrieveKbContext(supabase, rawUserPrompt);
-    const ai = await callAI(withKbContext(systemPrompt, kbCtx), r.text);
-    const output = data.redactPii ? restorePII(ai.text, r.map) : ai.text;
+    const fullSystem = withKbContext(systemPrompt, kbCtx);
 
+    // Resolve provider/route: skill.model → agent.default_model → dept default route → Lovable fallback
+    const selector =
+      (skill?.model && skill.model.trim()) ||
+      (agent.default_model && String(agent.default_model).trim()) ||
+      null;
+    let aiText = "";
+    let usage = { promptTokens: 0, completionTokens: 0, costUsd: 0 };
+    let providerKind: string | null = null;
+    let providerId: string | null = null;
+    let attemptsLog: unknown = null;
+
+    try {
+      const { runViaDeptRoute } = await import("@/lib/model-router.server");
+      const routed = await runViaDeptRoute(supabase, agent.department, selector, fullSystem, r.text);
+      aiText = routed.text;
+      usage = routed.usage;
+      providerKind = routed.provider_kind;
+      providerId = routed.provider_id;
+      attemptsLog = routed.attempts;
+    } catch (e) {
+      // last-resort fallback to default Lovable callAI so agents keep working
+      const ai = await callAI(fullSystem, r.text);
+      aiText = ai.text;
+      usage = ai.usage;
+      providerKind = "lovable_default";
+      attemptsLog = [{ error: e instanceof Error ? e.message : String(e) }];
+    }
+
+    const output = data.redactPii ? restorePII(aiText, r.map) : aiText;
     const needsApproval = !!skill?.needs_approval;
 
     const { data: run, error: rErr } = await supabase
@@ -354,13 +382,16 @@ export const runDeptAgent = createServerFn({ method: "POST" })
         output,
         status: "completed",
         needs_approval: needsApproval,
-        prompt_tokens: ai.usage.promptTokens,
-        completion_tokens: ai.usage.completionTokens,
-        cost_usd: ai.usage.costUsd,
+        prompt_tokens: usage.promptTokens,
+        completion_tokens: usage.completionTokens,
+        cost_usd: usage.costUsd,
         metadata: kbCtx ? { citations: kbCtx.citations } : {},
         department: agent.department,
         dept_agent_id: agent.id,
         dept_skill_id: skill?.id ?? null,
+        provider_kind: providerKind,
+        provider_id: providerId,
+        attempts: attemptsLog,
       })
       .select("id")
       .single();
