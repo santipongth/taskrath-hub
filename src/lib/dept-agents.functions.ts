@@ -15,7 +15,7 @@ export type DeptSkill = {
   name: string;
   description: string | null;
   system_prompt: string;
-  fields: Array<{ key: string; label: string; type?: string; required?: boolean }>;
+  fields: Array<{ key: string; label: string; type?: string; required?: boolean; placeholder?: string; example?: string }>;
   kb_category: string | null;
   model: string | null;
   needs_approval: boolean;
