@@ -21,7 +21,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
-import { Trash2, Plus, ArrowLeft, Wrench, Bot } from "lucide-react";
+import { Trash2, Plus, ArrowLeft, Wrench, Bot, BarChart3, Wand2, AlertCircle } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/agents/manage")({
@@ -29,7 +30,37 @@ export const Route = createFileRoute("/_authenticated/agents/manage")({
   component: ManagePage,
 });
 
-type FieldDef = { key: string; label: string; type?: string; required?: boolean };
+type FieldDef = { key: string; label: string; type?: string; required?: boolean; placeholder?: string; example?: string };
+
+const FIELD_TYPES: Array<{ value: string; label: string; placeholder: string; example: string }> = [
+  { value: "text", label: "ข้อความสั้น", placeholder: "พิมพ์ข้อความ…", example: "ตัวอย่างค่า" },
+  { value: "textarea", label: "ข้อความยาว", placeholder: "พิมพ์เนื้อหา…", example: "เนื้อหายาว ๆ หลายบรรทัด" },
+  { value: "number", label: "ตัวเลข", placeholder: "เช่น 1000", example: "1000" },
+  { value: "date", label: "วันที่", placeholder: "YYYY-MM-DD", example: "2026-06-16" },
+  { value: "email", label: "อีเมล", placeholder: "name@example.com", example: "[email protected]" },
+  { value: "url", label: "ลิงก์ URL", placeholder: "https://…", example: "https://example.com" },
+];
+
+const FIELD_PRESETS: FieldDef[] = [
+  { key: "subject", label: "เรื่อง", type: "text", required: true, placeholder: "หัวเรื่อง", example: "ขออนุมัติงบประมาณ" },
+  { key: "to", label: "เรียน", type: "text", required: true, placeholder: "ผู้รับ", example: "ผู้อำนวยการสำนักงาน" },
+  { key: "body", label: "เนื้อหา", type: "textarea", required: true, placeholder: "รายละเอียด…", example: "อธิบายเหตุผลและรายละเอียดประกอบ" },
+  { key: "ref_no", label: "เลขที่อ้างอิง", type: "text", placeholder: "เช่น มท 0123/2569", example: "มท 0123/2569" },
+  { key: "amount", label: "จำนวนเงิน (บาท)", type: "number", placeholder: "0", example: "10000" },
+  { key: "due_date", label: "วันครบกำหนด", type: "date", placeholder: "YYYY-MM-DD", example: "2026-07-01" },
+];
+
+export function validateFieldValue(f: FieldDef, raw: string): string | null {
+  const v = (raw ?? "").trim();
+  if (f.required && !v) return "ต้องกรอก";
+  if (!v) return null;
+  if (f.type === "number" && !/^-?\d+(\.\d+)?$/.test(v)) return "ต้องเป็นตัวเลข";
+  if (f.type === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return "อีเมลไม่ถูกต้อง";
+  if (f.type === "url" && !/^https?:\/\/\S+/i.test(v)) return "URL ต้องขึ้นต้นด้วย http(s)://";
+  if (f.type === "date" && !/^\d{4}-\d{2}-\d{2}$/.test(v)) return "รูปแบบวันที่: YYYY-MM-DD";
+  return null;
+}
+
 
 function ManagePage() {
   const navigate = useNavigate();
@@ -73,10 +104,17 @@ function ManagePage() {
           <h1 className="text-xl font-semibold">จัดการ Agent &amp; Skill</h1>
           <p className="mt-1 text-sm text-muted-foreground">หน่วยงาน: <span className="font-medium text-foreground">{dept}</span></p>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/agents" })}>
-          <ArrowLeft className="h-4 w-4 mr-1" /> กลับ
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => navigate({ to: "/agents/manage/runs" })}>
+            <BarChart3 className="h-4 w-4 mr-1" /> ประวัติการรัน
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/agents" })}>
+            <ArrowLeft className="h-4 w-4 mr-1" /> กลับ
+          </Button>
+        </div>
+
       </div>
+
 
       <Tabs defaultValue="agents" className="mt-6">
         <TabsList>
@@ -231,28 +269,84 @@ function SkillEditor({
           <div>
             <div className="flex items-center justify-between mb-2">
               <Label>Fields (ช่องกรอกข้อมูล)</Label>
-              <Button size="sm" variant="outline" onClick={() => setFields([...fields, { key: "", label: "", type: "text" }])}>
-                <Plus className="h-3 w-3 mr-1" /> เพิ่ม field
-              </Button>
+              <div className="flex gap-2">
+                <Select
+                  onValueChange={(v) => {
+                    const preset = FIELD_PRESETS.find((p) => p.key === v);
+                    if (preset && !fields.some((x) => x.key === preset.key)) {
+                      setFields([...fields, { ...preset }]);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="h-8 w-[180px] text-xs">
+                    <Wand2 className="h-3 w-3 mr-1" />
+                    <SelectValue placeholder="ใช้ field สำเร็จรูป" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FIELD_PRESETS.map((p) => (
+                      <SelectItem key={p.key} value={p.key} disabled={fields.some((x) => x.key === p.key)}>
+                        {p.label} ({p.key})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button size="sm" variant="outline" onClick={() => setFields([...fields, { key: "", label: "", type: "text" }])}>
+                  <Plus className="h-3 w-3 mr-1" /> เพิ่ม field
+                </Button>
+              </div>
             </div>
+            {fields.length === 0 && (
+              <p className="text-[11px] text-muted-foreground border border-dashed border-border rounded p-3">
+                เพิ่ม field เพื่อให้ผู้ใช้กรอกค่าเป็นโครงสร้าง — เลือกจาก "ใช้ field สำเร็จรูป" หรือกด "เพิ่ม field"
+              </p>
+            )}
             <div className="space-y-2">
-              {fields.map((f, i) => (
-                <div key={i} className="grid grid-cols-12 gap-2 items-center">
-                  <Input className="col-span-3" placeholder="key" value={f.key}
-                    onChange={(e) => setFields(fields.map((x, j) => j === i ? { ...x, key: e.target.value } : x))} />
-                  <Input className="col-span-6" placeholder="ป้ายแสดงผล" value={f.label}
-                    onChange={(e) => setFields(fields.map((x, j) => j === i ? { ...x, label: e.target.value } : x))} />
-                  <label className="col-span-2 flex items-center gap-1 text-xs">
-                    <Checkbox checked={!!f.required} onCheckedChange={(v) => setFields(fields.map((x, j) => j === i ? { ...x, required: !!v } : x))} />
-                    บังคับ
-                  </label>
-                  <Button variant="ghost" size="icon" className="col-span-1" onClick={() => setFields(fields.filter((_, j) => j !== i))}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
+              {fields.map((f, i) => {
+                const setF = (patch: Partial<FieldDef>) =>
+                  setFields(fields.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+                const keyValid = /^[a-z_][a-z0-9_]*$/i.test(f.key);
+                const typeMeta = FIELD_TYPES.find((t) => t.value === (f.type ?? "text"));
+                return (
+                  <div key={i} className="rounded border border-border p-2 space-y-2">
+                    <div className="grid grid-cols-12 gap-2 items-center">
+                      <div className="col-span-3">
+                        <Input placeholder="key (a-z, _)" value={f.key}
+                          className={!keyValid && f.key ? "border-red-400" : ""}
+                          onChange={(e) => setF({ key: e.target.value })} />
+                      </div>
+                      <Input className="col-span-4" placeholder="ป้ายแสดงผล" value={f.label}
+                        onChange={(e) => setF({ label: e.target.value })} />
+                      <Select value={f.type ?? "text"} onValueChange={(v) => setF({ type: v })}>
+                        <SelectTrigger className="col-span-3"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {FIELD_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <label className="col-span-1 flex items-center gap-1 text-xs justify-center">
+                        <Checkbox checked={!!f.required} onCheckedChange={(v) => setF({ required: !!v })} />
+                        บังคับ
+                      </label>
+                      <Button variant="ghost" size="icon" className="col-span-1" onClick={() => setFields(fields.filter((_, j) => j !== i))}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input className="text-xs" placeholder={`placeholder (เช่น "${typeMeta?.placeholder ?? ""}")`}
+                        value={f.placeholder ?? ""} onChange={(e) => setF({ placeholder: e.target.value })} />
+                      <Input className="text-xs" placeholder={`ตัวอย่างค่าเริ่มต้น (เช่น "${typeMeta?.example ?? ""}")`}
+                        value={f.example ?? ""} onChange={(e) => setF({ example: e.target.value })} />
+                    </div>
+                    {!keyValid && f.key && (
+                      <p className="flex items-center gap-1 text-[11px] text-red-500">
+                        <AlertCircle className="h-3 w-3" /> key ต้องเป็นตัวอักษร a–z และ _
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
+
           <div className="flex items-center gap-6">
             <label className="flex items-center gap-2 text-sm">
               <Switch checked={needsApproval} onCheckedChange={setNeedsApproval} />

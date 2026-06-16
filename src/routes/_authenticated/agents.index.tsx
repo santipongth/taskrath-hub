@@ -97,8 +97,27 @@ function AgentsPage() {
     }
   };
 
+  const fieldErrors = (() => {
+    if (!activeSkill) return {} as Record<string, string>;
+    const errs: Record<string, string> = {};
+    for (const f of activeSkill.fields) {
+      const v = (skillFields[f.key] ?? "").trim();
+      if (f.required && !v) errs[f.key] = "ต้องกรอก";
+      else if (v && f.type === "number" && !/^-?\d+(\.\d+)?$/.test(v)) errs[f.key] = "ต้องเป็นตัวเลข";
+      else if (v && f.type === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) errs[f.key] = "อีเมลไม่ถูกต้อง";
+      else if (v && f.type === "url" && !/^https?:\/\/\S+/i.test(v)) errs[f.key] = "URL ต้องขึ้นต้นด้วย http(s)://";
+      else if (v && f.type === "date" && !/^\d{4}-\d{2}-\d{2}$/.test(v)) errs[f.key] = "รูปแบบวันที่: YYYY-MM-DD";
+    }
+    return errs;
+  })();
+  const hasFieldErrors = Object.keys(fieldErrors).length > 0;
+
   const onRunDept = async () => {
     if (!activeDept || !prompt.trim()) return;
+    if (hasFieldErrors) {
+      toast.error("กรุณากรอกข้อมูลให้ครบและถูกต้องก่อนรัน");
+      return;
+    }
     setLoading(true);
     setOutput("");
     setRunId(null);
@@ -122,6 +141,7 @@ function AgentsPage() {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-8">
@@ -246,7 +266,12 @@ function AgentsPage() {
                 onValueChange={(v) => {
                   const s = (activeDept.skills ?? []).find((x) => x.id === v) ?? null;
                   setActiveSkill(s);
-                  setSkillFields({});
+                  // Prefill from example values
+                  const init: Record<string, string> = {};
+                  for (const f of s?.fields ?? []) {
+                    if (f.example) init[f.key] = f.example;
+                  }
+                  setSkillFields(init);
                 }}
               >
                 <SelectTrigger><SelectValue placeholder="เลือก skill" /></SelectTrigger>
@@ -262,15 +287,39 @@ function AgentsPage() {
 
           {activeSkill && activeSkill.fields.length > 0 && (
             <div className="mb-3 grid gap-2">
-              {activeSkill.fields.map((f) => (
-                <div key={f.key}>
-                  <Label className="text-xs">{f.label}{f.required && " *"}</Label>
-                  <Input
-                    value={skillFields[f.key] ?? ""}
-                    onChange={(e) => setSkillFields({ ...skillFields, [f.key]: e.target.value })}
-                  />
-                </div>
-              ))}
+              {activeSkill.fields.map((f) => {
+                const err = fieldErrors[f.key];
+                const isTextarea = f.type === "textarea";
+                const inputType = f.type === "number" ? "number" : f.type === "date" ? "date" : f.type === "email" ? "email" : f.type === "url" ? "url" : "text";
+                return (
+                  <div key={f.key}>
+                    <Label className="text-xs">
+                      {f.label}{f.required && <span className="text-red-500"> *</span>}
+                    </Label>
+                    {isTextarea ? (
+                      <Textarea
+                        rows={3}
+                        placeholder={f.placeholder ?? f.example ?? ""}
+                        value={skillFields[f.key] ?? ""}
+                        onChange={(e) => setSkillFields({ ...skillFields, [f.key]: e.target.value })}
+                        className={err ? "border-red-400" : ""}
+                      />
+                    ) : (
+                      <Input
+                        type={inputType}
+                        placeholder={f.placeholder ?? f.example ?? ""}
+                        value={skillFields[f.key] ?? ""}
+                        onChange={(e) => setSkillFields({ ...skillFields, [f.key]: e.target.value })}
+                        className={err ? "border-red-400" : ""}
+                      />
+                    )}
+                    {err && <p className="mt-1 text-[11px] text-red-500">{err}</p>}
+                    {!err && f.example && !skillFields[f.key] && (
+                      <p className="mt-1 text-[11px] text-muted-foreground">ตัวอย่าง: {f.example}</p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
 
@@ -292,11 +341,20 @@ function AgentsPage() {
               />
             </div>
           </div>
-          <div className="mt-3 flex justify-end">
-            <Button onClick={active ? onRun : onRunDept} disabled={loading || !prompt.trim()}>
+          <div className="mt-3 flex items-center justify-between gap-2">
+            <div className="text-[11px] text-muted-foreground">
+              {activeDept && hasFieldErrors && (
+                <span className="text-red-500">กรอกข้อมูลให้ครบและถูกต้องก่อนรัน ({Object.keys(fieldErrors).length} ช่อง)</span>
+              )}
+            </div>
+            <Button
+              onClick={active ? onRun : onRunDept}
+              disabled={loading || !prompt.trim() || (activeDept !== null && hasFieldErrors)}
+            >
               {loading ? t("running") : t("run")}
             </Button>
           </div>
+
 
           {output && (
             <div className="mt-5 rounded-md border border-border bg-background p-4">
