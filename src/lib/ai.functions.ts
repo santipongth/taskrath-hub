@@ -588,6 +588,83 @@ export const adminUsageStats = createServerFn({ method: "GET" })
     };
   });
 
+export const adminMonthlyReport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { year: number; month: number }) =>
+    z.object({ year: z.number().int().min(2000).max(3000), month: z.number().int().min(1).max(12) }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: isAdminData } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+    if (isAdminData !== true) throw new Error("Forbidden: admin role required");
+
+    const start = new Date(Date.UTC(data.year, data.month - 1, 1));
+    const end = new Date(Date.UTC(data.year, data.month, 1));
+    const { data: runs, error } = await supabase
+      .from("ai_runs")
+      .select("user_id, template_id, prompt_tokens, completion_tokens, cost_usd, status, created_at")
+      .gte("created_at", start.toISOString())
+      .lt("created_at", end.toISOString())
+      .order("created_at", { ascending: false })
+      .limit(10000);
+    if (error) throw new Error(error.message);
+
+    type Row = NonNullable<typeof runs>[number];
+    const list: Row[] = runs ?? [];
+    let totalPromptTokens = 0, totalCompletionTokens = 0, totalCost = 0, totalFails = 0;
+    const byDay = new Map<string, { tokens: number; cost: number; runs: number; fails: number }>();
+    const byUser = new Map<string, { runs: number; tokens: number; cost: number; fails: number }>();
+    const byTemplate = new Map<string, { runs: number; tokens: number; cost: number; fails: number }>();
+
+    for (const r of list) {
+      const pt = r.prompt_tokens ?? 0;
+      const ct = r.completion_tokens ?? 0;
+      const cost = Number(r.cost_usd ?? 0);
+      const tokens = pt + ct;
+      const failed = r.status === "error" || r.status === "failed";
+      totalPromptTokens += pt; totalCompletionTokens += ct; totalCost += cost;
+      if (failed) totalFails += 1;
+      const day = r.created_at.slice(0, 10);
+      const d = byDay.get(day) ?? { tokens: 0, cost: 0, runs: 0, fails: 0 };
+      d.tokens += tokens; d.cost += cost; d.runs += 1; if (failed) d.fails += 1;
+      byDay.set(day, d);
+      const u = byUser.get(r.user_id) ?? { runs: 0, tokens: 0, cost: 0, fails: 0 };
+      u.runs += 1; u.tokens += tokens; u.cost += cost; if (failed) u.fails += 1;
+      byUser.set(r.user_id, u);
+      const tid = r.template_id ?? "(freeform)";
+      const t = byTemplate.get(tid) ?? { runs: 0, tokens: 0, cost: 0, fails: 0 };
+      t.runs += 1; t.tokens += tokens; t.cost += cost; if (failed) t.fails += 1;
+      byTemplate.set(tid, t);
+    }
+
+    const userIds = [...byUser.keys()];
+    const { data: profiles } = userIds.length
+      ? await supabase.from("profiles").select("id, display_name").in("id", userIds)
+      : { data: [] as { id: string; display_name: string | null }[] };
+    const nameMap = new Map((profiles ?? []).map((p) => [p.id, p.display_name ?? p.id.slice(0, 8)]));
+
+    return {
+      period: { year: data.year, month: data.month, start: start.toISOString(), end: end.toISOString() },
+      totals: {
+        runs: list.length,
+        promptTokens: totalPromptTokens,
+        completionTokens: totalCompletionTokens,
+        totalTokens: totalPromptTokens + totalCompletionTokens,
+        costUsd: totalCost,
+        fails: totalFails,
+        failRate: list.length ? totalFails / list.length : 0,
+        uniqueUsers: byUser.size,
+        uniqueTemplates: byTemplate.size,
+      },
+      daily: [...byDay.entries()].map(([day, v]) => ({ day, ...v })).sort((a, b) => a.day.localeCompare(b.day)),
+      users: [...byUser.entries()]
+        .map(([id, v]) => ({ id, name: nameMap.get(id) ?? id.slice(0, 8), ...v }))
+        .sort((a, b) => b.cost - a.cost),
+      templates: [...byTemplate.entries()]
+        .map(([id, v]) => ({ id, ...v, avgTokens: v.runs ? Math.round(v.tokens / v.runs) : 0, failRate: v.runs ? v.fails / v.runs : 0 }))
+        .sort((a, b) => b.runs - a.runs),
+    };
+  });
+
 // ─────────────────────────────────────────────────────────────
 // Agents — specialised AI personas. Each has its own system prompt.
 // Output is persisted to ai_runs with template_id = `agent:<id>`.
