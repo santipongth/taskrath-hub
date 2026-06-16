@@ -216,6 +216,98 @@ function AdminUsagePage() {
           )}
         </>
       ) : null}
+
+      <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
+        <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {L("พรีวิวรายงานรายเดือน", "Monthly report preview")}
+              {preview && (
+                <span className="ml-2 text-sm font-normal text-muted-foreground">
+                  {String(preview.period.month).padStart(2, "0")}/{preview.period.year}
+                </span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          {preview && (
+            <div className="space-y-5">
+              <div className="grid gap-2 sm:grid-cols-4">
+                <MiniKpi label={L("งาน", "Runs")} value={preview.totals.runs.toLocaleString()} />
+                <MiniKpi label={L("ต้นทุน", "Cost")} value={fmtCost(preview.totals.costUsd)} />
+                <MiniKpi label={L("โทเค็นรวม", "Tokens")} value={fmtTokens(preview.totals.totalTokens)} />
+                <MiniKpi label={L("Fail %", "Fail %")} value={`${(preview.totals.failRate * 100).toFixed(1)}%`} />
+                <MiniKpi label={L("Input tok", "Input tok")} value={fmtTokens(preview.totals.promptTokens)} />
+                <MiniKpi label={L("Output tok", "Output tok")} value={fmtTokens(preview.totals.completionTokens)} />
+                <MiniKpi label={L("ผู้ใช้", "Users")} value={preview.totals.uniqueUsers.toLocaleString()} />
+                <MiniKpi label={L("เทมเพลต", "Templates")} value={preview.totals.uniqueTemplates.toLocaleString()} />
+              </div>
+
+              <section className="rounded-lg border border-border bg-card p-4">
+                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {L("ต้นทุน/งาน รายวัน", "Daily cost & runs")}
+                </h3>
+                <div className="h-56 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={preview.daily}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                      <XAxis dataKey="day" stroke="var(--muted-foreground)" fontSize={11} />
+                      <YAxis stroke="var(--muted-foreground)" fontSize={11} />
+                      <Tooltip
+                        contentStyle={{
+                          background: "var(--card)", border: "1px solid var(--border)",
+                          borderRadius: 6, fontSize: 12, color: "var(--foreground)",
+                        }}
+                      />
+                      <Line type="monotone" dataKey="cost" stroke="var(--primary)" strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="runs" stroke="var(--muted-foreground)" strokeWidth={1} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </section>
+
+              <div className="grid gap-4 lg:grid-cols-2">
+                <section className="rounded-lg border border-border bg-card p-4">
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {L("Top 5 ผู้ใช้", "Top 5 users")}
+                  </h3>
+                  <Table
+                    head={[L("ชื่อ", "Name"), L("งาน", "Runs"), L("ต้นทุน", "Cost")]}
+                    rows={preview.users.slice(0, 5).map((u) => [u.name, u.runs.toString(), fmtCost(u.cost)])}
+                  />
+                </section>
+                <section className="rounded-lg border border-border bg-card p-4">
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {L("Top 5 เทมเพลต", "Top 5 templates")}
+                  </h3>
+                  <Table
+                    head={[L("Template", "Template"), L("งาน", "Runs"), L("ต้นทุน", "Cost")]}
+                    rows={preview.templates.slice(0, 5).map((t) => [t.id, t.runs.toString(), fmtCost(t.cost)])}
+                  />
+                </section>
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" disabled={!!exporting} onClick={() => handleExport("csv")}>
+              {exporting === "csv" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+              <span className="ml-1.5">CSV</span>
+            </Button>
+            <Button disabled={!!exporting} onClick={() => handleExport("pdf")}>
+              {exporting === "pdf" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+              <span className="ml-1.5">PDF</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function MiniKpi({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-border bg-background p-3">
+      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mt-1 text-lg font-semibold text-foreground">{value}</p>
     </div>
   );
 }
