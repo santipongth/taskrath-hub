@@ -504,6 +504,19 @@ export type Database = {
           title: string
         }[]
       }
+      verify_signed_document: {
+        Args: { p_id: string }
+        Returns: {
+          agency_name: string
+          content_hash: string
+          document_subject: string
+          id: string
+          ref_no: string
+          signed_at: string
+          signer_name: string
+          signer_position: string
+        }[]
+      }
     }
     Enums: {
       app_role: "user" | "approver" | "admin"
