@@ -303,11 +303,6 @@ function drawDailyChart(doc: jsPDF, r: MonthlyReport, x: number, y: number, w: n
   doc.setTextColor(0);
 }
 
-function truncate(doc: jsPDF, txt: string, max: number): string {
-  let s = txt;
-  while (doc.getTextWidth(s + "…") > max && s.length > 1) s = s.slice(0, -1);
-  return s + "…";
-}
 
 export function reportFilename(r: MonthlyReport, ext: "pdf" | "csv"): string {
   const m = String(r.period.month).padStart(2, "0");
