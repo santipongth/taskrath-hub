@@ -19,6 +19,7 @@ import { Route as AuthenticatedTemplatesRouteImport } from './routes/_authentica
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authenticated/integrations'
 import { Route as AuthenticatedGovernanceRouteImport } from './routes/_authenticated/governance'
+import { Route as AuthenticatedAgentsRouteImport } from './routes/_authenticated/agents'
 import { Route as AuthenticatedRunIndexRouteImport } from './routes/_authenticated/run/index'
 import { Route as AuthenticatedHistoryIndexRouteImport } from './routes/_authenticated/history/index'
 import { Route as AuthenticatedChatIndexRouteImport } from './routes/_authenticated/chat/index'
@@ -84,6 +85,11 @@ const AuthenticatedGovernanceRoute = AuthenticatedGovernanceRouteImport.update({
   path: '/governance',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedAgentsRoute = AuthenticatedAgentsRouteImport.update({
+  id: '/agents',
+  path: '/agents',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedRunIndexRoute = AuthenticatedRunIndexRouteImport.update({
   id: '/run/',
   path: '/run/',
@@ -102,9 +108,9 @@ const AuthenticatedChatIndexRoute = AuthenticatedChatIndexRouteImport.update({
 } as any)
 const AuthenticatedAgentsIndexRoute =
   AuthenticatedAgentsIndexRouteImport.update({
-    id: '/agents/',
-    path: '/agents/',
-    getParentRoute: () => AuthenticatedRoute,
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAgentsRoute,
   } as any)
 const AuthenticatedRunTemplateIdRoute =
   AuthenticatedRunTemplateIdRouteImport.update({
@@ -126,9 +132,9 @@ const AuthenticatedChatThreadIdRoute =
   } as any)
 const AuthenticatedAgentsManageRoute =
   AuthenticatedAgentsManageRouteImport.update({
-    id: '/agents/manage',
-    path: '/agents/manage',
-    getParentRoute: () => AuthenticatedRoute,
+    id: '/manage',
+    path: '/manage',
+    getParentRoute: () => AuthenticatedAgentsRoute,
   } as any)
 const AuthenticatedAdminUsageRoute = AuthenticatedAdminUsageRouteImport.update({
   id: '/admin/usage',
@@ -171,6 +177,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/agents': typeof AuthenticatedAgentsRouteWithChildren
   '/governance': typeof AuthenticatedGovernanceRoute
   '/integrations': typeof AuthenticatedIntegrationsRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -222,6 +229,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/_authenticated/agents': typeof AuthenticatedAgentsRouteWithChildren
   '/_authenticated/governance': typeof AuthenticatedGovernanceRoute
   '/_authenticated/integrations': typeof AuthenticatedIntegrationsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
@@ -250,6 +258,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/sitemap.xml'
+    | '/agents'
     | '/governance'
     | '/integrations'
     | '/settings'
@@ -300,6 +309,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/sitemap.xml'
+    | '/_authenticated/agents'
     | '/_authenticated/governance'
     | '/_authenticated/integrations'
     | '/_authenticated/settings'
@@ -402,6 +412,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedGovernanceRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/agents': {
+      id: '/_authenticated/agents'
+      path: '/agents'
+      fullPath: '/agents'
+      preLoaderRoute: typeof AuthenticatedAgentsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/run/': {
       id: '/_authenticated/run/'
       path: '/run'
@@ -425,10 +442,10 @@ declare module '@tanstack/react-router' {
     }
     '/_authenticated/agents/': {
       id: '/_authenticated/agents/'
-      path: '/agents'
+      path: '/'
       fullPath: '/agents/'
       preLoaderRoute: typeof AuthenticatedAgentsIndexRouteImport
-      parentRoute: typeof AuthenticatedRoute
+      parentRoute: typeof AuthenticatedAgentsRoute
     }
     '/_authenticated/run/$templateId': {
       id: '/_authenticated/run/$templateId'
@@ -453,10 +470,10 @@ declare module '@tanstack/react-router' {
     }
     '/_authenticated/agents/manage': {
       id: '/_authenticated/agents/manage'
-      path: '/agents/manage'
+      path: '/manage'
       fullPath: '/agents/manage'
       preLoaderRoute: typeof AuthenticatedAgentsManageRouteImport
-      parentRoute: typeof AuthenticatedRoute
+      parentRoute: typeof AuthenticatedAgentsRoute
     }
     '/_authenticated/admin/usage': {
       id: '/_authenticated/admin/usage'
@@ -503,7 +520,21 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedAgentsRouteChildren {
+  AuthenticatedAgentsManageRoute: typeof AuthenticatedAgentsManageRoute
+  AuthenticatedAgentsIndexRoute: typeof AuthenticatedAgentsIndexRoute
+}
+
+const AuthenticatedAgentsRouteChildren: AuthenticatedAgentsRouteChildren = {
+  AuthenticatedAgentsManageRoute: AuthenticatedAgentsManageRoute,
+  AuthenticatedAgentsIndexRoute: AuthenticatedAgentsIndexRoute,
+}
+
+const AuthenticatedAgentsRouteWithChildren =
+  AuthenticatedAgentsRoute._addFileChildren(AuthenticatedAgentsRouteChildren)
+
 interface AuthenticatedRouteChildren {
+  AuthenticatedAgentsRoute: typeof AuthenticatedAgentsRouteWithChildren
   AuthenticatedGovernanceRoute: typeof AuthenticatedGovernanceRoute
   AuthenticatedIntegrationsRoute: typeof AuthenticatedIntegrationsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
@@ -515,17 +546,16 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminSettingsRoute: typeof AuthenticatedAdminSettingsRoute
   AuthenticatedAdminTemplatesRoute: typeof AuthenticatedAdminTemplatesRoute
   AuthenticatedAdminUsageRoute: typeof AuthenticatedAdminUsageRoute
-  AuthenticatedAgentsManageRoute: typeof AuthenticatedAgentsManageRoute
   AuthenticatedChatThreadIdRoute: typeof AuthenticatedChatThreadIdRoute
   AuthenticatedHistoryRunIdRoute: typeof AuthenticatedHistoryRunIdRoute
   AuthenticatedRunTemplateIdRoute: typeof AuthenticatedRunTemplateIdRoute
-  AuthenticatedAgentsIndexRoute: typeof AuthenticatedAgentsIndexRoute
   AuthenticatedChatIndexRoute: typeof AuthenticatedChatIndexRoute
   AuthenticatedHistoryIndexRoute: typeof AuthenticatedHistoryIndexRoute
   AuthenticatedRunIndexRoute: typeof AuthenticatedRunIndexRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedAgentsRoute: AuthenticatedAgentsRouteWithChildren,
   AuthenticatedGovernanceRoute: AuthenticatedGovernanceRoute,
   AuthenticatedIntegrationsRoute: AuthenticatedIntegrationsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
@@ -537,11 +567,9 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminSettingsRoute: AuthenticatedAdminSettingsRoute,
   AuthenticatedAdminTemplatesRoute: AuthenticatedAdminTemplatesRoute,
   AuthenticatedAdminUsageRoute: AuthenticatedAdminUsageRoute,
-  AuthenticatedAgentsManageRoute: AuthenticatedAgentsManageRoute,
   AuthenticatedChatThreadIdRoute: AuthenticatedChatThreadIdRoute,
   AuthenticatedHistoryRunIdRoute: AuthenticatedHistoryRunIdRoute,
   AuthenticatedRunTemplateIdRoute: AuthenticatedRunTemplateIdRoute,
-  AuthenticatedAgentsIndexRoute: AuthenticatedAgentsIndexRoute,
   AuthenticatedChatIndexRoute: AuthenticatedChatIndexRoute,
   AuthenticatedHistoryIndexRoute: AuthenticatedHistoryIndexRoute,
   AuthenticatedRunIndexRoute: AuthenticatedRunIndexRoute,
