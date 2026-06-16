@@ -73,15 +73,49 @@ export function downloadBlob(filename: string, mime: string, body: BlobPart) {
 }
 
 export type Signer = { name: string; position: string };
+export type ReportLocale = "th" | "en";
+export type DateFormat = "th-long" | "th-short" | "en-long" | "en-short" | "iso";
 /** Either may be a `data:image/png|jpeg;base64,...` URL (any size; auto-fit in header/footer). */
 export type BuildOptions = {
   signer?: Signer | null;
   signatureDataUrl?: string | null;
   stampDataUrl?: string | null;
+  locale?: ReportLocale;
+  dateFormat?: DateFormat;
 };
 
 function detectImgFmt(dataUrl: string): "PNG" | "JPEG" {
   return dataUrl.startsWith("data:image/jpeg") || dataUrl.startsWith("data:image/jpg") ? "JPEG" : "PNG";
+}
+
+const EN_MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+export function formatReportDate(d: Date, fmt: DateFormat): string {
+  const y = d.getFullYear();
+  const m = d.getMonth();
+  const day = d.getDate();
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  switch (fmt) {
+    case "th-long":
+      return `${day} ${TH_MONTHS[m]} ${y + 543} ${hh}:${mm}`;
+    case "th-short":
+      return `${String(day).padStart(2, "0")}/${String(m + 1).padStart(2, "0")}/${y + 543} ${hh}:${mm}`;
+    case "en-long":
+      return `${EN_MONTHS[m]} ${day}, ${y} ${hh}:${mm}`;
+    case "en-short":
+      return `${String(m + 1).padStart(2, "0")}/${String(day).padStart(2, "0")}/${y} ${hh}:${mm}`;
+    case "iso":
+      return `${y}-${String(m + 1).padStart(2, "0")}-${String(day).padStart(2, "0")} ${hh}:${mm}`;
+  }
+}
+
+export function formatPeriod(year: number, month: number, locale: ReportLocale): string {
+  if (locale === "en") return `${EN_MONTHS[month - 1]} ${year}`;
+  return `${TH_MONTHS[month - 1]} ${year + 543}`;
 }
 
 export async function buildMonthlyPdf(r: MonthlyReport, opts: BuildOptions = {}): Promise<Blob> {
@@ -98,25 +132,28 @@ export async function buildMonthlyPdf(r: MonthlyReport, opts: BuildOptions = {})
   const contentBottom = pageH - margin - footerH;
   const contentW = pageW - margin * 2;
   let y = contentTop;
-  const periodLabel = `${TH_MONTHS[r.period.month - 1]} ${r.period.year + 543}`;
-  const generatedAt = new Date().toLocaleString("th-TH");
+  const locale: ReportLocale = opts.locale ?? "th";
+  const dateFormat: DateFormat = opts.dateFormat ?? (locale === "en" ? "en-long" : "th-long");
+  const periodLabel = formatPeriod(r.period.year, r.period.month, locale);
+  const generatedAt = formatReportDate(new Date(), dateFormat);
   const signer = opts.signer && (opts.signer.name || opts.signer.position) ? opts.signer : null;
+  const T = (th: string, en: string) => (locale === "en" ? en : th);
 
   const ensureSpace = (need: number) => {
     if (y + need > contentBottom) { doc.addPage(); y = contentTop; }
   };
 
   doc.setFontSize(16);
-  doc.text("RathCoWork — รายงานการใช้งานรายเดือน", margin, y); y += 22;
+  doc.text(T("RathCoWork — รายงานการใช้งานรายเดือน", "RathCoWork — Monthly Usage Report"), margin, y); y += 22;
   doc.setFontSize(11);
   doc.setTextColor(90);
-  doc.text(`รอบการใช้งาน: ${periodLabel}`, margin, y); y += 14;
-  doc.text(`สร้างเมื่อ: ${generatedAt}`, margin, y); y += 18;
+  doc.text(`${T("รอบการใช้งาน", "Period")}: ${periodLabel}`, margin, y); y += 14;
+  doc.text(`${T("สร้างเมื่อ", "Generated")}: ${generatedAt}`, margin, y); y += 18;
   doc.setTextColor(0);
 
   // KPI grid
   doc.setFontSize(12);
-  doc.text("ภาพรวม (KPI)", margin, y); y += 12;
+  doc.text(T("ภาพรวม (KPI)", "Overview (KPI)"), margin, y); y += 12;
   const kpis: [string, string][] = [
     ["งานทั้งหมด", fmtInt(r.totals.runs)],
     ["ต้นทุนรวม", fmtCost(r.totals.costUsd)],
@@ -214,7 +251,7 @@ export async function buildMonthlyPdf(r: MonthlyReport, opts: BuildOptions = {})
     doc.setDrawColor(210);
     doc.setTextColor(95);
     doc.setFontSize(9);
-    doc.text("RathCoWork · รายงานการใช้งานรายเดือน", margin, margin + 12);
+    doc.text(T("RathCoWork · รายงานการใช้งานรายเดือน", "RathCoWork · Monthly Usage Report"), margin, margin + 12);
 
     // Stamp top-right (above the period label), preserves aspect ratio, capped
     let stampW = 0;
@@ -232,7 +269,7 @@ export async function buildMonthlyPdf(r: MonthlyReport, opts: BuildOptions = {})
     doc.text(periodLabel, pageW - margin - stampW - doc.getTextWidth(periodLabel), margin + 12);
     if (signer) {
       doc.setFontSize(8);
-      const line = `ผู้รับผิดชอบ: ${signer.name}${signer.position ? " · " + signer.position : ""}`;
+      const line = `${T("ผู้รับผิดชอบ", "Owner")}: ${signer.name}${signer.position ? " · " + signer.position : ""}`;
       doc.text(line, pageW - margin - stampW - doc.getTextWidth(line), margin + 24);
     }
     doc.line(margin, margin + headerH - 8, pageW - margin, margin + headerH - 8);
@@ -240,7 +277,7 @@ export async function buildMonthlyPdf(r: MonthlyReport, opts: BuildOptions = {})
     // Footer
     doc.line(margin, pageH - margin - footerH + 4, pageW - margin, pageH - margin - footerH + 4);
     doc.setFontSize(8);
-    doc.text(`สร้างเมื่อ ${generatedAt}`, margin, pageH - margin - 16);
+    doc.text(`${T("สร้างเมื่อ", "Generated")} ${generatedAt}`, margin, pageH - margin - 16);
 
     // Signature image (bottom-center / right of "ลงนาม" text)
     let sigOffset = 0;
@@ -257,11 +294,11 @@ export async function buildMonthlyPdf(r: MonthlyReport, opts: BuildOptions = {})
       } catch { /* ignore */ }
     }
     if (signer) {
-      const sigLine = `ลงนาม: ${signer.name}${signer.position ? " (" + signer.position + ")" : ""}`;
+      const sigLine = `${T("ลงนาม", "Signed")}: ${signer.name}${signer.position ? " (" + signer.position + ")" : ""}`;
       doc.text(sigLine, margin, pageH - margin - 4);
     }
     void sigOffset;
-    const pageStr = `หน้า ${p} / ${totalPages}`;
+    const pageStr = `${T("หน้า", "Page")} ${p} / ${totalPages}`;
     doc.text(pageStr, pageW - margin - doc.getTextWidth(pageStr), pageH - margin - 4);
     doc.setTextColor(0);
   }

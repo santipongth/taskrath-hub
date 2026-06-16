@@ -5,7 +5,8 @@ import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { useI18n } from "@/lib/i18n";
 import { adminUsageStats, adminMonthlyReport } from "@/lib/ai.functions";
-import { buildMonthlyCsv, buildMonthlyPdf, downloadBlob, reportFilename, type MonthlyReport } from "@/lib/admin-report";
+import { buildMonthlyCsv, buildMonthlyPdf, downloadBlob, reportFilename, formatReportDate, formatPeriod, type MonthlyReport, type ReportLocale, type DateFormat } from "@/lib/admin-report";
+import { processImageForPdf } from "@/lib/image-processing";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -49,29 +50,76 @@ function AdminUsagePage() {
   const [signerPosition, setSignerPosition] = useState("");
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
   const [stampDataUrl, setStampDataUrl] = useState<string | null>(null);
+  // Image processing controls
+  const [sigScale, setSigScale] = useState(1.5);
+  const [sigSharp, setSigSharp] = useState(0.3);
+  const [sigTrim, setSigTrim] = useState(true);
+  const [stampScale, setStampScale] = useState(1.5);
+  const [stampSharp, setStampSharp] = useState(0.3);
+  const [stampTrim, setStampTrim] = useState(true);
+  // Locale / date format for header & footer
+  const [reportLocale, setReportLocale] = useState<ReportLocale>("th");
+  const [dateFormat, setDateFormat] = useState<DateFormat>("th-long");
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem("rathcowork.report.signer");
       if (raw) {
-        const p = JSON.parse(raw) as { name?: string; position?: string; signature?: string; stamp?: string };
+        const p = JSON.parse(raw) as {
+          name?: string; position?: string; signature?: string; stamp?: string;
+          sigScale?: number; sigSharp?: number; sigTrim?: boolean;
+          stampScale?: number; stampSharp?: number; stampTrim?: boolean;
+          locale?: ReportLocale; dateFormat?: DateFormat;
+        };
         setSignerName(p.name ?? "");
         setSignerPosition(p.position ?? "");
         if (p.signature) setSignatureDataUrl(p.signature);
         if (p.stamp) setStampDataUrl(p.stamp);
+        if (typeof p.sigScale === "number") setSigScale(p.sigScale);
+        if (typeof p.sigSharp === "number") setSigSharp(p.sigSharp);
+        if (typeof p.sigTrim === "boolean") setSigTrim(p.sigTrim);
+        if (typeof p.stampScale === "number") setStampScale(p.stampScale);
+        if (typeof p.stampSharp === "number") setStampSharp(p.stampSharp);
+        if (typeof p.stampTrim === "boolean") setStampTrim(p.stampTrim);
+        if (p.locale === "en" || p.locale === "th") setReportLocale(p.locale);
+        if (p.dateFormat) setDateFormat(p.dateFormat);
       }
     } catch { /* ignore */ }
   }, []);
 
   useEffect(() => {
     try {
-      const payload: Record<string, string> = { name: signerName, position: signerPosition };
-      // Persist images only when small enough for localStorage (~250KB cap each)
+      const payload: Record<string, unknown> = {
+        name: signerName, position: signerPosition,
+        sigScale, sigSharp, sigTrim,
+        stampScale, stampSharp, stampTrim,
+        locale: reportLocale, dateFormat,
+      };
       if (signatureDataUrl && signatureDataUrl.length < 250_000) payload.signature = signatureDataUrl;
       if (stampDataUrl && stampDataUrl.length < 250_000) payload.stamp = stampDataUrl;
       localStorage.setItem("rathcowork.report.signer", JSON.stringify(payload));
     } catch { /* quota exceeded — ignore */ }
-  }, [signerName, signerPosition, signatureDataUrl, stampDataUrl]);
+  }, [signerName, signerPosition, signatureDataUrl, stampDataUrl, sigScale, sigSharp, sigTrim, stampScale, stampSharp, stampTrim, reportLocale, dateFormat]);
+
+  // Live preview of processed images (debounced via effect)
+  const [processedSig, setProcessedSig] = useState<string | null>(null);
+  const [processedStamp, setProcessedStamp] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    if (!signatureDataUrl) { setProcessedSig(null); return; }
+    processImageForPdf(signatureDataUrl, { scale: sigScale, sharpness: sigSharp, autoTrim: sigTrim })
+      .then((u) => { if (!cancelled) setProcessedSig(u); })
+      .catch(() => { if (!cancelled) setProcessedSig(signatureDataUrl); });
+    return () => { cancelled = true; };
+  }, [signatureDataUrl, sigScale, sigSharp, sigTrim]);
+  useEffect(() => {
+    let cancelled = false;
+    if (!stampDataUrl) { setProcessedStamp(null); return; }
+    processImageForPdf(stampDataUrl, { scale: stampScale, sharpness: stampSharp, autoTrim: stampTrim })
+      .then((u) => { if (!cancelled) setProcessedStamp(u); })
+      .catch(() => { if (!cancelled) setProcessedStamp(stampDataUrl); });
+    return () => { cancelled = true; };
+  }, [stampDataUrl, stampScale, stampSharp, stampTrim]);
 
   async function readImage(file: File): Promise<string> {
     if (!/^image\/(png|jpe?g)$/.test(file.type)) {
@@ -123,8 +171,10 @@ function AdminUsagePage() {
       } else {
         const blob = await buildMonthlyPdf(preview, {
           signer,
-          signatureDataUrl,
-          stampDataUrl,
+          signatureDataUrl: processedSig ?? signatureDataUrl,
+          stampDataUrl: processedStamp ?? stampDataUrl,
+          locale: reportLocale,
+          dateFormat,
         });
         downloadBlob(reportFilename(preview, "pdf"), "application/pdf", blob);
       }
@@ -376,46 +426,98 @@ function AdminUsagePage() {
                   <ImageUploadField
                     label={L("รูปลายเซ็น (ฟุตเตอร์, PNG/JPG ≤2MB)", "Signature image (footer, PNG/JPG ≤2MB)")}
                     value={signatureDataUrl}
+                    processed={processedSig}
+                    scale={sigScale} onScale={setSigScale}
+                    sharp={sigSharp} onSharp={setSigSharp}
+                    trim={sigTrim} onTrim={setSigTrim}
                     onPick={(f) => onPickImage("signature", f)}
                     onClear={() => setSignatureDataUrl(null)}
                   />
                   <ImageUploadField
                     label={L("ตราประทับ (หัวกระดาษ, PNG/JPG ≤2MB)", "Stamp (header, PNG/JPG ≤2MB)")}
                     value={stampDataUrl}
+                    processed={processedStamp}
+                    scale={stampScale} onScale={setStampScale}
+                    sharp={stampSharp} onSharp={setStampSharp}
+                    trim={stampTrim} onTrim={setStampTrim}
                     onPick={(f) => onPickImage("stamp", f)}
                     onClear={() => setStampDataUrl(null)}
                   />
                 </div>
 
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-xs text-muted-foreground">
+                      {L("ภาษาในหัว/ฟุตเตอร์ PDF", "PDF header/footer language")}
+                    </label>
+                    <select
+                      className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+                      value={reportLocale}
+                      onChange={(e) => {
+                        const v = e.target.value as ReportLocale;
+                        setReportLocale(v);
+                        setDateFormat(v === "en" ? "en-long" : "th-long");
+                      }}
+                    >
+                      <option value="th">ไทย</option>
+                      <option value="en">English</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-muted-foreground">
+                      {L("รูปแบบวันที่", "Date format")}
+                    </label>
+                    <select
+                      className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+                      value={dateFormat}
+                      onChange={(e) => setDateFormat(e.target.value as DateFormat)}
+                    >
+                      <option value="th-long">{L("ไทยแบบยาว (พ.ศ.)", "Thai long (B.E.)")} — 16 มิถุนายน 2569</option>
+                      <option value="th-short">{L("ไทยแบบสั้น", "Thai short")} — 16/06/2569</option>
+                      <option value="en-long">English long — June 16, 2026</option>
+                      <option value="en-short">English short — 06/16/2026</option>
+                      <option value="iso">ISO — 2026-06-16</option>
+                    </select>
+                  </div>
+                </div>
+
                 <div className="mt-4 rounded-md border border-dashed border-border bg-background p-3 text-xs">
                   <p className="mb-2 font-medium text-muted-foreground">{L("ตัวอย่างที่จะอยู่ใน PDF", "PDF preview")}</p>
                   <div className="flex items-start justify-between gap-3 border-b border-border pb-2 text-[11px] text-muted-foreground">
-                    <span>RathCoWork · รายงานการใช้งานรายเดือน</span>
+                    <span>
+                      {reportLocale === "en"
+                        ? "RathCoWork · Monthly Usage Report"
+                        : "RathCoWork · รายงานการใช้งานรายเดือน"}
+                    </span>
                     <div className="flex items-start gap-2">
                       <div className="text-right">
-                        <div>{String(preview.period.month).padStart(2, "0")}/{preview.period.year}</div>
+                        <div>{formatPeriod(preview.period.year, preview.period.month, reportLocale)}</div>
                         {(signerName || signerPosition) && (
                           <div className="text-[10px]">
-                            ผู้รับผิดชอบ: {signerName}{signerPosition ? ` · ${signerPosition}` : ""}
+                            {reportLocale === "en" ? "Owner" : "ผู้รับผิดชอบ"}: {signerName}{signerPosition ? ` · ${signerPosition}` : ""}
                           </div>
                         )}
                       </div>
-                      {stampDataUrl && (
-                        <img src={stampDataUrl} alt="stamp" className="h-10 w-auto object-contain" />
+                      {(processedStamp ?? stampDataUrl) && (
+                        <img src={processedStamp ?? stampDataUrl ?? ""} alt="stamp" className="h-10 w-auto object-contain" />
                       )}
                     </div>
                   </div>
                   <div className="mt-3 flex items-end justify-between gap-3 border-t border-border pt-2 text-[10px] text-muted-foreground">
                     <div>
-                      <div>สร้างเมื่อ {new Date().toLocaleString("th-TH")}</div>
+                      <div>
+                        {reportLocale === "en" ? "Generated" : "สร้างเมื่อ"} {formatReportDate(new Date(), dateFormat)}
+                      </div>
                       {(signerName || signerPosition) && (
-                        <div>ลงนาม: {signerName}{signerPosition ? ` (${signerPosition})` : ""}</div>
+                        <div>
+                          {reportLocale === "en" ? "Signed" : "ลงนาม"}: {signerName}{signerPosition ? ` (${signerPosition})` : ""}
+                        </div>
                       )}
                     </div>
-                    {signatureDataUrl && (
-                      <img src={signatureDataUrl} alt="signature" className="h-10 w-auto object-contain" />
+                    {(processedSig ?? signatureDataUrl) && (
+                      <img src={processedSig ?? signatureDataUrl ?? ""} alt="signature" className="h-10 w-auto object-contain" />
                     )}
-                    <div>หน้า 1 / N</div>
+                    <div>{reportLocale === "en" ? "Page" : "หน้า"} 1 / N</div>
                   </div>
                 </div>
               </section>
@@ -483,11 +585,25 @@ function Table({ head, rows }: { head: string[]; rows: string[][] }) {
 function ImageUploadField({
   label,
   value,
+  processed,
+  scale,
+  onScale,
+  sharp,
+  onSharp,
+  trim,
+  onTrim,
   onPick,
   onClear,
 }: {
   label: string;
   value: string | null;
+  processed: string | null;
+  scale: number;
+  onScale: (n: number) => void;
+  sharp: number;
+  onSharp: (n: number) => void;
+  trim: boolean;
+  onTrim: (b: boolean) => void;
   onPick: (file: File | undefined) => void;
   onClear: () => void;
 }) {
@@ -495,9 +611,9 @@ function ImageUploadField({
     <div>
       <label className="mb-1 block text-xs text-muted-foreground">{label}</label>
       <div className="flex items-center gap-3 rounded-md border border-border bg-background p-2">
-        <div className="flex h-14 w-24 items-center justify-center overflow-hidden rounded border border-dashed border-border bg-muted/30">
-          {value ? (
-            <img src={value} alt="" className="h-full w-full object-contain" />
+        <div className="flex h-14 w-24 items-center justify-center overflow-hidden rounded border border-dashed border-border bg-muted/30 checkered">
+          {(processed ?? value) ? (
+            <img src={processed ?? value ?? ""} alt="" className="h-full w-full object-contain" />
           ) : (
             <span className="text-[10px] text-muted-foreground">—</span>
           )}
@@ -520,6 +636,33 @@ function ImageUploadField({
           )}
         </div>
       </div>
+      {value && (
+        <div className="mt-2 space-y-1.5 rounded-md border border-border bg-background/60 p-2">
+          <label className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+            <span>ขนาด (zoom): {scale.toFixed(2)}×</span>
+            <input
+              type="range" min={0.5} max={3} step={0.05}
+              value={scale} onChange={(e) => onScale(Number(e.target.value))}
+              className="w-32"
+            />
+          </label>
+          <label className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+            <span>ความคมชัด: {Math.round(sharp * 100)}%</span>
+            <input
+              type="range" min={0} max={1} step={0.05}
+              value={sharp} onChange={(e) => onSharp(Number(e.target.value))}
+              className="w-32"
+            />
+          </label>
+          <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            <input
+              type="checkbox" checked={trim}
+              onChange={(e) => onTrim(e.target.checked)}
+            />
+            <span>ครอบตัดพื้นขาว/กรอบอัตโนมัติ</span>
+          </label>
+        </div>
+      )}
     </div>
   );
 }
