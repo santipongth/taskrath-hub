@@ -105,6 +105,9 @@ function ManagePage() {
           <p className="mt-1 text-sm text-muted-foreground">หน่วยงาน: <span className="font-medium text-foreground">{dept}</span></p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => navigate({ to: "/agents/manage/providers" })}>
+            <Cpu className="h-4 w-4 mr-1" /> โมเดล &amp; Routing
+          </Button>
           <Button variant="outline" size="sm" onClick={() => navigate({ to: "/agents/manage/runs" })}>
             <BarChart3 className="h-4 w-4 mr-1" /> ประวัติการรัน
           </Button>
