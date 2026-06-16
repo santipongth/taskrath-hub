@@ -130,6 +130,7 @@ function HistoryPage() {
               <tr>
                 <th className="px-4 py-3 text-left font-medium">{lang === "th" ? "เทมเพลต" : "Template"}</th>
                 <th className="px-4 py-3 text-left font-medium">{lang === "th" ? "หัวข้อ" : "Title"}</th>
+                <th className="px-4 py-3 text-left font-medium">{lang === "th" ? "ไฟล์แนบ" : "Files"}</th>
                 <th className="px-4 py-3 text-left font-medium">{lang === "th" ? "สถานะ" : "Status"}</th>
                 <th className="px-4 py-3 text-left font-medium">{lang === "th" ? "เวลา" : "When"}</th>
                 <th className="px-4 py-3" />
