@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
+import logo from "@/assets/rathcowork-logo.png.asset.json";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
