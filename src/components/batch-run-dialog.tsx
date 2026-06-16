@@ -13,6 +13,8 @@ import { toast } from "sonner";
 import { runTemplate } from "@/lib/ai.functions";
 import type { TemplateField } from "@/lib/templates";
 import { parseCSV, toCSV, downloadCSV } from "@/lib/csv";
+import { SAMPLES_BY_TEMPLATE, BATCH_SAMPLES } from "@/lib/batch-samples";
+import { Sparkles } from "lucide-react";
 
 type Row = Record<string, string>;
 type Result = { row: Row; ok: boolean; output?: string; error?: string };
