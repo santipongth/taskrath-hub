@@ -50,29 +50,76 @@ function AdminUsagePage() {
   const [signerPosition, setSignerPosition] = useState("");
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
   const [stampDataUrl, setStampDataUrl] = useState<string | null>(null);
+  // Image processing controls
+  const [sigScale, setSigScale] = useState(1.5);
+  const [sigSharp, setSigSharp] = useState(0.3);
+  const [sigTrim, setSigTrim] = useState(true);
+  const [stampScale, setStampScale] = useState(1.5);
+  const [stampSharp, setStampSharp] = useState(0.3);
+  const [stampTrim, setStampTrim] = useState(true);
+  // Locale / date format for header & footer
+  const [reportLocale, setReportLocale] = useState<ReportLocale>("th");
+  const [dateFormat, setDateFormat] = useState<DateFormat>("th-long");
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem("rathcowork.report.signer");
       if (raw) {
-        const p = JSON.parse(raw) as { name?: string; position?: string; signature?: string; stamp?: string };
+        const p = JSON.parse(raw) as {
+          name?: string; position?: string; signature?: string; stamp?: string;
+          sigScale?: number; sigSharp?: number; sigTrim?: boolean;
+          stampScale?: number; stampSharp?: number; stampTrim?: boolean;
+          locale?: ReportLocale; dateFormat?: DateFormat;
+        };
         setSignerName(p.name ?? "");
         setSignerPosition(p.position ?? "");
         if (p.signature) setSignatureDataUrl(p.signature);
         if (p.stamp) setStampDataUrl(p.stamp);
+        if (typeof p.sigScale === "number") setSigScale(p.sigScale);
+        if (typeof p.sigSharp === "number") setSigSharp(p.sigSharp);
+        if (typeof p.sigTrim === "boolean") setSigTrim(p.sigTrim);
+        if (typeof p.stampScale === "number") setStampScale(p.stampScale);
+        if (typeof p.stampSharp === "number") setStampSharp(p.stampSharp);
+        if (typeof p.stampTrim === "boolean") setStampTrim(p.stampTrim);
+        if (p.locale === "en" || p.locale === "th") setReportLocale(p.locale);
+        if (p.dateFormat) setDateFormat(p.dateFormat);
       }
     } catch { /* ignore */ }
   }, []);
 
   useEffect(() => {
     try {
-      const payload: Record<string, string> = { name: signerName, position: signerPosition };
-      // Persist images only when small enough for localStorage (~250KB cap each)
+      const payload: Record<string, unknown> = {
+        name: signerName, position: signerPosition,
+        sigScale, sigSharp, sigTrim,
+        stampScale, stampSharp, stampTrim,
+        locale: reportLocale, dateFormat,
+      };
       if (signatureDataUrl && signatureDataUrl.length < 250_000) payload.signature = signatureDataUrl;
       if (stampDataUrl && stampDataUrl.length < 250_000) payload.stamp = stampDataUrl;
       localStorage.setItem("rathcowork.report.signer", JSON.stringify(payload));
     } catch { /* quota exceeded — ignore */ }
-  }, [signerName, signerPosition, signatureDataUrl, stampDataUrl]);
+  }, [signerName, signerPosition, signatureDataUrl, stampDataUrl, sigScale, sigSharp, sigTrim, stampScale, stampSharp, stampTrim, reportLocale, dateFormat]);
+
+  // Live preview of processed images (debounced via effect)
+  const [processedSig, setProcessedSig] = useState<string | null>(null);
+  const [processedStamp, setProcessedStamp] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    if (!signatureDataUrl) { setProcessedSig(null); return; }
+    processImageForPdf(signatureDataUrl, { scale: sigScale, sharpness: sigSharp, autoTrim: sigTrim })
+      .then((u) => { if (!cancelled) setProcessedSig(u); })
+      .catch(() => { if (!cancelled) setProcessedSig(signatureDataUrl); });
+    return () => { cancelled = true; };
+  }, [signatureDataUrl, sigScale, sigSharp, sigTrim]);
+  useEffect(() => {
+    let cancelled = false;
+    if (!stampDataUrl) { setProcessedStamp(null); return; }
+    processImageForPdf(stampDataUrl, { scale: stampScale, sharpness: stampSharp, autoTrim: stampTrim })
+      .then((u) => { if (!cancelled) setProcessedStamp(u); })
+      .catch(() => { if (!cancelled) setProcessedStamp(stampDataUrl); });
+    return () => { cancelled = true; };
+  }, [stampDataUrl, stampScale, stampSharp, stampTrim]);
 
   async function readImage(file: File): Promise<string> {
     if (!/^image\/(png|jpe?g)$/.test(file.type)) {
