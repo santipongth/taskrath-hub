@@ -73,15 +73,49 @@ export function downloadBlob(filename: string, mime: string, body: BlobPart) {
 }
 
 export type Signer = { name: string; position: string };
+export type ReportLocale = "th" | "en";
+export type DateFormat = "th-long" | "th-short" | "en-long" | "en-short" | "iso";
 /** Either may be a `data:image/png|jpeg;base64,...` URL (any size; auto-fit in header/footer). */
 export type BuildOptions = {
   signer?: Signer | null;
   signatureDataUrl?: string | null;
   stampDataUrl?: string | null;
+  locale?: ReportLocale;
+  dateFormat?: DateFormat;
 };
 
 function detectImgFmt(dataUrl: string): "PNG" | "JPEG" {
   return dataUrl.startsWith("data:image/jpeg") || dataUrl.startsWith("data:image/jpg") ? "JPEG" : "PNG";
+}
+
+const EN_MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+export function formatReportDate(d: Date, fmt: DateFormat): string {
+  const y = d.getFullYear();
+  const m = d.getMonth();
+  const day = d.getDate();
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  switch (fmt) {
+    case "th-long":
+      return `${day} ${TH_MONTHS[m]} ${y + 543} ${hh}:${mm}`;
+    case "th-short":
+      return `${String(day).padStart(2, "0")}/${String(m + 1).padStart(2, "0")}/${y + 543} ${hh}:${mm}`;
+    case "en-long":
+      return `${EN_MONTHS[m]} ${day}, ${y} ${hh}:${mm}`;
+    case "en-short":
+      return `${String(m + 1).padStart(2, "0")}/${String(day).padStart(2, "0")}/${y} ${hh}:${mm}`;
+    case "iso":
+      return `${y}-${String(m + 1).padStart(2, "0")}-${String(day).padStart(2, "0")} ${hh}:${mm}`;
+  }
+}
+
+export function formatPeriod(year: number, month: number, locale: ReportLocale): string {
+  if (locale === "en") return `${EN_MONTHS[month - 1]} ${year}`;
+  return `${TH_MONTHS[month - 1]} ${year + 543}`;
 }
 
 export async function buildMonthlyPdf(r: MonthlyReport, opts: BuildOptions = {}): Promise<Blob> {
