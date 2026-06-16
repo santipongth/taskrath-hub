@@ -585,11 +585,25 @@ function Table({ head, rows }: { head: string[]; rows: string[][] }) {
 function ImageUploadField({
   label,
   value,
+  processed,
+  scale,
+  onScale,
+  sharp,
+  onSharp,
+  trim,
+  onTrim,
   onPick,
   onClear,
 }: {
   label: string;
   value: string | null;
+  processed: string | null;
+  scale: number;
+  onScale: (n: number) => void;
+  sharp: number;
+  onSharp: (n: number) => void;
+  trim: boolean;
+  onTrim: (b: boolean) => void;
   onPick: (file: File | undefined) => void;
   onClear: () => void;
 }) {
@@ -597,9 +611,9 @@ function ImageUploadField({
     <div>
       <label className="mb-1 block text-xs text-muted-foreground">{label}</label>
       <div className="flex items-center gap-3 rounded-md border border-border bg-background p-2">
-        <div className="flex h-14 w-24 items-center justify-center overflow-hidden rounded border border-dashed border-border bg-muted/30">
-          {value ? (
-            <img src={value} alt="" className="h-full w-full object-contain" />
+        <div className="flex h-14 w-24 items-center justify-center overflow-hidden rounded border border-dashed border-border bg-muted/30 checkered">
+          {(processed ?? value) ? (
+            <img src={processed ?? value ?? ""} alt="" className="h-full w-full object-contain" />
           ) : (
             <span className="text-[10px] text-muted-foreground">—</span>
           )}
@@ -622,6 +636,33 @@ function ImageUploadField({
           )}
         </div>
       </div>
+      {value && (
+        <div className="mt-2 space-y-1.5 rounded-md border border-border bg-background/60 p-2">
+          <label className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+            <span>ขนาด (zoom): {scale.toFixed(2)}×</span>
+            <input
+              type="range" min={0.5} max={3} step={0.05}
+              value={scale} onChange={(e) => onScale(Number(e.target.value))}
+              className="w-32"
+            />
+          </label>
+          <label className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+            <span>ความคมชัด: {Math.round(sharp * 100)}%</span>
+            <input
+              type="range" min={0} max={1} step={0.05}
+              value={sharp} onChange={(e) => onSharp(Number(e.target.value))}
+              className="w-32"
+            />
+          </label>
+          <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            <input
+              type="checkbox" checked={trim}
+              onChange={(e) => onTrim(e.target.checked)}
+            />
+            <span>ครอบตัดพื้นขาว/กรอบอัตโนมัติ</span>
+          </label>
+        </div>
+      )}
     </div>
   );
 }
