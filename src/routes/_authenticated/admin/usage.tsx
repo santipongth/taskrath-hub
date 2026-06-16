@@ -4,11 +4,12 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { adminUsageStats, adminMonthlyReport } from "@/lib/ai.functions";
-import { buildMonthlyCsv, buildMonthlyPdf, downloadBlob, reportFilename } from "@/lib/admin-report";
+import { buildMonthlyCsv, buildMonthlyPdf, downloadBlob, reportFilename, type MonthlyReport } from "@/lib/admin-report";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { BarChart3, Coins, Activity, Users, AlertTriangle, FileDown, FileText, Loader2 } from "lucide-react";
+import { BarChart3, Coins, Activity, Users, AlertTriangle, FileDown, FileText, Loader2, Eye } from "lucide-react";
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
 } from "recharts";
@@ -40,25 +41,40 @@ function AdminUsagePage() {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
+  const [loadingReport, setLoadingReport] = useState(false);
   const [exporting, setExporting] = useState<"pdf" | "csv" | null>(null);
+  const [preview, setPreview] = useState<MonthlyReport | null>(null);
 
-  async function handleExport(kind: "pdf" | "csv") {
-    setExporting(kind);
+  async function loadPreview() {
+    setLoadingReport(true);
     try {
       const report = await fetchMonthly({ data: { year, month } });
+      setPreview(report);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to load report");
+    } finally {
+      setLoadingReport(false);
+    }
+  }
+
+  async function handleExport(kind: "pdf" | "csv") {
+    if (!preview) return;
+    setExporting(kind);
+    try {
       if (kind === "csv") {
-        downloadBlob(reportFilename(report, "csv"), "text/csv;charset=utf-8", buildMonthlyCsv(report));
+        downloadBlob(reportFilename(preview, "csv"), "text/csv;charset=utf-8", buildMonthlyCsv(preview));
       } else {
-        const blob = await buildMonthlyPdf(report);
-        downloadBlob(reportFilename(report, "pdf"), "application/pdf", blob);
+        const blob = await buildMonthlyPdf(preview);
+        downloadBlob(reportFilename(preview, "pdf"), "application/pdf", blob);
       }
-      toast.success(L("สร้างรายงานสำเร็จ", "Report generated"));
+      toast.success(L("ดาวน์โหลดสำเร็จ", "Download started"));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Export failed");
     } finally {
       setExporting(null);
     }
   }
+
 
   if (error) {
     return (
@@ -102,13 +118,9 @@ function AdminUsagePage() {
               <option key={y} value={y}>{y}</option>
             ))}
           </select>
-          <Button size="sm" variant="outline" disabled={!!exporting} onClick={() => handleExport("csv")}>
-            {exporting === "csv" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-            <span className="ml-1">CSV</span>
-          </Button>
-          <Button size="sm" disabled={!!exporting} onClick={() => handleExport("pdf")}>
-            {exporting === "pdf" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
-            <span className="ml-1">PDF</span>
+          <Button size="sm" disabled={loadingReport} onClick={loadPreview}>
+            {loadingReport ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
+            <span className="ml-1">{L("พรีวิวรายงาน", "Preview report")}</span>
           </Button>
         </div>
       </div>
@@ -204,6 +216,98 @@ function AdminUsagePage() {
           )}
         </>
       ) : null}
+
+      <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
+        <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {L("พรีวิวรายงานรายเดือน", "Monthly report preview")}
+              {preview && (
+                <span className="ml-2 text-sm font-normal text-muted-foreground">
+                  {String(preview.period.month).padStart(2, "0")}/{preview.period.year}
+                </span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          {preview && (
+            <div className="space-y-5">
+              <div className="grid gap-2 sm:grid-cols-4">
+                <MiniKpi label={L("งาน", "Runs")} value={preview.totals.runs.toLocaleString()} />
+                <MiniKpi label={L("ต้นทุน", "Cost")} value={fmtCost(preview.totals.costUsd)} />
+                <MiniKpi label={L("โทเค็นรวม", "Tokens")} value={fmtTokens(preview.totals.totalTokens)} />
+                <MiniKpi label={L("Fail %", "Fail %")} value={`${(preview.totals.failRate * 100).toFixed(1)}%`} />
+                <MiniKpi label={L("Input tok", "Input tok")} value={fmtTokens(preview.totals.promptTokens)} />
+                <MiniKpi label={L("Output tok", "Output tok")} value={fmtTokens(preview.totals.completionTokens)} />
+                <MiniKpi label={L("ผู้ใช้", "Users")} value={preview.totals.uniqueUsers.toLocaleString()} />
+                <MiniKpi label={L("เทมเพลต", "Templates")} value={preview.totals.uniqueTemplates.toLocaleString()} />
+              </div>
+
+              <section className="rounded-lg border border-border bg-card p-4">
+                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {L("ต้นทุน/งาน รายวัน", "Daily cost & runs")}
+                </h3>
+                <div className="h-56 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={preview.daily}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                      <XAxis dataKey="day" stroke="var(--muted-foreground)" fontSize={11} />
+                      <YAxis stroke="var(--muted-foreground)" fontSize={11} />
+                      <Tooltip
+                        contentStyle={{
+                          background: "var(--card)", border: "1px solid var(--border)",
+                          borderRadius: 6, fontSize: 12, color: "var(--foreground)",
+                        }}
+                      />
+                      <Line type="monotone" dataKey="cost" stroke="var(--primary)" strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="runs" stroke="var(--muted-foreground)" strokeWidth={1} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </section>
+
+              <div className="grid gap-4 lg:grid-cols-2">
+                <section className="rounded-lg border border-border bg-card p-4">
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {L("Top 5 ผู้ใช้", "Top 5 users")}
+                  </h3>
+                  <Table
+                    head={[L("ชื่อ", "Name"), L("งาน", "Runs"), L("ต้นทุน", "Cost")]}
+                    rows={preview.users.slice(0, 5).map((u) => [u.name, u.runs.toString(), fmtCost(u.cost)])}
+                  />
+                </section>
+                <section className="rounded-lg border border-border bg-card p-4">
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {L("Top 5 เทมเพลต", "Top 5 templates")}
+                  </h3>
+                  <Table
+                    head={[L("Template", "Template"), L("งาน", "Runs"), L("ต้นทุน", "Cost")]}
+                    rows={preview.templates.slice(0, 5).map((t) => [t.id, t.runs.toString(), fmtCost(t.cost)])}
+                  />
+                </section>
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" disabled={!!exporting} onClick={() => handleExport("csv")}>
+              {exporting === "csv" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+              <span className="ml-1.5">CSV</span>
+            </Button>
+            <Button disabled={!!exporting} onClick={() => handleExport("pdf")}>
+              {exporting === "pdf" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+              <span className="ml-1.5">PDF</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function MiniKpi({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-border bg-background p-3">
+      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mt-1 text-lg font-semibold text-foreground">{value}</p>
     </div>
   );
 }

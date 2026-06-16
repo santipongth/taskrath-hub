@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { runFreeform } from "@/lib/ai.functions";
 import { useI18n } from "@/lib/i18n";
@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { TEMPLATES } from "@/lib/templates";
 import { Sparkles, Copy } from "lucide-react";
 import { toast } from "sonner";
+import { VoiceInputButton } from "@/components/voice-input-button";
 
 export const Route = createFileRoute("/_authenticated/run/")({
   head: () => ({ meta: [{ title: "สั่งงาน AI · RathCoWork" }] }),
@@ -20,6 +21,18 @@ function RunPage() {
   const [prompt, setPrompt] = useState("");
   const [output, setOutput] = useState("");
   const [loading, setLoading] = useState(false);
+  // committed base text (without current interim chunk)
+  const baseRef = useRef("");
+
+  const onVoice = (chunk: string, isFinal: boolean) => {
+    const sep = baseRef.current && !baseRef.current.endsWith(" ") ? " " : "";
+    if (isFinal) {
+      baseRef.current = (baseRef.current + sep + chunk).trimStart();
+      setPrompt(baseRef.current);
+    } else {
+      setPrompt((baseRef.current + sep + chunk).trimStart());
+    }
+  };
 
   const onRun = async () => {
     if (!prompt.trim()) return;
@@ -35,6 +48,7 @@ function RunPage() {
     }
   };
 
+
   return (
     <div className="mx-auto max-w-4xl px-6 py-8">
       <div className="mb-6">
@@ -47,20 +61,24 @@ function RunPage() {
       <div className="rounded-lg border border-border bg-card p-5">
         <Textarea
           value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
+          onChange={(e) => { baseRef.current = e.target.value; setPrompt(e.target.value); }}
           placeholder={t("freeformPlaceholder")}
           rows={6}
           className="resize-none border-border shadow-none focus-visible:ring-1"
         />
-        <div className="mt-3 flex items-center justify-between">
+        <div className="mt-3 flex items-center justify-between gap-2">
           <p className="text-xs text-muted-foreground">
             {lang === "th" ? "หรือเลือกเทมเพลตเพื่อกรอกฟอร์มที่มีโครงสร้าง" : "Or pick a template for a structured form"}
           </p>
-          <Button onClick={onRun} disabled={loading || !prompt.trim()}>
-            {loading ? t("running") : t("run")}
-          </Button>
+          <div className="flex items-center gap-2">
+            <VoiceInputButton onTranscript={onVoice} />
+            <Button onClick={onRun} disabled={loading || !prompt.trim()}>
+              {loading ? t("running") : t("run")}
+            </Button>
+          </div>
         </div>
       </div>
+
 
       {output && (
         <div className="mt-6 rounded-lg border border-border bg-card p-5">

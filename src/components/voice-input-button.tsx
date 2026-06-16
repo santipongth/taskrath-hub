@@ -2,12 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { Mic, MicOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { useI18n } from "@/lib/i18n";
 
-// Minimal types for the Web Speech API (not in lib.dom.d.ts cross-browser)
+// Minimal typings for the Web Speech API (not in lib.dom by default)
 type SRResult = { 0: { transcript: string }; isFinal: boolean };
 type SREvent = { resultIndex: number; results: ArrayLike<SRResult> };
-type SRError = { error: string };
-type SRInstance = {
+type SR = {
   lang: string;
   continuous: boolean;
   interimResults: boolean;
@@ -15,105 +15,91 @@ type SRInstance = {
   stop: () => void;
   abort: () => void;
   onresult: ((e: SREvent) => void) | null;
-  onerror: ((e: SRError) => void) | null;
+  onerror: ((e: { error: string }) => void) | null;
   onend: (() => void) | null;
 };
+type SRCtor = new () => SR;
 
-function getRecognitionCtor(): (new () => SRInstance) | null {
+function getSR(): SRCtor | null {
   if (typeof window === "undefined") return null;
-  const w = window as unknown as {
-    SpeechRecognition?: new () => SRInstance;
-    webkitSpeechRecognition?: new () => SRInstance;
-  };
+  const w = window as unknown as { SpeechRecognition?: SRCtor; webkitSpeechRecognition?: SRCtor };
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
-}
-
-export function isVoiceInputSupported(): boolean {
-  return getRecognitionCtor() !== null;
 }
 
 export function VoiceInputButton({
   onTranscript,
-  lang = "th-TH",
-  className,
   size = "sm",
+  className,
 }: {
-  onTranscript: (text: string, isFinal: boolean) => void;
-  lang?: string;
+  /** Called with the (possibly partial) recognized text, replacing any previous interim chunk. */
+  onTranscript: (chunk: string, isFinal: boolean) => void;
+  size?: "sm" | "default" | "icon";
   className?: string;
-  size?: "sm" | "icon";
 }) {
+  const { lang } = useI18n();
   const [listening, setListening] = useState(false);
-  const recRef = useRef<SRInstance | null>(null);
-  const supported = isVoiceInputSupported();
+  const [supported, setSupported] = useState(true);
+  const recRef = useRef<SR | null>(null);
 
-  useEffect(() => () => { try { recRef.current?.abort(); } catch { /* ignore */ } }, []);
-
-  if (!supported) return null;
+  useEffect(() => {
+    setSupported(!!getSR());
+    return () => { recRef.current?.abort(); };
+  }, []);
 
   const start = () => {
-    const Ctor = getRecognitionCtor();
-    if (!Ctor) return;
+    const Ctor = getSR();
+    if (!Ctor) {
+      toast.error(lang === "th" ? "เบราว์เซอร์นี้ไม่รองรับการพูด" : "Voice input not supported");
+      return;
+    }
+    const rec = new Ctor();
+    rec.lang = lang === "th" ? "th-TH" : "en-US";
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.onresult = (e) => {
+      let finalChunk = "";
+      let interim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const r = e.results[i];
+        if (r.isFinal) finalChunk += r[0].transcript;
+        else interim += r[0].transcript;
+      }
+      if (finalChunk) onTranscript(finalChunk, true);
+      else if (interim) onTranscript(interim, false);
+    };
+    rec.onerror = (ev) => {
+      if (ev.error !== "no-speech" && ev.error !== "aborted") {
+        toast.error(`${lang === "th" ? "ผิดพลาด" : "Error"}: ${ev.error}`);
+      }
+    };
+    rec.onend = () => setListening(false);
     try {
-      const rec = new Ctor();
-      rec.lang = lang;
-      rec.continuous = true;
-      rec.interimResults = true;
-      rec.onresult = (e) => {
-        let finalText = "";
-        let interim = "";
-        for (let i = e.resultIndex; i < e.results.length; i++) {
-          const r = e.results[i];
-          if (r.isFinal) finalText += r[0].transcript;
-          else interim += r[0].transcript;
-        }
-        if (finalText) onTranscript(finalText, true);
-        else if (interim) onTranscript(interim, false);
-      };
-      rec.onerror = (ev) => {
-        if (ev.error === "not-allowed" || ev.error === "service-not-allowed") {
-          toast.error("ไม่ได้รับอนุญาตใช้ไมโครโฟน");
-        } else if (ev.error !== "aborted" && ev.error !== "no-speech") {
-          toast.error(`ข้อผิดพลาดเสียง: ${ev.error}`);
-        }
-        setListening(false);
-      };
-      rec.onend = () => setListening(false);
-      recRef.current = rec;
       rec.start();
+      recRef.current = rec;
       setListening(true);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "เริ่มรับเสียงไม่ได้");
+      toast.error(e instanceof Error ? e.message : "Mic error");
     }
   };
 
-  const stop = () => { try { recRef.current?.stop(); } catch { /* ignore */ } setListening(false); };
+  const stop = () => recRef.current?.stop();
 
-  return size === "icon" ? (
+  if (!supported) return null;
+
+  return (
     <Button
       type="button"
-      variant={listening ? "default" : "ghost"}
-      size="icon"
+      size={size}
+      variant={listening ? "default" : "outline"}
+      onClick={listening ? stop : start}
       className={className}
-      onClick={listening ? stop : start}
-      aria-label={listening ? "หยุดบันทึกเสียง" : "พูดเพื่อพิมพ์"}
-      title={listening ? "หยุดบันทึกเสียง" : "พูดเพื่อพิมพ์ (ภาษาไทย)"}
+      aria-pressed={listening}
+      title={listening ? (lang === "th" ? "หยุดบันทึก" : "Stop") : (lang === "th" ? "พูดเพื่อกรอก" : "Speak to dictate")}
     >
-      {listening ? <MicOff className="h-4 w-4 animate-pulse text-destructive" /> : <Mic className="h-4 w-4" />}
-    </Button>
-  ) : (
-    <Button
-      type="button"
-      variant="ghost"
-      size="sm"
-      className={`h-6 px-2 text-[11px] ${className ?? ""}`}
-      onClick={listening ? stop : start}
-    >
-      {listening ? (
-        <><MicOff className="mr-1 h-3 w-3 animate-pulse text-destructive" />หยุด</>
-      ) : (
-        <><Mic className="mr-1 h-3 w-3" />พูด</>
-      )}
+      {listening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+      <span className="ml-1.5 hidden sm:inline">
+        {listening ? (lang === "th" ? "กำลังฟัง…" : "Listening…") : (lang === "th" ? "พูด" : "Voice")}
+      </span>
     </Button>
   );
 }
