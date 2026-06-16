@@ -178,6 +178,28 @@ export async function buildMonthlyPdf(r: MonthlyReport): Promise<Blob> {
     [220, 60, 80, 100, 80],
   );
 
+  // Header + footer on every page
+  const totalPages = doc.getNumberOfPages();
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+    doc.setFont("Sarabun", "normal");
+    // Header bar
+    doc.setDrawColor(220);
+    doc.setTextColor(110);
+    doc.setFontSize(9);
+    doc.text("RathCoWork · รายงานการใช้งานรายเดือน", margin, margin + 12);
+    const right = `${periodLabel}`;
+    doc.text(right, pageW - margin - doc.getTextWidth(right), margin + 12);
+    doc.line(margin, margin + 18, pageW - margin, margin + 18);
+    // Footer bar
+    doc.line(margin, pageH - margin - footerH + 6, pageW - margin, pageH - margin - footerH + 6);
+    doc.setFontSize(8);
+    doc.text(`สร้างเมื่อ ${generatedAt}`, margin, pageH - margin - 4);
+    const pageStr = `หน้า ${p} / ${totalPages}`;
+    doc.text(pageStr, pageW - margin - doc.getTextWidth(pageStr), pageH - margin - 4);
+    doc.setTextColor(0);
+  }
+
   doc.setProperties({
     title: `RathCoWork Monthly Report ${r.period.year}-${String(r.period.month).padStart(2, "0")}`,
     subject: "Monthly usage report",
