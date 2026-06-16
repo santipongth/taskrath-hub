@@ -13,6 +13,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useI18n } from "@/lib/i18n";
+import logo from "@/assets/rathcowork-logo.png.asset.json";
 import type { MessageKey } from "@/lib/messages";
 import { checkIsAdmin } from "@/lib/ai.functions";
 
