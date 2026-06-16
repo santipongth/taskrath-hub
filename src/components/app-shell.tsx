@@ -40,6 +40,14 @@ export function AppShell({ children, userEmail }: { children: ReactNode; userEma
               </kbd>
             </button>
             <div className="ml-auto flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                title={lang === "th" ? "คีย์ลัด (?)" : "Keyboard shortcuts (?)"}
+                onClick={() => window.dispatchEvent(new CustomEvent("open-shortcuts"))}
+              >
+                <Keyboard className="h-4 w-4" />
+              </Button>
               <div className="flex items-center rounded-md border border-border p-0.5 text-xs">
                 <button
                   onClick={() => setLang("th")}
