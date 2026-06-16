@@ -34,6 +34,7 @@ import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminNotificationsRouteImport } from './routes/_authenticated/admin/notifications'
 import { Route as AuthenticatedAdminKnowledgeRouteImport } from './routes/_authenticated/admin/knowledge'
 import { Route as AuthenticatedAdminDashboardRouteImport } from './routes/_authenticated/admin/dashboard'
+import { Route as AuthenticatedAgentsManageRunsRouteImport } from './routes/_authenticated/agents.manage.runs'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -171,6 +172,12 @@ const AuthenticatedAdminDashboardRoute =
     path: '/admin/dashboard',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAgentsManageRunsRoute =
+  AuthenticatedAgentsManageRunsRouteImport.update({
+    id: '/runs',
+    path: '/runs',
+    getParentRoute: () => AuthenticatedAgentsManageRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -189,7 +196,7 @@ export interface FileRoutesByFullPath {
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/templates': typeof AuthenticatedAdminTemplatesRoute
   '/admin/usage': typeof AuthenticatedAdminUsageRoute
-  '/agents/manage': typeof AuthenticatedAgentsManageRoute
+  '/agents/manage': typeof AuthenticatedAgentsManageRouteWithChildren
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/history/$runId': typeof AuthenticatedHistoryRunIdRoute
   '/run/$templateId': typeof AuthenticatedRunTemplateIdRoute
@@ -197,6 +204,7 @@ export interface FileRoutesByFullPath {
   '/chat/': typeof AuthenticatedChatIndexRoute
   '/history/': typeof AuthenticatedHistoryIndexRoute
   '/run/': typeof AuthenticatedRunIndexRoute
+  '/agents/manage/runs': typeof AuthenticatedAgentsManageRunsRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -214,7 +222,7 @@ export interface FileRoutesByTo {
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/templates': typeof AuthenticatedAdminTemplatesRoute
   '/admin/usage': typeof AuthenticatedAdminUsageRoute
-  '/agents/manage': typeof AuthenticatedAgentsManageRoute
+  '/agents/manage': typeof AuthenticatedAgentsManageRouteWithChildren
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/history/$runId': typeof AuthenticatedHistoryRunIdRoute
   '/run/$templateId': typeof AuthenticatedRunTemplateIdRoute
@@ -222,6 +230,7 @@ export interface FileRoutesByTo {
   '/chat': typeof AuthenticatedChatIndexRoute
   '/history': typeof AuthenticatedHistoryIndexRoute
   '/run': typeof AuthenticatedRunIndexRoute
+  '/agents/manage/runs': typeof AuthenticatedAgentsManageRunsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -242,7 +251,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/_authenticated/admin/templates': typeof AuthenticatedAdminTemplatesRoute
   '/_authenticated/admin/usage': typeof AuthenticatedAdminUsageRoute
-  '/_authenticated/agents/manage': typeof AuthenticatedAgentsManageRoute
+  '/_authenticated/agents/manage': typeof AuthenticatedAgentsManageRouteWithChildren
   '/_authenticated/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/_authenticated/history/$runId': typeof AuthenticatedHistoryRunIdRoute
   '/_authenticated/run/$templateId': typeof AuthenticatedRunTemplateIdRoute
@@ -250,6 +259,7 @@ export interface FileRoutesById {
   '/_authenticated/chat/': typeof AuthenticatedChatIndexRoute
   '/_authenticated/history/': typeof AuthenticatedHistoryIndexRoute
   '/_authenticated/run/': typeof AuthenticatedRunIndexRoute
+  '/_authenticated/agents/manage/runs': typeof AuthenticatedAgentsManageRunsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -278,6 +288,7 @@ export interface FileRouteTypes {
     | '/chat/'
     | '/history/'
     | '/run/'
+    | '/agents/manage/runs'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -303,6 +314,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/history'
     | '/run'
+    | '/agents/manage/runs'
   id:
     | '__root__'
     | '/_authenticated'
@@ -330,6 +342,7 @@ export interface FileRouteTypes {
     | '/_authenticated/chat/'
     | '/_authenticated/history/'
     | '/_authenticated/run/'
+    | '/_authenticated/agents/manage/runs'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -517,16 +530,37 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminDashboardRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/agents/manage/runs': {
+      id: '/_authenticated/agents/manage/runs'
+      path: '/runs'
+      fullPath: '/agents/manage/runs'
+      preLoaderRoute: typeof AuthenticatedAgentsManageRunsRouteImport
+      parentRoute: typeof AuthenticatedAgentsManageRoute
+    }
   }
 }
 
+interface AuthenticatedAgentsManageRouteChildren {
+  AuthenticatedAgentsManageRunsRoute: typeof AuthenticatedAgentsManageRunsRoute
+}
+
+const AuthenticatedAgentsManageRouteChildren: AuthenticatedAgentsManageRouteChildren =
+  {
+    AuthenticatedAgentsManageRunsRoute: AuthenticatedAgentsManageRunsRoute,
+  }
+
+const AuthenticatedAgentsManageRouteWithChildren =
+  AuthenticatedAgentsManageRoute._addFileChildren(
+    AuthenticatedAgentsManageRouteChildren,
+  )
+
 interface AuthenticatedAgentsRouteChildren {
-  AuthenticatedAgentsManageRoute: typeof AuthenticatedAgentsManageRoute
+  AuthenticatedAgentsManageRoute: typeof AuthenticatedAgentsManageRouteWithChildren
   AuthenticatedAgentsIndexRoute: typeof AuthenticatedAgentsIndexRoute
 }
 
 const AuthenticatedAgentsRouteChildren: AuthenticatedAgentsRouteChildren = {
-  AuthenticatedAgentsManageRoute: AuthenticatedAgentsManageRoute,
+  AuthenticatedAgentsManageRoute: AuthenticatedAgentsManageRouteWithChildren,
   AuthenticatedAgentsIndexRoute: AuthenticatedAgentsIndexRoute,
 }
 

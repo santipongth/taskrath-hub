@@ -21,7 +21,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
-import { Trash2, Plus, ArrowLeft, Wrench, Bot } from "lucide-react";
+import { Trash2, Plus, ArrowLeft, Wrench, Bot, BarChart3, Wand2, AlertCircle } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/agents/manage")({
@@ -29,7 +30,37 @@ export const Route = createFileRoute("/_authenticated/agents/manage")({
   component: ManagePage,
 });
 
-type FieldDef = { key: string; label: string; type?: string; required?: boolean };
+type FieldDef = { key: string; label: string; type?: string; required?: boolean; placeholder?: string; example?: string };
+
+const FIELD_TYPES: Array<{ value: string; label: string; placeholder: string; example: string }> = [
+  { value: "text", label: "ข้อความสั้น", placeholder: "พิมพ์ข้อความ…", example: "ตัวอย่างค่า" },
+  { value: "textarea", label: "ข้อความยาว", placeholder: "พิมพ์เนื้อหา…", example: "เนื้อหายาว ๆ หลายบรรทัด" },
+  { value: "number", label: "ตัวเลข", placeholder: "เช่น 1000", example: "1000" },
+  { value: "date", label: "วันที่", placeholder: "YYYY-MM-DD", example: "2026-06-16" },
+  { value: "email", label: "อีเมล", placeholder: "name@example.com", example: "[email protected]" },
+  { value: "url", label: "ลิงก์ URL", placeholder: "https://…", example: "https://example.com" },
+];
+
+const FIELD_PRESETS: FieldDef[] = [
+  { key: "subject", label: "เรื่อง", type: "text", required: true, placeholder: "หัวเรื่อง", example: "ขออนุมัติงบประมาณ" },
+  { key: "to", label: "เรียน", type: "text", required: true, placeholder: "ผู้รับ", example: "ผู้อำนวยการสำนักงาน" },
+  { key: "body", label: "เนื้อหา", type: "textarea", required: true, placeholder: "รายละเอียด…", example: "อธิบายเหตุผลและรายละเอียดประกอบ" },
+  { key: "ref_no", label: "เลขที่อ้างอิง", type: "text", placeholder: "เช่น มท 0123/2569", example: "มท 0123/2569" },
+  { key: "amount", label: "จำนวนเงิน (บาท)", type: "number", placeholder: "0", example: "10000" },
+  { key: "due_date", label: "วันครบกำหนด", type: "date", placeholder: "YYYY-MM-DD", example: "2026-07-01" },
+];
+
+export function validateFieldValue(f: FieldDef, raw: string): string | null {
+  const v = (raw ?? "").trim();
+  if (f.required && !v) return "ต้องกรอก";
+  if (!v) return null;
+  if (f.type === "number" && !/^-?\d+(\.\d+)?$/.test(v)) return "ต้องเป็นตัวเลข";
+  if (f.type === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return "อีเมลไม่ถูกต้อง";
+  if (f.type === "url" && !/^https?:\/\/\S+/i.test(v)) return "URL ต้องขึ้นต้นด้วย http(s)://";
+  if (f.type === "date" && !/^\d{4}-\d{2}-\d{2}$/.test(v)) return "รูปแบบวันที่: YYYY-MM-DD";
+  return null;
+}
+
 
 function ManagePage() {
   const navigate = useNavigate();
