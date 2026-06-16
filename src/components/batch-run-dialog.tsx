@@ -42,10 +42,11 @@ export function BatchRunDialog({
   const fileRef = useRef<HTMLInputElement>(null);
 
   const ready = rows.length > 0 && fields.every((f) => !f.required || (mapping[f.name] && mapping[f.name] !== SKIP));
+  const matchedSample = SAMPLES_BY_TEMPLATE[templateId];
+  // Show 2 cross-template samples as fallback inspiration when no exact match
+  const otherSamples = BATCH_SAMPLES.filter((s) => s.templateId !== templateId).slice(0, 3);
 
-  const onFile = async (file: File) => {
-    if (file.size > 5 * 1024 * 1024) { toast.error("ไฟล์ต้องไม่เกิน 5MB"); return; }
-    const text = await file.text();
+  const loadFromText = (text: string, sourceLabel: string) => {
     const parsed = parseCSV(text);
     if (parsed.length < 2) { toast.error("CSV ต้องมีหัวคอลัมน์และอย่างน้อย 1 แถว"); return; }
     const hdrs = parsed[0].map((h) => h.trim());
@@ -56,7 +57,6 @@ export function BatchRunDialog({
     }).filter((r) => Object.values(r).some((v) => v));
     setHeaders(hdrs);
     setRows(data);
-    // auto-map by name match
     const initial: Record<string, string> = {};
     for (const f of fields) {
       const match = hdrs.find((h) => h === f.name || h.toLowerCase() === f.name.toLowerCase() || h === f.labelTh || h === f.labelEn);
@@ -65,10 +65,24 @@ export function BatchRunDialog({
     setMapping(initial);
     setResults([]);
     setProgress(0);
-    toast.success(`โหลด ${data.length} แถว`);
+    toast.success(`${sourceLabel}: โหลด ${data.length} แถว`);
+  };
+
+  const onFile = async (file: File) => {
+    if (file.size > 5 * 1024 * 1024) { toast.error("ไฟล์ต้องไม่เกิน 5MB"); return; }
+    const text = await file.text();
+    loadFromText(text, file.name);
+  };
+
+  const loadSample = (sample: typeof BATCH_SAMPLES[number]) => {
+    loadFromText(toCSV(sample.rows), sample.titleTh);
   };
 
   const downloadTemplate = () => {
+    if (matchedSample) {
+      downloadCSV(`${templateId}-sample.csv`, toCSV(matchedSample.rows));
+      return;
+    }
     const hdrs = fields.map((f) => f.name);
     const sample = fields.map((f) => f.placeholderTh ?? "");
     downloadCSV(`${templateId}-template.csv`, toCSV([hdrs, sample]));
