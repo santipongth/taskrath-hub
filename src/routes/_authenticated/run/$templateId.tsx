@@ -229,6 +229,7 @@ function TemplateRunPage() {
             {lang === "th" ? "PII จะถูกปกปิดก่อนส่ง AI" : "PII redacted before sending to AI"}
           </span>
           <div className="flex items-center gap-2">
+            <BatchRunDialog templateId={templateId} templateTitle={lang === "th" ? tpl.titleTh : tpl.titleEn} fields={tpl.fields} />
             <kbd className="hidden rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground sm:inline-block">⌘↵</kbd>
             <Button onClick={onRun} disabled={loading}>{loading ? t("running") : t("run")}</Button>
           </div>
