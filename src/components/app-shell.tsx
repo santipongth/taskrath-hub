@@ -85,6 +85,7 @@ export function AppShell({ children, userEmail }: { children: ReactNode; userEma
         </div>
       </div>
       <CommandPalette />
+      <KeyboardShortcuts />
     </SidebarProvider>
   );
 }
