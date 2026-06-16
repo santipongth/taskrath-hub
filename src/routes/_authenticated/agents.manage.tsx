@@ -104,10 +104,14 @@ function ManagePage() {
           <h1 className="text-xl font-semibold">จัดการ Agent &amp; Skill</h1>
           <p className="mt-1 text-sm text-muted-foreground">หน่วยงาน: <span className="font-medium text-foreground">{dept}</span></p>
         </div>
+        <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/agents/manage/runs" })}>
+          <BarChart3 className="h-4 w-4 mr-1" /> ประวัติการรัน
+        </Button>
         <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/agents" })}>
           <ArrowLeft className="h-4 w-4 mr-1" /> กลับ
         </Button>
       </div>
+
 
       <Tabs defaultValue="agents" className="mt-6">
         <TabsList>
