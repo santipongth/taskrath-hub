@@ -8,7 +8,7 @@ import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Copy } from "lucide-react";
+import { ArrowLeft, Copy, Download, Paperclip } from "lucide-react";
 import { toast } from "sonner";
 import { ExportDialog } from "@/components/export-dialog";
 import { RefineBar } from "@/components/refine-bar";
