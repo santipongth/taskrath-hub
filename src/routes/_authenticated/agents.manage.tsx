@@ -269,28 +269,84 @@ function SkillEditor({
           <div>
             <div className="flex items-center justify-between mb-2">
               <Label>Fields (ช่องกรอกข้อมูล)</Label>
-              <Button size="sm" variant="outline" onClick={() => setFields([...fields, { key: "", label: "", type: "text" }])}>
-                <Plus className="h-3 w-3 mr-1" /> เพิ่ม field
-              </Button>
+              <div className="flex gap-2">
+                <Select
+                  onValueChange={(v) => {
+                    const preset = FIELD_PRESETS.find((p) => p.key === v);
+                    if (preset && !fields.some((x) => x.key === preset.key)) {
+                      setFields([...fields, { ...preset }]);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="h-8 w-[180px] text-xs">
+                    <Wand2 className="h-3 w-3 mr-1" />
+                    <SelectValue placeholder="ใช้ field สำเร็จรูป" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FIELD_PRESETS.map((p) => (
+                      <SelectItem key={p.key} value={p.key} disabled={fields.some((x) => x.key === p.key)}>
+                        {p.label} ({p.key})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button size="sm" variant="outline" onClick={() => setFields([...fields, { key: "", label: "", type: "text" }])}>
+                  <Plus className="h-3 w-3 mr-1" /> เพิ่ม field
+                </Button>
+              </div>
             </div>
+            {fields.length === 0 && (
+              <p className="text-[11px] text-muted-foreground border border-dashed border-border rounded p-3">
+                เพิ่ม field เพื่อให้ผู้ใช้กรอกค่าเป็นโครงสร้าง — เลือกจาก "ใช้ field สำเร็จรูป" หรือกด "เพิ่ม field"
+              </p>
+            )}
             <div className="space-y-2">
-              {fields.map((f, i) => (
-                <div key={i} className="grid grid-cols-12 gap-2 items-center">
-                  <Input className="col-span-3" placeholder="key" value={f.key}
-                    onChange={(e) => setFields(fields.map((x, j) => j === i ? { ...x, key: e.target.value } : x))} />
-                  <Input className="col-span-6" placeholder="ป้ายแสดงผล" value={f.label}
-                    onChange={(e) => setFields(fields.map((x, j) => j === i ? { ...x, label: e.target.value } : x))} />
-                  <label className="col-span-2 flex items-center gap-1 text-xs">
-                    <Checkbox checked={!!f.required} onCheckedChange={(v) => setFields(fields.map((x, j) => j === i ? { ...x, required: !!v } : x))} />
-                    บังคับ
-                  </label>
-                  <Button variant="ghost" size="icon" className="col-span-1" onClick={() => setFields(fields.filter((_, j) => j !== i))}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
+              {fields.map((f, i) => {
+                const setF = (patch: Partial<FieldDef>) =>
+                  setFields(fields.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+                const keyValid = /^[a-z_][a-z0-9_]*$/i.test(f.key);
+                const typeMeta = FIELD_TYPES.find((t) => t.value === (f.type ?? "text"));
+                return (
+                  <div key={i} className="rounded border border-border p-2 space-y-2">
+                    <div className="grid grid-cols-12 gap-2 items-center">
+                      <div className="col-span-3">
+                        <Input placeholder="key (a-z, _)" value={f.key}
+                          className={!keyValid && f.key ? "border-red-400" : ""}
+                          onChange={(e) => setF({ key: e.target.value })} />
+                      </div>
+                      <Input className="col-span-4" placeholder="ป้ายแสดงผล" value={f.label}
+                        onChange={(e) => setF({ label: e.target.value })} />
+                      <Select value={f.type ?? "text"} onValueChange={(v) => setF({ type: v })}>
+                        <SelectTrigger className="col-span-3"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {FIELD_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <label className="col-span-1 flex items-center gap-1 text-xs justify-center">
+                        <Checkbox checked={!!f.required} onCheckedChange={(v) => setF({ required: !!v })} />
+                        บังคับ
+                      </label>
+                      <Button variant="ghost" size="icon" className="col-span-1" onClick={() => setFields(fields.filter((_, j) => j !== i))}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input className="text-xs" placeholder={`placeholder (เช่น "${typeMeta?.placeholder ?? ""}")`}
+                        value={f.placeholder ?? ""} onChange={(e) => setF({ placeholder: e.target.value })} />
+                      <Input className="text-xs" placeholder={`ตัวอย่างค่าเริ่มต้น (เช่น "${typeMeta?.example ?? ""}")`}
+                        value={f.example ?? ""} onChange={(e) => setF({ example: e.target.value })} />
+                    </div>
+                    {!keyValid && f.key && (
+                      <p className="flex items-center gap-1 text-[11px] text-red-500">
+                        <AlertCircle className="h-3 w-3" /> key ต้องเป็นตัวอักษร a–z และ _
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
+
           <div className="flex items-center gap-6">
             <label className="flex items-center gap-2 text-sm">
               <Switch checked={needsApproval} onCheckedChange={setNeedsApproval} />
