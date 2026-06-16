@@ -1,71 +1,77 @@
-# Master Prompt Pack สำหรับ TaskRath (ผู้ช่วย AI งานราชการ)
 
-จะสร้างชุดเอกสาร `.md` ไว้ที่โฟลเดอร์ `docs/master-prompts/` เพื่อใช้เป็น context/บรีฟต่อให้ Claude Code พัฒนาโปรเจกต์ต่อ ครอบคลุมทั้ง **Design System** และ **Core Engine** ของระบบที่มีอยู่จริงในโค้ดเบสนี้
+# Agent & Skills แบบหน่วยงานสร้างเองได้ (Department-scoped Ecosystem)
 
-## โครงสร้างไฟล์ที่จะสร้าง
+## เป้าหมาย
+ให้ "Admin หน่วยงาน" (dept_admin) สร้าง/แก้ **Skill** และ **Agent** ของหน่วยงานตัวเองได้  
+สมาชิกในหน่วยงานเดียวกันใช้ได้ทุกคน — ไม่แชร์ข้ามหน่วยงาน — ระบบจึงโตเองตามการใช้งานจริง
 
-```text
-docs/master-prompts/
-├── 00-index.md                  # สารบัญ + วิธีใช้กับ Claude Code
-├── 01-product-overview.md       # วิสัยทัศน์ ผู้ใช้ ฟีเจอร์หลัก domain ราชการไทย
-├── 02-tech-stack.md             # TanStack Start v1, React 19, Vite 7, Tailwind v4,
-│                                # Lovable Cloud (Supabase), AI Gateway, Cloudflare Workers
-├── 03-architecture.md           # โครงสร้างโฟลเดอร์ + flow: route → serverFn → Supabase/AI
-│                                # + กฎ client.server.ts vs auth-middleware vs browser client
-├── 04-design-system.md          # โทนภาพรวม, typography (Inter + Noto Sans Thai),
-│                                # palette OKLCH, semantic tokens, spacing, motion,
-│                                # ความเป็นทางการแบบราชการ + accessibility
-├── 05-ui-components.md          # shadcn + AI Elements, AppShell, Sidebar, ExportDialog,
-│                                # CitationsList, RefineBar, TemplateCard, CommandPalette
-├── 06-routing-map.md            # ทุก route ที่มี (public, _authenticated, admin/*, api/*)
-│                                # พร้อมหน้าที่และ data dependencies
-├── 07-database-schema.md        # 13 tables + RLS + GRANT pattern + has_role + user_roles
-├── 08-core-engine-ai.md         # ai.functions.ts: streaming, model gateway,
-│                                # PII redaction, prompt-guard, refine loop, cost tracking
-├── 09-rag-kb-chat.md            # kb.functions.ts + chat.functions.ts: embedding, chunking,
-│                                # cosine search, citations, multi-turn threads
-├── 10-templates-engine.md       # templates.ts (hard-coded) + custom_templates (DB),
-│                                # field schema, system prompt convention,
-│                                # 5 government templates (committee/kpr/tor/py12/budget)
-├── 11-export-signatures.md      # export.ts (PDF/DOCX) + letterhead (ตราครุฑ) +
-│                                # signatures.functions.ts (SHA-256 + QR verify) + /verify/$id
-├── 12-admin-governance.md       # admin pages, audit logs, agency settings, approvals,
-│                                # executive stats, notifications
-├── 13-i18n-localization.md      # messages.ts (th/en), Thai gov tone, ใช้ key อย่างไร
-├── 14-security-compliance.md    # RLS, PII, prompt injection guard, พ.ร.บ.ธุรกรรมฯ,
-│                                # ระเบียบสารบรรณ, classification/urgency
-├── 15-coding-conventions.md     # naming, file layout, serverFn pattern (.middleware →
-│                                # .inputValidator → .handler), Zod, import rules
-├── 16-task-prompts.md           # Master prompt templates พร้อมใช้ใน Claude Code:
-│                                #  - "เพิ่มเทมเพลตใหม่"
-│                                #  - "เพิ่ม serverFn + migration"
-│                                #  - "เพิ่มหน้า admin"
-│                                #  - "debug build error"
-│                                #  - "เพิ่มภาษา/ปรับ wording"
-└── 17-roadmap-backlog.md        # สิ่งที่ยังไม่ทำ (voice input, attachment, share thread,
-                                 # co-sign, PKI, template versioning) สำหรับ context ต่อยอด
+## โมเดลแนวคิด
+
+```
+Department ── owns ──▶ Skills (atomic capability)
+                 └──▶ Agents (persona + skills[] + system prompt)
+                                │
+                                ▼
+                         User runs Agent
+                         → Agent ใช้ skills เป็น tool/step
+                         → log ai_runs (dept_id)
 ```
 
-## เนื้อหาแต่ละไฟล์ (สรุปสาระสำคัญ)
+- **Skill** = หน่วยความสามารถเดี่ยว  
+  - `name`, `description`, `system_prompt`, `fields[]` (เหมือน custom_templates), `kb_category?`, `model?`, `needs_approval?`
+- **Agent** = persona ที่รวม skill หลายตัว  
+  - `name`, `role_prompt` (บทบาท/บุคลิก), `skill_ids[]`, `default_skill_id?`, `tools_mode` (single | workflow)
+  - เวลารัน: agent เลือก skill ที่เหมาะ หรือรันตามลำดับ (workflow)
 
-- **อ้างอิงโค้ดจริง**: ทุกไฟล์จะอ้าง path และ symbol ที่มีอยู่ในโปรเจกต์ เช่น `src/lib/ai.functions.ts`, `requireSupabaseAuth`, `attachSupabaseAuth`, ตาราง `ai_runs`/`chat_messages`/`custom_templates`/`signed_documents`
-- **มี code snippet ตัวอย่าง**: pattern ของ `createServerFn`, migration พร้อม GRANT + RLS, การเรียก Lovable AI Gateway, การ render letterhead/QR
-- **เขียนเป็นภาษาไทยเป็นหลัก** (สอดคล้องกับ domain) มี term อังกฤษกำกับเฉพาะที่จำเป็น
-- **ไฟล์ 16 (task prompts)** เขียนเป็น "prompt สำเร็จรูป" ที่ก๊อปไปวาง Claude Code ได้ทันที โดยอ้าง 00-15 เป็น context
+## สิ่งที่จะสร้าง (เฟส 1 — MVP)
 
-## วิธีนำไปใช้ใน Claude Code
+### 1) Database (migration ใหม่)
+- เพิ่ม role `dept_admin` ลง enum `app_role`
+- ตาราง `dept_skills` (department_id, name, description, system_prompt, fields jsonb, kb_category, model, needs_approval, created_by, status: draft|active)
+- ตาราง `dept_agents` (department_id, name, role_prompt, default_model, status, created_by)
+- ตาราง `dept_agent_skills` (agent_id, skill_id, order_index) — many-to-many
+- ทุกตาราง: GRANT + RLS
+  - SELECT: สมาชิก department เดียวกัน (`profiles.department = X`)
+  - INSERT/UPDATE/DELETE: เฉพาะ `dept_admin` ของ department นั้น
+  - admin (global) เห็นทุก department
+- `has_dept_role(uid, dept_id, role)` security-definer helper
 
-ไฟล์ `00-index.md` จะอธิบายว่า:
-1. โหลด `00`–`07` เป็น context ตั้งต้นทุก session
-2. โหลดไฟล์เฉพาะทาง (08–14) เมื่อทำงานในส่วนนั้น ๆ
-3. ใช้ `15` เป็น style guide
-4. ก๊อป prompt จาก `16` เมื่อจะสั่งงานใหม่
+### 2) Server Functions (`src/lib/dept-agents.functions.ts`)
+- `listDeptSkills() / upsertDeptSkill() / deleteDeptSkill()`
+- `listDeptAgents() / upsertDeptAgent() / deleteDeptAgent()`
+- `runDeptAgent({ agentId, input, skillId? })`
+  - ดึง agent + skills ของ dept
+  - ประกอบ system prompt = `agent.role_prompt` + skill ที่เลือก
+  - เรียก pipeline เดิม (PII redact → guard → RAG → gateway → log ai_runs พร้อม `dept_id`)
+- ทุก fn `.middleware([requireSupabaseAuth])` + ตรวจ dept membership / dept_admin
 
-## สิ่งที่จะไม่ทำในรอบนี้
-- ไม่แก้โค้ดแอป ไม่เพิ่ม route/feature — เป็นเอกสารล้วน ๆ
-- ไม่สร้าง diagram เป็นรูป (ใช้ ASCII/Mermaid ใน markdown แทน)
-- ไม่ copy zip ออกไป — ไฟล์ทั้งหมดอยู่ใน repo ที่ `docs/master-prompts/`
+### 3) UI — เมนู Agents & Skills (เพิ่มในหน้า `/agents` เดิม)
+- Tab "Built-in" (เดิม) | "หน่วยงานของฉัน" (ใหม่)
+- การ์ด agent ของหน่วยงาน + ปุ่ม "สั่งงาน" (เหมือนเดิม)
+- ถ้าเป็น `dept_admin`: เห็นปุ่ม **"+ สร้าง Agent"** / **"จัดการ Skill"**
+- หน้าใหม่ `/agents/manage` (gate ด้วย dept_admin)
+  - **Skills tab**: list + dialog editor (name, description, system prompt, fields builder, kb category, model)
+  - **Agents tab**: list + editor (name, role prompt textarea, multi-select skill, default skill, model)
+  - ปุ่ม "ทดสอบรัน" inline ในตัว editor
 
----
+### 4) Integration กับระบบเดิม
+- `ai_runs` เพิ่มคอลัมน์ `dept_agent_id`, `dept_skill_id` (nullable) → ใช้ใน `/admin/usage` แยกตาม dept ได้
+- รายงาน PDF/CSV: เพิ่ม section "Top agents per department" (ใช้คอลัมน์ใหม่)
 
-อนุมัติแผนนี้เพื่อให้เริ่มสร้างไฟล์ทั้งหมดได้เลยครับ หรือบอกได้ถ้าอยากตัด/เพิ่ม/รวมไฟล์ไหน
+## เฟส 2 (อนาคต — ยังไม่ทำตอนนี้)
+- Workflow / multi-step: agent เรียก skill ต่อเป็น pipeline
+- Versioning ของ skill (draft → publish)
+- Marketplace ข้ามหน่วยงาน (ตอนนี้ไม่เอา)
+
+## รายละเอียดทางเทคนิคที่ควรทราบ
+
+- ใช้ `profiles.department` ที่มีอยู่แล้วเป็น `department_id` (string slug)
+- RLS pattern: ทุก policy ใช้ helper `is_in_department(uid, dept)` + `has_role(uid, 'dept_admin')` AND ตรง dept
+- Sidebar เพิ่มลิงก์ "จัดการ Agent (หน่วยงาน)" เฉพาะ dept_admin
+- เก็บ `fields` jsonb เป็น schema เดียวกับ `custom_templates` เพื่อ reuse `<RunForm/>` ได้เลย
+- Token/cost ยังคำนวณรวมที่ระดับ workspace (ไม่แยก quota ต่อ dept ในเฟสนี้ — บอกได้ถ้าอยากเพิ่ม)
+
+## คำถามที่ยังเปิดอยู่ (ขอยืนยันก่อนลงมือ)
+1. ใครเป็นคน **assign สิทธิ์ `dept_admin`** ให้ใคร — global admin เท่านั้น ใช่ไหม? (จะเพิ่มหน้าใน `/admin/settings` ให้)
+2. สมาชิกหน่วยงาน (ที่ไม่ใช่ admin) ควร **เห็น Skill ทุกตัว** ของหน่วยงาน หรือเฉพาะที่ `status=active`?
+3. Agent ของหน่วยงาน A ควรเรียก KB ได้ทุก category หรือจำกัดเฉพาะ category ที่ admin หน่วยงานเลือก?
