@@ -1,10 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { useState } from "react";
 import { useI18n } from "@/lib/i18n";
-import { adminUsageStats } from "@/lib/ai.functions";
+import { adminUsageStats, adminMonthlyReport } from "@/lib/ai.functions";
+import { buildMonthlyCsv, buildMonthlyPdf, downloadBlob, reportFilename } from "@/lib/admin-report";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BarChart3, Coins, Activity, Users, AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { BarChart3, Coins, Activity, Users, AlertTriangle, FileDown, FileText, Loader2 } from "lucide-react";
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
 } from "recharts";
@@ -26,12 +30,35 @@ function fmtTokens(n: number) {
 function AdminUsagePage() {
   const { lang } = useI18n();
   const fetchStats = useServerFn(adminUsageStats);
+  const fetchMonthly = useServerFn(adminMonthlyReport);
   const { data, isLoading, error } = useQuery({
     queryKey: ["admin-usage"],
     queryFn: () => fetchStats(),
   });
 
   const L = (th: string, en: string) => (lang === "th" ? th : en);
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [exporting, setExporting] = useState<"pdf" | "csv" | null>(null);
+
+  async function handleExport(kind: "pdf" | "csv") {
+    setExporting(kind);
+    try {
+      const report = await fetchMonthly({ data: { year, month } });
+      if (kind === "csv") {
+        downloadBlob(reportFilename(report, "csv"), "text/csv;charset=utf-8", buildMonthlyCsv(report));
+      } else {
+        const blob = await buildMonthlyPdf(report);
+        downloadBlob(reportFilename(report, "pdf"), "application/pdf", blob);
+      }
+      toast.success(L("สร้างรายงานสำเร็จ", "Report generated"));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Export failed");
+    } finally {
+      setExporting(null);
+    }
+  }
 
   if (error) {
     return (
@@ -45,14 +72,45 @@ function AdminUsagePage() {
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-8">
-      <div className="mb-6">
-        <h1 className="flex items-center gap-2 text-xl font-semibold text-foreground">
-          <BarChart3 className="h-5 w-5 text-primary" />
-          {L("การใช้งาน AI (30 วันล่าสุด)", "AI Usage (last 30 days)")}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {L("สรุปจำนวนงาน โทเค็น และต้นทุนของทั้งระบบ", "System-wide runs, tokens, and cost")}
-        </p>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="flex items-center gap-2 text-xl font-semibold text-foreground">
+            <BarChart3 className="h-5 w-5 text-primary" />
+            {L("การใช้งาน AI (30 วันล่าสุด)", "AI Usage (last 30 days)")}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {L("สรุปจำนวนงาน โทเค็น และต้นทุนของทั้งระบบ", "System-wide runs, tokens, and cost")}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-2">
+          <span className="px-2 text-xs text-muted-foreground">{L("รายงานเดือน", "Monthly report")}</span>
+          <select
+            className="rounded-md border border-border bg-background px-2 py-1 text-sm"
+            value={month}
+            onChange={(e) => setMonth(Number(e.target.value))}
+          >
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+              <option key={m} value={m}>{String(m).padStart(2, "0")}</option>
+            ))}
+          </select>
+          <select
+            className="rounded-md border border-border bg-background px-2 py-1 text-sm"
+            value={year}
+            onChange={(e) => setYear(Number(e.target.value))}
+          >
+            {Array.from({ length: 5 }, (_, i) => now.getFullYear() - i).map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+          <Button size="sm" variant="outline" disabled={!!exporting} onClick={() => handleExport("csv")}>
+            {exporting === "csv" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+            <span className="ml-1">CSV</span>
+          </Button>
+          <Button size="sm" disabled={!!exporting} onClick={() => handleExport("pdf")}>
+            {exporting === "pdf" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+            <span className="ml-1">PDF</span>
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
