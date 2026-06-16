@@ -167,10 +167,49 @@ export function BatchRunDialog({
               className="hidden"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }}
             />
-            <Button variant="ghost" size="sm" className="w-full" onClick={downloadTemplate}>
+            <div className="rounded-md border border-border bg-card p-3">
+              <p className="mb-2 text-xs font-medium">คอลัมน์ที่เทมเพลตต้องการ</p>
+              <ul className="space-y-1 text-[11px] text-muted-foreground">
+                {fields.map((f) => (
+                  <li key={f.name} className="flex flex-wrap items-baseline gap-x-2">
+                    <code className="rounded bg-muted px-1 py-0.5 font-mono text-[10px] text-foreground">{f.name}</code>
+                    <span className="text-foreground">{f.labelTh}</span>
+                    {f.required && <Badge variant="outline" className="h-4 px-1 text-[9px]">จำเป็น</Badge>}
+                    {f.placeholderTh && <span className="text-muted-foreground">— {f.placeholderTh}</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <Button variant="outline" size="sm" className="w-full" onClick={downloadTemplate}>
               <FileSpreadsheet className="mr-1.5 h-3.5 w-3.5" />
-              ดาวน์โหลด CSV ตัวอย่าง
+              ดาวน์โหลด CSV ตัวอย่างของเทมเพลตนี้
             </Button>
+
+            {matchedSample && (
+              <Button variant="secondary" size="sm" className="w-full" onClick={() => loadSample(matchedSample)}>
+                <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                โหลดตัวอย่างสำเร็จรูป — {matchedSample.titleTh}
+              </Button>
+            )}
+
+            {!matchedSample && otherSamples.length > 0 && (
+              <div className="rounded-md border border-dashed border-border bg-muted/20 p-3">
+                <p className="mb-2 text-[11px] font-medium text-muted-foreground">หรือดูตัวอย่างจากเทมเพลตอื่น (โครงสร้าง CSV เป็นแนวทาง)</p>
+                <div className="space-y-1">
+                  {otherSamples.map((s) => (
+                    <button
+                      key={s.templateId}
+                      onClick={() => loadSample(s)}
+                      className="block w-full rounded px-2 py-1 text-left text-[11px] hover:bg-muted"
+                    >
+                      <span className="font-medium text-foreground">{s.titleTh}</span>
+                      <span className="ml-1 text-muted-foreground">— {s.descTh}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="space-y-4">
