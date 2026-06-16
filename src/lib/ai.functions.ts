@@ -329,7 +329,7 @@ export const runFreeform = createServerFn({ method: "POST" })
       ? await callAIMultimodal(systemPrompt, r.text, atts)
       : await callAI(systemPrompt, r.text);
     const output = data.redactPii ? restorePII(ai.text, r.map) : ai.text;
-    const attachmentsMeta = atts.map((a) => ({ name: a.name, kind: a.kind, mime: a.mime ?? null }));
+    const attachmentsMeta = atts.map((a) => ({ name: a.name, kind: a.kind, mime: a.mime ?? null, size: a.size ?? null }));
     const { data: run, error } = await supabase
       .from("ai_runs")
       .insert({
