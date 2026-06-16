@@ -86,8 +86,8 @@ export const messages = {
   // Agents
   agentsTitle: { th: "Agent & Skills", en: "Agents & Skills" },
   agentsDesc: {
-    th: "Agent และทักษะที่เชื่อมต่อกับ HiClaw",
-    en: "Agents and skills connected via HiClaw",
+    th: "Agent และทักษะสำหรับงานราชการ",
+    en: "Agents and skills for government workflows",
   },
 
   // Integrations
