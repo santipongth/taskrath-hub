@@ -23,6 +23,7 @@ import { Route as AuthenticatedAgentsRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedRunIndexRouteImport } from './routes/_authenticated/run/index'
 import { Route as AuthenticatedHistoryIndexRouteImport } from './routes/_authenticated/history/index'
 import { Route as AuthenticatedChatIndexRouteImport } from './routes/_authenticated/chat/index'
+import { Route as ApiPublicSeedTestUsersRouteImport } from './routes/api/public/seed-test-users'
 import { Route as AuthenticatedRunTemplateIdRouteImport } from './routes/_authenticated/run/$templateId'
 import { Route as AuthenticatedHistoryRunIdRouteImport } from './routes/_authenticated/history/$runId'
 import { Route as AuthenticatedChatThreadIdRouteImport } from './routes/_authenticated/chat/$threadId'
@@ -104,6 +105,11 @@ const AuthenticatedChatIndexRoute = AuthenticatedChatIndexRouteImport.update({
   path: '/chat/',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const ApiPublicSeedTestUsersRoute = ApiPublicSeedTestUsersRouteImport.update({
+  id: '/api/public/seed-test-users',
+  path: '/api/public/seed-test-users',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedRunTemplateIdRoute =
   AuthenticatedRunTemplateIdRouteImport.update({
     id: '/run/$templateId',
@@ -178,6 +184,7 @@ export interface FileRoutesByFullPath {
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/history/$runId': typeof AuthenticatedHistoryRunIdRoute
   '/run/$templateId': typeof AuthenticatedRunTemplateIdRoute
+  '/api/public/seed-test-users': typeof ApiPublicSeedTestUsersRoute
   '/chat/': typeof AuthenticatedChatIndexRoute
   '/history/': typeof AuthenticatedHistoryIndexRoute
   '/run/': typeof AuthenticatedRunIndexRoute
@@ -202,6 +209,7 @@ export interface FileRoutesByTo {
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/history/$runId': typeof AuthenticatedHistoryRunIdRoute
   '/run/$templateId': typeof AuthenticatedRunTemplateIdRoute
+  '/api/public/seed-test-users': typeof ApiPublicSeedTestUsersRoute
   '/chat': typeof AuthenticatedChatIndexRoute
   '/history': typeof AuthenticatedHistoryIndexRoute
   '/run': typeof AuthenticatedRunIndexRoute
@@ -228,6 +236,7 @@ export interface FileRoutesById {
   '/_authenticated/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/_authenticated/history/$runId': typeof AuthenticatedHistoryRunIdRoute
   '/_authenticated/run/$templateId': typeof AuthenticatedRunTemplateIdRoute
+  '/api/public/seed-test-users': typeof ApiPublicSeedTestUsersRoute
   '/_authenticated/chat/': typeof AuthenticatedChatIndexRoute
   '/_authenticated/history/': typeof AuthenticatedHistoryIndexRoute
   '/_authenticated/run/': typeof AuthenticatedRunIndexRoute
@@ -254,6 +263,7 @@ export interface FileRouteTypes {
     | '/chat/$threadId'
     | '/history/$runId'
     | '/run/$templateId'
+    | '/api/public/seed-test-users'
     | '/chat/'
     | '/history/'
     | '/run/'
@@ -278,6 +288,7 @@ export interface FileRouteTypes {
     | '/chat/$threadId'
     | '/history/$runId'
     | '/run/$templateId'
+    | '/api/public/seed-test-users'
     | '/chat'
     | '/history'
     | '/run'
@@ -303,6 +314,7 @@ export interface FileRouteTypes {
     | '/_authenticated/chat/$threadId'
     | '/_authenticated/history/$runId'
     | '/_authenticated/run/$templateId'
+    | '/api/public/seed-test-users'
     | '/_authenticated/chat/'
     | '/_authenticated/history/'
     | '/_authenticated/run/'
@@ -314,6 +326,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   VerifyIdRoute: typeof VerifyIdRoute
+  ApiPublicSeedTestUsersRoute: typeof ApiPublicSeedTestUsersRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -415,6 +428,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/chat/'
       preLoaderRoute: typeof AuthenticatedChatIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/api/public/seed-test-users': {
+      id: '/api/public/seed-test-users'
+      path: '/api/public/seed-test-users'
+      fullPath: '/api/public/seed-test-users'
+      preLoaderRoute: typeof ApiPublicSeedTestUsersRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/run/$templateId': {
       id: '/_authenticated/run/$templateId'
@@ -534,6 +554,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   VerifyIdRoute: VerifyIdRoute,
+  ApiPublicSeedTestUsersRoute: ApiPublicSeedTestUsersRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
