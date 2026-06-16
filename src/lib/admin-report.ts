@@ -73,7 +73,16 @@ export function downloadBlob(filename: string, mime: string, body: BlobPart) {
 }
 
 export type Signer = { name: string; position: string };
-export type BuildOptions = { signer?: Signer | null };
+/** Either may be a `data:image/png|jpeg;base64,...` URL (any size; auto-fit in header/footer). */
+export type BuildOptions = {
+  signer?: Signer | null;
+  signatureDataUrl?: string | null;
+  stampDataUrl?: string | null;
+};
+
+function detectImgFmt(dataUrl: string): "PNG" | "JPEG" {
+  return dataUrl.startsWith("data:image/jpeg") || dataUrl.startsWith("data:image/jpg") ? "JPEG" : "PNG";
+}
 
 export async function buildMonthlyPdf(r: MonthlyReport, opts: BuildOptions = {}): Promise<Blob> {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
