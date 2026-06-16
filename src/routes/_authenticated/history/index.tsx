@@ -16,7 +16,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { MoreHorizontal, FileDown, FileText, Search, X } from "lucide-react";
+import { MoreHorizontal, FileDown, FileText, Search, X, Paperclip } from "lucide-react";
 import { exportRunToPdf, exportRunToDocx } from "@/lib/export";
 import { toast } from "sonner";
 
@@ -130,6 +130,7 @@ function HistoryPage() {
               <tr>
                 <th className="px-4 py-3 text-left font-medium">{lang === "th" ? "เทมเพลต" : "Template"}</th>
                 <th className="px-4 py-3 text-left font-medium">{lang === "th" ? "หัวข้อ" : "Title"}</th>
+                <th className="px-4 py-3 text-left font-medium">{lang === "th" ? "ไฟล์แนบ" : "Files"}</th>
                 <th className="px-4 py-3 text-left font-medium">{lang === "th" ? "สถานะ" : "Status"}</th>
                 <th className="px-4 py-3 text-left font-medium">{lang === "th" ? "เวลา" : "When"}</th>
                 <th className="px-4 py-3" />
@@ -139,6 +140,7 @@ function HistoryPage() {
               {filtered.map((r) => {
                 const tpl = r.template_id ? TEMPLATES_BY_ID[r.template_id] : null;
                 const title = tpl ? (lang === "th" ? tpl.titleTh : tpl.titleEn) : (lang === "th" ? "สั่งงานอิสระ" : "Freeform");
+                const atts = (((r as { input?: { attachments?: Array<{ kind: string }> } }).input?.attachments) ?? []) as Array<{ kind: string }>;
                 return (
                   <tr key={r.id} className="border-b border-border last:border-0 hover:bg-muted/30">
                     <td className="px-4 py-3">
@@ -147,6 +149,13 @@ function HistoryPage() {
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{r.title ?? "—"}</td>
+                    <td className="px-4 py-3">
+                      {atts.length > 0 ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                          <Paperclip className="h-3 w-3" />{atts.length}
+                        </span>
+                      ) : <span className="text-xs text-muted-foreground">—</span>}
+                    </td>
                     <td className="px-4 py-3">
                       <Badge variant="secondary">{r.status}</Badge>
                     </td>

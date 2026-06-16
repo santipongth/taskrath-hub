@@ -246,11 +246,10 @@ export const runTemplate = createServerFn({ method: "POST" })
 
 const attachmentSchema = z.object({
   name: z.string().max(255),
-  // "image" → image_url block, "pdf" → file block, "text" → inlined as text
   kind: z.enum(["image", "pdf", "text"]),
-  // data URL for image/pdf; plain text content for "text"
   data: z.string().min(1).max(15_000_000),
   mime: z.string().max(120).optional(),
+  size: z.number().int().nonnegative().max(15_000_000).optional(),
 });
 export type AttachmentInput = z.infer<typeof attachmentSchema>;
 
@@ -330,7 +329,7 @@ export const runFreeform = createServerFn({ method: "POST" })
       ? await callAIMultimodal(systemPrompt, r.text, atts)
       : await callAI(systemPrompt, r.text);
     const output = data.redactPii ? restorePII(ai.text, r.map) : ai.text;
-    const attachmentsMeta = atts.map((a) => ({ name: a.name, kind: a.kind, mime: a.mime ?? null }));
+    const attachmentsMeta = atts.map((a) => ({ name: a.name, kind: a.kind, mime: a.mime ?? null, size: a.size ?? null }));
     const { data: run, error } = await supabase
       .from("ai_runs")
       .insert({
@@ -400,13 +399,66 @@ export const extractTextFromImage = createServerFn({ method: "POST" })
     return { text };
   });
 
+export const ocrAttachments = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        items: z
+          .array(z.object({ name: z.string().max(255), dataUrl: z.string().min(20).max(15_000_000) }))
+          .min(1)
+          .max(10),
+        hint: z.string().max(500).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const key = process.env.LOVABLE_API_KEY;
+    if (!key) throw new Error("AI service not configured");
+    const results: Array<{ name: string; text: string; error?: string }> = [];
+    for (const it of data.items) {
+      try {
+        const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            messages: [
+              { role: "system", content: "คุณเป็นระบบ OCR สำหรับเอกสารราชการไทย จงถอดข้อความจากเอกสารให้ครบถ้วน คงรูปแบบย่อหน้า เลขข้อ ตาราง และหัวหนังสือ หากมีหลายหน้าให้คั่นด้วย \"--- หน้า N ---\" คืนเฉพาะข้อความ ไม่ต้องอธิบาย" },
+              {
+                role: "user",
+                content: [
+                  { type: "text", text: data.hint ?? `ถอดข้อความจาก: ${it.name}` },
+                  it.dataUrl.startsWith("data:application/pdf")
+                    ? { type: "file", file: { filename: it.name, file_data: it.dataUrl } }
+                    : { type: "image_url", image_url: { url: it.dataUrl } },
+                ],
+              },
+            ],
+          }),
+        });
+        if (!res.ok) {
+          results.push({ name: it.name, text: "", error: `OCR ${res.status}` });
+          continue;
+        }
+        const json = await res.json();
+        results.push({ name: it.name, text: json.choices?.[0]?.message?.content ?? "" });
+      } catch (e) {
+        results.push({ name: it.name, text: "", error: e instanceof Error ? e.message : "error" });
+      }
+    }
+    await logAudit(supabase, userId, "ocr.batch", null, { count: results.length });
+    return { results };
+  });
+
 export const listHistory = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase } = context;
     const { data, error } = await supabase
       .from("ai_runs")
-      .select("id, template_id, title, status, created_at, needs_approval")
+      .select("id, template_id, title, status, created_at, needs_approval, input, metadata")
       .order("created_at", { ascending: false })
       .limit(100);
     if (error) throw new Error(error.message);
