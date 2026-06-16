@@ -47,7 +47,7 @@ export function AppSidebar() {
           {!collapsed && (
             <div className="flex flex-col leading-tight">
               <span className="text-sm font-semibold text-foreground">RathCoWork</span>
-              <span className="text-[11px] text-muted-foreground">ทาสก์-รัฐ</span>
+              <span className="text-[11px] text-muted-foreground"></span>
             </div>
           )}
         </Link>

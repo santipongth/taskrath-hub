@@ -75,10 +75,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "RathCoWork — ทาสก์-รัฐ" },
-      { name: "description", content: "RathCoWork (ทาสก์-รัฐ) เป็นผู้ช่วย AI สำหรับเจ้าหน้าที่ภาครัฐไทย — ร่างหนังสือ สรุปประชุม ตอบประชาชน และจัดการงานเอกสารอย่างปลอดภัยและตรวจสอบได้" },
-      { property: "og:title", content: "RathCoWork — ทาสก์-รัฐ" },
-      { name: "twitter:title", content: "RathCoWork — ทาสก์-รัฐ" },
+      { title: "RathCoWork" },
+      { name: "description", content: "RathCoWork เป็นผู้ช่วย AI สำหรับเจ้าหน้าที่ภาครัฐไทย — ร่างหนังสือ สรุปประชุม ตอบประชาชน และจัดการงานเอกสารอย่างปลอดภัยและตรวจสอบได้" },
+      { property: "og:title", content: "RathCoWork" },
+      { name: "twitter:title", content: "RathCoWork" },
       { property: "og:description", content: "ผู้ช่วย AI สำหรับเจ้าหน้าที่ภาครัฐไทย ร่างเอกสาร สรุปประชุม และจัดการงานราชการได้รวดเร็ว ปลอดภัย ตรวจสอบได้" },
       { name: "twitter:description", content: "ผู้ช่วย AI สำหรับเจ้าหน้าที่ภาครัฐไทย ร่างเอกสาร สรุปประชุม และจัดการงานราชการได้รวดเร็ว ปลอดภัย ตรวจสอบได้" },
       { property: "og:url", content: "https://taskrath-hub.lovable.app/" },
@@ -109,7 +109,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
             {
               "@type": "Organization",
               name: "RathCoWork",
-              alternateName: "ทาสก์-รัฐ",
+              alternateName: "",
               url: "https://taskrath-hub.lovable.app/",
               description: "ผู้ให้บริการผู้ช่วย AI สำหรับเจ้าหน้าที่ภาครัฐไทย",
             },
