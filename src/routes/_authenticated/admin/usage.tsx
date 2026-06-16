@@ -41,25 +41,40 @@ function AdminUsagePage() {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
+  const [loadingReport, setLoadingReport] = useState(false);
   const [exporting, setExporting] = useState<"pdf" | "csv" | null>(null);
+  const [preview, setPreview] = useState<MonthlyReport | null>(null);
 
-  async function handleExport(kind: "pdf" | "csv") {
-    setExporting(kind);
+  async function loadPreview() {
+    setLoadingReport(true);
     try {
       const report = await fetchMonthly({ data: { year, month } });
+      setPreview(report);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to load report");
+    } finally {
+      setLoadingReport(false);
+    }
+  }
+
+  async function handleExport(kind: "pdf" | "csv") {
+    if (!preview) return;
+    setExporting(kind);
+    try {
       if (kind === "csv") {
-        downloadBlob(reportFilename(report, "csv"), "text/csv;charset=utf-8", buildMonthlyCsv(report));
+        downloadBlob(reportFilename(preview, "csv"), "text/csv;charset=utf-8", buildMonthlyCsv(preview));
       } else {
-        const blob = await buildMonthlyPdf(report);
-        downloadBlob(reportFilename(report, "pdf"), "application/pdf", blob);
+        const blob = await buildMonthlyPdf(preview);
+        downloadBlob(reportFilename(preview, "pdf"), "application/pdf", blob);
       }
-      toast.success(L("สร้างรายงานสำเร็จ", "Report generated"));
+      toast.success(L("ดาวน์โหลดสำเร็จ", "Download started"));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Export failed");
     } finally {
       setExporting(null);
     }
   }
+
 
   if (error) {
     return (
