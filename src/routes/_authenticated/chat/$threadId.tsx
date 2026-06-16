@@ -23,6 +23,7 @@ import {
 import { Plus, Trash2, Send, Pencil, MessageSquare, BookText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
+import { VoiceInputButton } from "@/components/voice-input-button";
 
 export const Route = createFileRoute("/_authenticated/chat/$threadId")({
   head: () => ({ meta: [{ title: "ถาม-ตอบ KB · TaskRath" }] }),
@@ -251,6 +252,13 @@ function ChatPage() {
               rows={2}
               className="resize-none"
               disabled={sendMut.isPending}
+            />
+            <VoiceInputButton
+              size="icon"
+              onTranscript={(text, isFinal) => {
+                if (!isFinal) return;
+                setInput((p) => (p ? p + " " : "") + text);
+              }}
             />
             <Button onClick={() => handleSend()} disabled={!input.trim() || sendMut.isPending} size="icon">
               {sendMut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
