@@ -17,7 +17,8 @@ async function assertAdmin(
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function logAudit(supabase: any, userId: string, action: string, resource: string | null, metadata: Record<string, unknown>) {
-  await supabase.from("audit_logs").insert({ user_id: userId, action, resource, metadata });
+  void userId;
+  await supabase.rpc("log_audit", { p_action: action, p_resource: resource, p_metadata: metadata });
 }
 
 const EMBED_MODEL = "openai/text-embedding-3-small";
