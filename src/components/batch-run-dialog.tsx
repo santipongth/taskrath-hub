@@ -13,6 +13,8 @@ import { toast } from "sonner";
 import { runTemplate } from "@/lib/ai.functions";
 import type { TemplateField } from "@/lib/templates";
 import { parseCSV, toCSV, downloadCSV } from "@/lib/csv";
+import { SAMPLES_BY_TEMPLATE, BATCH_SAMPLES } from "@/lib/batch-samples";
+import { Sparkles } from "lucide-react";
 
 type Row = Record<string, string>;
 type Result = { row: Row; ok: boolean; output?: string; error?: string };
@@ -40,10 +42,11 @@ export function BatchRunDialog({
   const fileRef = useRef<HTMLInputElement>(null);
 
   const ready = rows.length > 0 && fields.every((f) => !f.required || (mapping[f.name] && mapping[f.name] !== SKIP));
+  const matchedSample = SAMPLES_BY_TEMPLATE[templateId];
+  // Show 2 cross-template samples as fallback inspiration when no exact match
+  const otherSamples = BATCH_SAMPLES.filter((s) => s.templateId !== templateId).slice(0, 3);
 
-  const onFile = async (file: File) => {
-    if (file.size > 5 * 1024 * 1024) { toast.error("ไฟล์ต้องไม่เกิน 5MB"); return; }
-    const text = await file.text();
+  const loadFromText = (text: string, sourceLabel: string) => {
     const parsed = parseCSV(text);
     if (parsed.length < 2) { toast.error("CSV ต้องมีหัวคอลัมน์และอย่างน้อย 1 แถว"); return; }
     const hdrs = parsed[0].map((h) => h.trim());
@@ -54,7 +57,6 @@ export function BatchRunDialog({
     }).filter((r) => Object.values(r).some((v) => v));
     setHeaders(hdrs);
     setRows(data);
-    // auto-map by name match
     const initial: Record<string, string> = {};
     for (const f of fields) {
       const match = hdrs.find((h) => h === f.name || h.toLowerCase() === f.name.toLowerCase() || h === f.labelTh || h === f.labelEn);
@@ -63,10 +65,24 @@ export function BatchRunDialog({
     setMapping(initial);
     setResults([]);
     setProgress(0);
-    toast.success(`โหลด ${data.length} แถว`);
+    toast.success(`${sourceLabel}: โหลด ${data.length} แถว`);
+  };
+
+  const onFile = async (file: File) => {
+    if (file.size > 5 * 1024 * 1024) { toast.error("ไฟล์ต้องไม่เกิน 5MB"); return; }
+    const text = await file.text();
+    loadFromText(text, file.name);
+  };
+
+  const loadSample = (sample: typeof BATCH_SAMPLES[number]) => {
+    loadFromText(toCSV(sample.rows), sample.titleTh);
   };
 
   const downloadTemplate = () => {
+    if (matchedSample) {
+      downloadCSV(`${templateId}-sample.csv`, toCSV(matchedSample.rows));
+      return;
+    }
     const hdrs = fields.map((f) => f.name);
     const sample = fields.map((f) => f.placeholderTh ?? "");
     downloadCSV(`${templateId}-template.csv`, toCSV([hdrs, sample]));
@@ -151,10 +167,49 @@ export function BatchRunDialog({
               className="hidden"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }}
             />
-            <Button variant="ghost" size="sm" className="w-full" onClick={downloadTemplate}>
+            <div className="rounded-md border border-border bg-card p-3">
+              <p className="mb-2 text-xs font-medium">คอลัมน์ที่เทมเพลตต้องการ</p>
+              <ul className="space-y-1 text-[11px] text-muted-foreground">
+                {fields.map((f) => (
+                  <li key={f.name} className="flex flex-wrap items-baseline gap-x-2">
+                    <code className="rounded bg-muted px-1 py-0.5 font-mono text-[10px] text-foreground">{f.name}</code>
+                    <span className="text-foreground">{f.labelTh}</span>
+                    {f.required && <Badge variant="outline" className="h-4 px-1 text-[9px]">จำเป็น</Badge>}
+                    {f.placeholderTh && <span className="text-muted-foreground">— {f.placeholderTh}</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <Button variant="outline" size="sm" className="w-full" onClick={downloadTemplate}>
               <FileSpreadsheet className="mr-1.5 h-3.5 w-3.5" />
-              ดาวน์โหลด CSV ตัวอย่าง
+              ดาวน์โหลด CSV ตัวอย่างของเทมเพลตนี้
             </Button>
+
+            {matchedSample && (
+              <Button variant="secondary" size="sm" className="w-full" onClick={() => loadSample(matchedSample)}>
+                <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                โหลดตัวอย่างสำเร็จรูป — {matchedSample.titleTh}
+              </Button>
+            )}
+
+            {!matchedSample && otherSamples.length > 0 && (
+              <div className="rounded-md border border-dashed border-border bg-muted/20 p-3">
+                <p className="mb-2 text-[11px] font-medium text-muted-foreground">หรือดูตัวอย่างจากเทมเพลตอื่น (โครงสร้าง CSV เป็นแนวทาง)</p>
+                <div className="space-y-1">
+                  {otherSamples.map((s) => (
+                    <button
+                      key={s.templateId}
+                      onClick={() => loadSample(s)}
+                      className="block w-full rounded px-2 py-1 text-left text-[11px] hover:bg-muted"
+                    >
+                      <span className="font-medium text-foreground">{s.titleTh}</span>
+                      <span className="ml-1 text-muted-foreground">— {s.descTh}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="space-y-4">
