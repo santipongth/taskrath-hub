@@ -371,26 +371,50 @@ function AdminUsagePage() {
                     />
                   </div>
                 </div>
-                <div className="mt-3 rounded-md border border-dashed border-border bg-background p-3 text-xs">
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <ImageUploadField
+                    label={L("รูปลายเซ็น (ฟุตเตอร์, PNG/JPG ≤2MB)", "Signature image (footer, PNG/JPG ≤2MB)")}
+                    value={signatureDataUrl}
+                    onPick={(f) => onPickImage("signature", f)}
+                    onClear={() => setSignatureDataUrl(null)}
+                  />
+                  <ImageUploadField
+                    label={L("ตราประทับ (หัวกระดาษ, PNG/JPG ≤2MB)", "Stamp (header, PNG/JPG ≤2MB)")}
+                    value={stampDataUrl}
+                    onPick={(f) => onPickImage("stamp", f)}
+                    onClear={() => setStampDataUrl(null)}
+                  />
+                </div>
+
+                <div className="mt-4 rounded-md border border-dashed border-border bg-background p-3 text-xs">
                   <p className="mb-2 font-medium text-muted-foreground">{L("ตัวอย่างที่จะอยู่ใน PDF", "PDF preview")}</p>
-                  <div className="flex items-start justify-between border-b border-border pb-1 text-[11px] text-muted-foreground">
+                  <div className="flex items-start justify-between gap-3 border-b border-border pb-2 text-[11px] text-muted-foreground">
                     <span>RathCoWork · รายงานการใช้งานรายเดือน</span>
-                    <div className="text-right">
-                      <div>{String(preview.period.month).padStart(2, "0")}/{preview.period.year}</div>
-                      {(signerName || signerPosition) && (
-                        <div className="text-[10px]">
-                          ผู้รับผิดชอบ: {signerName}{signerPosition ? ` · ${signerPosition}` : ""}
-                        </div>
+                    <div className="flex items-start gap-2">
+                      <div className="text-right">
+                        <div>{String(preview.period.month).padStart(2, "0")}/{preview.period.year}</div>
+                        {(signerName || signerPosition) && (
+                          <div className="text-[10px]">
+                            ผู้รับผิดชอบ: {signerName}{signerPosition ? ` · ${signerPosition}` : ""}
+                          </div>
+                        )}
+                      </div>
+                      {stampDataUrl && (
+                        <img src={stampDataUrl} alt="stamp" className="h-10 w-auto object-contain" />
                       )}
                     </div>
                   </div>
-                  <div className="mt-3 flex items-end justify-between border-t border-border pt-1 text-[10px] text-muted-foreground">
+                  <div className="mt-3 flex items-end justify-between gap-3 border-t border-border pt-2 text-[10px] text-muted-foreground">
                     <div>
                       <div>สร้างเมื่อ {new Date().toLocaleString("th-TH")}</div>
                       {(signerName || signerPosition) && (
                         <div>ลงนาม: {signerName}{signerPosition ? ` (${signerPosition})` : ""}</div>
                       )}
                     </div>
+                    {signatureDataUrl && (
+                      <img src={signatureDataUrl} alt="signature" className="h-10 w-auto object-contain" />
+                    )}
                     <div>หน้า 1 / N</div>
                   </div>
                 </div>
