@@ -144,16 +144,16 @@ export async function buildMonthlyPdf(r: MonthlyReport, opts: BuildOptions = {})
   };
 
   doc.setFontSize(16);
-  doc.text("RathCoWork — รายงานการใช้งานรายเดือน", margin, y); y += 22;
+  doc.text(T("RathCoWork — รายงานการใช้งานรายเดือน", "RathCoWork — Monthly Usage Report"), margin, y); y += 22;
   doc.setFontSize(11);
   doc.setTextColor(90);
-  doc.text(`รอบการใช้งาน: ${periodLabel}`, margin, y); y += 14;
-  doc.text(`สร้างเมื่อ: ${generatedAt}`, margin, y); y += 18;
+  doc.text(`${T("รอบการใช้งาน", "Period")}: ${periodLabel}`, margin, y); y += 14;
+  doc.text(`${T("สร้างเมื่อ", "Generated")}: ${generatedAt}`, margin, y); y += 18;
   doc.setTextColor(0);
 
   // KPI grid
   doc.setFontSize(12);
-  doc.text("ภาพรวม (KPI)", margin, y); y += 12;
+  doc.text(T("ภาพรวม (KPI)", "Overview (KPI)"), margin, y); y += 12;
   const kpis: [string, string][] = [
     ["งานทั้งหมด", fmtInt(r.totals.runs)],
     ["ต้นทุนรวม", fmtCost(r.totals.costUsd)],
