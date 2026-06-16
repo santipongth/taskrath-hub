@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useI18n } from "@/lib/i18n";
 import { adminUsageStats } from "@/lib/ai.functions";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BarChart3, Coins, Activity, Users } from "lucide-react";
+import { BarChart3, Coins, Activity, Users, AlertTriangle } from "lucide-react";
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
 } from "recharts";
