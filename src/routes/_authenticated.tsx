@@ -4,11 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app-shell";
 
 export const Route = createFileRoute("/_authenticated")({
-  // beforeLoad runs on BOTH server and client. The server has no Supabase
-  // session (localStorage-only), so it would always redirect to /login,
-  // causing a redirect loop with the client-side session. Only gate on client.
+  // Supabase session lives in localStorage (client-only). Disable SSR for the
+  // protected subtree so the gate and child server-fn calls always run with
+  // the user's bearer token available — otherwise the attacher sends no
+  // Authorization header and protected serverFns 401.
+  ssr: false,
   beforeLoad: async ({ location }) => {
-    if (typeof window === "undefined") return { userId: null, email: null };
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) {
       throw redirect({ to: "/login", search: { redirect: location.href } as never });
