@@ -277,34 +277,49 @@ export async function buildMonthlyPdf(r: MonthlyReport, opts: BuildOptions = {})
 }
 
 function drawDailyChart(doc: jsPDF, r: MonthlyReport, x: number, y: number, w: number, h: number) {
-  const padL = 50, padR = 50, padT = 24, padB = 28;
+  const data = r.daily;
+
+  // Title + legend (fit inside available width)
+  doc.setFontSize(11); doc.setTextColor(20);
+  doc.text("ต้นทุน/งาน รายวัน", x, y + 14);
+  doc.setFontSize(8);
+  const legendY = y + 8;
+  const costLegendX = x + Math.min(w - 200, 180);
+  doc.setFillColor(60, 90, 200);
+  doc.rect(costLegendX, legendY, 10, 6, "F");
+  doc.setTextColor(60); doc.text("ต้นทุน (USD)", costLegendX + 14, y + 14);
+  const runsLegendX = costLegendX + 88;
+  doc.setFillColor(170, 175, 185);
+  doc.rect(runsLegendX, legendY, 10, 6, "F");
+  doc.text("จำนวนงาน", runsLegendX + 14, y + 14);
+
+  // Auto Y-axis padding from widest label
+  const maxCost = data.length ? Math.max(...data.map((d) => d.cost), 0.0001) : 1;
+  const maxRuns = data.length ? Math.max(...data.map((d) => d.runs), 1) : 1;
+  doc.setFontSize(7);
+  const costLabel = `$${maxCost.toFixed(3)}`;
+  const runsLabel = String(maxRuns);
+  const padL = Math.max(38, doc.getTextWidth(costLabel) + 10);
+  const padR = Math.max(28, doc.getTextWidth(runsLabel) + 12);
+  const rotateXLabels = data.length > 14;
+  const padT = 24;
+  const padB = rotateXLabels ? 38 : 28;
+
   const innerX = x + padL, innerY = y + padT;
   const innerW = w - padL - padR;
   const innerH = h - padT - padB;
 
-  doc.setFontSize(11); doc.setTextColor(20);
-  doc.text("ต้นทุน/งาน รายวัน", x, y + 14);
-  doc.setFontSize(8);
-  doc.setFillColor(60, 90, 200);
-  doc.rect(x + 160, y + 8, 10, 6, "F");
-  doc.setTextColor(60); doc.text("ต้นทุน (USD)", x + 174, y + 14);
-  doc.setFillColor(170, 175, 185);
-  doc.rect(x + 250, y + 8, 10, 6, "F");
-  doc.text("จำนวนงาน", x + 264, y + 14);
-
   doc.setDrawColor(220);
   doc.rect(innerX, innerY, innerW, innerH);
 
-  const data = r.daily;
   if (data.length === 0) {
     doc.setFontSize(9); doc.setTextColor(150);
-    doc.text("ไม่มีข้อมูลในช่วงนี้", innerX + innerW / 2 - 30, innerY + innerH / 2);
+    const msg = "ไม่มีข้อมูลในช่วงนี้";
+    doc.text(msg, innerX + innerW / 2 - doc.getTextWidth(msg) / 2, innerY + innerH / 2);
     return;
   }
 
-  const maxCost = Math.max(...data.map((d) => d.cost), 0.0001);
-  const maxRuns = Math.max(...data.map((d) => d.runs), 1);
-
+  // Grid + Y labels
   doc.setFontSize(7); doc.setTextColor(120);
   const grids = 4;
   for (let i = 0; i <= grids; i++) {
@@ -313,24 +328,38 @@ function drawDailyChart(doc: jsPDF, r: MonthlyReport, x: number, y: number, w: n
     doc.line(innerX, gy, innerX + innerW, gy);
     const costVal = maxCost * (1 - i / grids);
     const runsVal = Math.round(maxRuns * (1 - i / grids));
-    doc.text(`$${costVal.toFixed(3)}`, x + 4, gy + 3);
-    doc.text(String(runsVal), x + w - padR + 6, gy + 3);
+    const ctxt = `$${costVal.toFixed(3)}`;
+    doc.text(ctxt, innerX - 4 - doc.getTextWidth(ctxt), gy + 3);
+    doc.text(String(runsVal), innerX + innerW + 4, gy + 3);
   }
 
-  const step = Math.max(1, Math.ceil(data.length / 8));
-  data.forEach((d, i) => {
-    if (i % step !== 0 && i !== data.length - 1) return;
-    const px = innerX + (data.length === 1 ? innerW / 2 : (innerW * i) / (data.length - 1));
-    doc.setDrawColor(220);
-    doc.line(px, innerY + innerH, px, innerY + innerH + 3);
-    doc.text(d.day.slice(5), px - 9, innerY + innerH + 14);
-  });
-
-  const ptX = (i: number) => innerX + (data.length === 1 ? innerW / 2 : (innerW * i) / (data.length - 1));
+  // Slot positions — use slot centers so first/last bars stay inside the frame
+  const slotW = innerW / data.length;
+  const ptX = (i: number) => innerX + slotW * (i + 0.5);
   const ptYCost = (v: number) => innerY + innerH - (v / maxCost) * innerH;
   const ptYRuns = (v: number) => innerY + innerH - (v / maxRuns) * innerH;
 
-  const barW = Math.max(2, (innerW / data.length) * 0.5);
+  // X labels — sample based on actual label width fit
+  doc.setTextColor(120);
+  const labelW = doc.getTextWidth("12-31");
+  const maxLabels = Math.max(2, Math.floor(innerW / (labelW + (rotateXLabels ? 6 : 14))));
+  const step = Math.max(1, Math.ceil(data.length / maxLabels));
+  data.forEach((d, i) => {
+    if (i % step !== 0 && i !== data.length - 1) return;
+    const px = ptX(i);
+    doc.setDrawColor(220);
+    doc.line(px, innerY + innerH, px, innerY + innerH + 3);
+    const txt = d.day.slice(5);
+    if (rotateXLabels) {
+      // rotate 45° CCW around anchor
+      doc.text(txt, px - 2, innerY + innerH + 16, { angle: 45 });
+    } else {
+      doc.text(txt, px - doc.getTextWidth(txt) / 2, innerY + innerH + 14);
+    }
+  });
+
+  // Bars (runs) — clamp width to slot
+  const barW = Math.max(1.2, Math.min(14, slotW * 0.6));
   doc.setFillColor(190, 195, 205);
   data.forEach((d, i) => {
     const px = ptX(i) - barW / 2;
@@ -338,12 +367,14 @@ function drawDailyChart(doc: jsPDF, r: MonthlyReport, x: number, y: number, w: n
     doc.rect(px, py, barW, innerY + innerH - py, "F");
   });
 
+  // Cost line + dots
   doc.setDrawColor(60, 90, 200); doc.setLineWidth(1.4);
   for (let i = 1; i < data.length; i++) {
     doc.line(ptX(i - 1), ptYCost(data[i - 1].cost), ptX(i), ptYCost(data[i].cost));
   }
   doc.setFillColor(60, 90, 200);
-  data.forEach((d, i) => doc.circle(ptX(i), ptYCost(d.cost), 1.6, "F"));
+  const dotR = data.length > 31 ? 1.0 : data.length > 18 ? 1.3 : 1.6;
+  data.forEach((d, i) => doc.circle(ptX(i), ptYCost(d.cost), dotR, "F"));
   doc.setLineWidth(0.4);
   doc.setTextColor(0);
 }
