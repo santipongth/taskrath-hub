@@ -130,7 +130,7 @@ export async function buildMonthlyPdf(r: MonthlyReport): Promise<Blob> {
     doc.setFontSize(9);
     // header
     ensureSpace(18);
-    doc.setFillColor(245); doc.rect(margin, y, pageW - margin * 2, 16, "F");
+    doc.setFillColor(245, 245, 245); doc.rect(margin, y, pageW - margin * 2, 16, "F");
     let x = margin + 4;
     doc.setTextColor(80);
     head.forEach((h, i) => { doc.text(h, x, y + 11); x += widths[i]; });
