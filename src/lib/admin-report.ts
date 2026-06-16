@@ -206,6 +206,8 @@ export async function buildMonthlyPdf(r: MonthlyReport, opts: BuildOptions = {})
 
   // Header + footer on every page
   const totalPages = doc.getNumberOfPages();
+  const stamp = opts.stampDataUrl || null;
+  const signature = opts.signatureDataUrl || null;
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p);
     doc.setFont("Sarabun", "normal");
@@ -213,20 +215,52 @@ export async function buildMonthlyPdf(r: MonthlyReport, opts: BuildOptions = {})
     doc.setTextColor(95);
     doc.setFontSize(9);
     doc.text("RathCoWork · รายงานการใช้งานรายเดือน", margin, margin + 12);
-    doc.text(periodLabel, pageW - margin - doc.getTextWidth(periodLabel), margin + 12);
+
+    // Stamp top-right (above the period label), preserves aspect ratio, capped
+    let stampW = 0;
+    if (stamp) {
+      try {
+        const props = doc.getImageProperties(stamp);
+        const maxH = headerH - 12, maxW = 70;
+        const ratio = props.width / props.height;
+        let sh = maxH, sw = sh * ratio;
+        if (sw > maxW) { sw = maxW; sh = sw / ratio; }
+        doc.addImage(stamp, detectImgFmt(stamp), pageW - margin - sw, margin - 2, sw, sh);
+        stampW = sw + 6;
+      } catch { /* ignore bad image */ }
+    }
+    doc.text(periodLabel, pageW - margin - stampW - doc.getTextWidth(periodLabel), margin + 12);
     if (signer) {
       doc.setFontSize(8);
       const line = `ผู้รับผิดชอบ: ${signer.name}${signer.position ? " · " + signer.position : ""}`;
-      doc.text(line, pageW - margin - doc.getTextWidth(line), margin + 24);
+      doc.text(line, pageW - margin - stampW - doc.getTextWidth(line), margin + 24);
     }
     doc.line(margin, margin + headerH - 8, pageW - margin, margin + headerH - 8);
+
+    // Footer
     doc.line(margin, pageH - margin - footerH + 4, pageW - margin, pageH - margin - footerH + 4);
     doc.setFontSize(8);
     doc.text(`สร้างเมื่อ ${generatedAt}`, margin, pageH - margin - 16);
+
+    // Signature image (bottom-center / right of "ลงนาม" text)
+    let sigOffset = 0;
+    if (signature) {
+      try {
+        const props = doc.getImageProperties(signature);
+        const maxH = footerH - 8, maxW = 90;
+        const ratio = props.width / props.height;
+        let sh = maxH, sw = sh * ratio;
+        if (sw > maxW) { sw = maxW; sh = sw / ratio; }
+        const sigX = pageW / 2 - sw / 2;
+        doc.addImage(signature, detectImgFmt(signature), sigX, pageH - margin - footerH + 6, sw, sh);
+        sigOffset = sw;
+      } catch { /* ignore */ }
+    }
     if (signer) {
       const sigLine = `ลงนาม: ${signer.name}${signer.position ? " (" + signer.position + ")" : ""}`;
       doc.text(sigLine, margin, pageH - margin - 4);
     }
+    void sigOffset;
     const pageStr = `หน้า ${p} / ${totalPages}`;
     doc.text(pageStr, pageW - margin - doc.getTextWidth(pageStr), pageH - margin - 4);
     doc.setTextColor(0);
