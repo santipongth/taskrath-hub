@@ -84,7 +84,7 @@ function computeCost(promptTokens: number, completionTokens: number) {
   return (promptTokens / 1_000_000) * PRICE_IN_PER_MTOK + (completionTokens / 1_000_000) * PRICE_OUT_PER_MTOK;
 }
 
-async function callAI(
+export async function callAI(
   systemPrompt: string,
   userPrompt: string,
 ): Promise<{ text: string; usage: AIUsage }> {
