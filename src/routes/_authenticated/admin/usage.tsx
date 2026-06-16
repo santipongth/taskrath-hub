@@ -479,3 +479,47 @@ function Table({ head, rows }: { head: string[]; rows: string[][] }) {
     </table>
   );
 }
+
+function ImageUploadField({
+  label,
+  value,
+  onPick,
+  onClear,
+}: {
+  label: string;
+  value: string | null;
+  onPick: (file: File | undefined) => void;
+  onClear: () => void;
+}) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs text-muted-foreground">{label}</label>
+      <div className="flex items-center gap-3 rounded-md border border-border bg-background p-2">
+        <div className="flex h-14 w-24 items-center justify-center overflow-hidden rounded border border-dashed border-border bg-muted/30">
+          {value ? (
+            <img src={value} alt="" className="h-full w-full object-contain" />
+          ) : (
+            <span className="text-[10px] text-muted-foreground">—</span>
+          )}
+        </div>
+        <div className="flex flex-col gap-1">
+          <input
+            type="file"
+            accept="image/png,image/jpeg"
+            onChange={(e) => onPick(e.target.files?.[0])}
+            className="text-xs file:mr-2 file:rounded-md file:border file:border-border file:bg-background file:px-2 file:py-1 file:text-xs file:text-foreground hover:file:bg-muted"
+          />
+          {value && (
+            <button
+              type="button"
+              onClick={onClear}
+              className="self-start text-[11px] text-muted-foreground underline-offset-2 hover:underline"
+            >
+              ลบรูป
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
