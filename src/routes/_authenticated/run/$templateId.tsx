@@ -192,21 +192,29 @@ function TemplateRunPage() {
                 {lang === "th" ? f.labelTh : f.labelEn}
                 {f.required && <span className="ml-1 text-destructive">*</span>}
               </Label>
-              {f.type === "textarea" && (
-                <>
-                  <input
-                    ref={(el) => { fileRefs.current[f.name] = el; }}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => { const file = e.target.files?.[0]; if (file) onUpload(f.name, file); e.target.value = ""; }}
-                  />
-                  <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-[11px]" disabled={ocrLoading === f.name} onClick={() => fileRefs.current[f.name]?.click()}>
-                    <ImagePlus className="mr-1 h-3 w-3" />
-                    {ocrLoading === f.name ? t("ocrExtracting") : t("ocrUpload")}
-                  </Button>
-                </>
-              )}
+              <div className="flex items-center gap-1">
+                <VoiceInputButton
+                  onTranscript={(text, isFinal) => {
+                    if (!isFinal) return;
+                    setInputs((p) => ({ ...p, [f.name]: (p[f.name] ? p[f.name] + " " : "") + text }));
+                  }}
+                />
+                {f.type === "textarea" && (
+                  <>
+                    <input
+                      ref={(el) => { fileRefs.current[f.name] = el; }}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => { const file = e.target.files?.[0]; if (file) onUpload(f.name, file); e.target.value = ""; }}
+                    />
+                    <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-[11px]" disabled={ocrLoading === f.name} onClick={() => fileRefs.current[f.name]?.click()}>
+                      <ImagePlus className="mr-1 h-3 w-3" />
+                      {ocrLoading === f.name ? t("ocrExtracting") : t("ocrUpload")}
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
             {f.type === "textarea" ? (
               <Textarea id={f.name} rows={5} value={inputs[f.name] ?? ""} onChange={(e) => setInputs((p) => ({ ...p, [f.name]: e.target.value }))} className="resize-none border-border shadow-none focus-visible:ring-1" />
