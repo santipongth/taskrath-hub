@@ -97,8 +97,27 @@ function AgentsPage() {
     }
   };
 
+  const fieldErrors = (() => {
+    if (!activeSkill) return {} as Record<string, string>;
+    const errs: Record<string, string> = {};
+    for (const f of activeSkill.fields) {
+      const v = (skillFields[f.key] ?? "").trim();
+      if (f.required && !v) errs[f.key] = "ต้องกรอก";
+      else if (v && f.type === "number" && !/^-?\d+(\.\d+)?$/.test(v)) errs[f.key] = "ต้องเป็นตัวเลข";
+      else if (v && f.type === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) errs[f.key] = "อีเมลไม่ถูกต้อง";
+      else if (v && f.type === "url" && !/^https?:\/\/\S+/i.test(v)) errs[f.key] = "URL ต้องขึ้นต้นด้วย http(s)://";
+      else if (v && f.type === "date" && !/^\d{4}-\d{2}-\d{2}$/.test(v)) errs[f.key] = "รูปแบบวันที่: YYYY-MM-DD";
+    }
+    return errs;
+  })();
+  const hasFieldErrors = Object.keys(fieldErrors).length > 0;
+
   const onRunDept = async () => {
     if (!activeDept || !prompt.trim()) return;
+    if (hasFieldErrors) {
+      toast.error("กรุณากรอกข้อมูลให้ครบและถูกต้องก่อนรัน");
+      return;
+    }
     setLoading(true);
     setOutput("");
     setRunId(null);
@@ -122,6 +141,7 @@ function AgentsPage() {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-8">
