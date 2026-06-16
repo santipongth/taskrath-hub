@@ -244,10 +244,73 @@ export const runTemplate = createServerFn({ method: "POST" })
 
   });
 
+const attachmentSchema = z.object({
+  name: z.string().max(255),
+  // "image" → image_url block, "pdf" → file block, "text" → inlined as text
+  kind: z.enum(["image", "pdf", "text"]),
+  // data URL for image/pdf; plain text content for "text"
+  data: z.string().min(1).max(15_000_000),
+  mime: z.string().max(120).optional(),
+});
+export type AttachmentInput = z.infer<typeof attachmentSchema>;
+
+async function callAIMultimodal(
+  systemPrompt: string,
+  userText: string,
+  attachments: AttachmentInput[],
+): Promise<{ text: string; usage: AIUsage }> {
+  const key = process.env.LOVABLE_API_KEY;
+  if (!key) throw new Error("AI service not configured");
+
+  const textParts = attachments
+    .filter((a) => a.kind === "text")
+    .map((a) => `\n\n<ไฟล์แนบ name="${a.name}">\n${a.data.slice(0, 100_000)}\n</ไฟล์แนบ>`)
+    .join("");
+
+  const content: Array<Record<string, unknown>> = [
+    { type: "text", text: userText + textParts },
+  ];
+  for (const a of attachments) {
+    if (a.kind === "image") {
+      content.push({ type: "image_url", image_url: { url: a.data } });
+    } else if (a.kind === "pdf") {
+      content.push({ type: "file", file: { filename: a.name, file_data: a.data } });
+    }
+  }
+
+  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content },
+      ],
+    }),
+  });
+  if (res.status === 429) throw new Error("Rate limit exceeded. Please try again shortly.");
+  if (res.status === 402) throw new Error("AI credits exhausted. Please add credits in workspace settings.");
+  if (!res.ok) throw new Error(`AI error ${res.status}`);
+  const json = await res.json();
+  const pt = json.usage?.prompt_tokens ?? 0;
+  const ct = json.usage?.completion_tokens ?? 0;
+  return {
+    text: json.choices?.[0]?.message?.content ?? "",
+    usage: { promptTokens: pt, completionTokens: ct, costUsd: computeCost(pt, ct) },
+  };
+}
+
 export const runFreeform = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({ prompt: z.string().min(1).max(20000), redactPii: z.boolean().optional().default(true) }).parse(input),
+    z
+      .object({
+        prompt: z.string().min(1).max(20000),
+        redactPii: z.boolean().optional().default(true),
+        attachments: z.array(attachmentSchema).max(10).optional().default([]),
+      })
+      .parse(input),
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
@@ -259,28 +322,32 @@ export const runFreeform = createServerFn({ method: "POST" })
     const r = data.redactPii ? redactPII(data.prompt) : { text: data.prompt, map: {}, counts: {} };
     const kbCtx = await retrieveKbContext(supabase, data.prompt);
     const systemPrompt = withKbContext(
-      "คุณเป็นผู้ช่วย AI สำหรับเจ้าหน้าที่ราชการไทย ตอบอย่างกระชับ สุภาพ และใช้ภาษาทางการ",
+      "คุณเป็นผู้ช่วย AI สำหรับเจ้าหน้าที่ราชการไทย ตอบอย่างกระชับ สุภาพ และใช้ภาษาทางการ หากมีไฟล์แนบ (รูปภาพ/PDF/ข้อความ) ให้วิเคราะห์เนื้อหาไฟล์ประกอบคำตอบด้วย",
       kbCtx,
     );
-    const ai = await callAI(systemPrompt, r.text);
+    const atts = data.attachments ?? [];
+    const ai = atts.length > 0
+      ? await callAIMultimodal(systemPrompt, r.text, atts)
+      : await callAI(systemPrompt, r.text);
     const output = data.redactPii ? restorePII(ai.text, r.map) : ai.text;
+    const attachmentsMeta = atts.map((a) => ({ name: a.name, kind: a.kind, mime: a.mime ?? null }));
     const { data: run, error } = await supabase
       .from("ai_runs")
       .insert({
         user_id: userId,
         template_id: null,
-        input: { prompt: data.prompt },
+        input: { prompt: data.prompt, attachments: attachmentsMeta },
         output,
         status: "completed",
         prompt_tokens: ai.usage.promptTokens,
         completion_tokens: ai.usage.completionTokens,
         cost_usd: ai.usage.costUsd,
-        metadata: kbCtx ? { citations: kbCtx.citations } : {},
+        metadata: { ...(kbCtx ? { citations: kbCtx.citations } : {}), attachments: attachmentsMeta },
       })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
-    await logAudit(supabase, userId, "ai.run", null, { run_id: run.id, pii: piiSummary(r.counts), guard_score: guard.score, usage: ai.usage, kb_citations: kbCtx?.citations.length ?? 0 });
+    await logAudit(supabase, userId, "ai.run", null, { run_id: run.id, pii: piiSummary(r.counts), guard_score: guard.score, usage: ai.usage, kb_citations: kbCtx?.citations.length ?? 0, attachments: attachmentsMeta.length });
     await notifyEvent(supabase, "complete", `✅ RathCoWork: รันคำสั่ง AI เสร็จสิ้น`);
     return { id: run.id, output, pii: piiSummary(r.counts), guard: { score: guard.score, decision: guard.decision }, usage: ai.usage, citations: kbCtx?.citations ?? [] };
 
