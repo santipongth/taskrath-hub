@@ -53,7 +53,24 @@ function RunDetail() {
 
   const run = data.run;
   const tpl = run.template_id ? TEMPLATES_BY_ID[run.template_id] : null;
-  const inputObj = (run.input ?? {}) as Record<string, string>;
+  const inputObj = (run.input ?? {}) as Record<string, unknown>;
+  const attachments = (Array.isArray((inputObj as { attachments?: unknown }).attachments)
+    ? (inputObj as { attachments: Array<{ name: string; kind: string; mime?: string | null; size?: number | null }> }).attachments
+    : []) as Array<{ name: string; kind: string; mime?: string | null; size?: number | null }>;
+  const inputEntries = Object.entries(inputObj).filter(([k]) => k !== "attachments");
+
+  const fmtSize = (b?: number | null) => {
+    if (b == null) return "—";
+    if (b < 1024) return `${b} B`;
+    if (b < 1024 * 1024) return `${(b / 1024).toFixed(0)} KB`;
+    return `${(b / 1024 / 1024).toFixed(1)} MB`;
+  };
+  const downloadOutput = () => {
+    const blob = new Blob([output], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = `run-${runId}.txt`; a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-8">
@@ -70,7 +87,7 @@ function RunDetail() {
       <div className="mt-6 rounded-lg border border-border bg-card p-5">
         <h2 className="mb-3 text-sm font-semibold">{lang === "th" ? "ข้อมูลที่ป้อน" : "Inputs"}</h2>
         <dl className="space-y-2 text-sm">
-          {Object.entries(inputObj).map(([k, v]) => (
+          {inputEntries.map(([k, v]) => (
             <div key={k}>
               <dt className="text-xs uppercase tracking-wide text-muted-foreground">{k}</dt>
               <dd className="mt-0.5 whitespace-pre-wrap text-foreground">{String(v)}</dd>
@@ -78,6 +95,37 @@ function RunDetail() {
           ))}
         </dl>
       </div>
+
+      {attachments.length > 0 && (
+        <div className="mt-4 rounded-lg border border-border bg-card p-5">
+          <h2 className="mb-3 flex items-center gap-1.5 text-sm font-semibold">
+            <Paperclip className="h-3.5 w-3.5" />
+            {lang === "th" ? "ไฟล์แนบ" : "Attachments"} ({attachments.length})
+          </h2>
+          <div className="overflow-hidden rounded-md border border-border">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-2 text-left font-medium">{lang === "th" ? "ชื่อไฟล์" : "Name"}</th>
+                  <th className="px-3 py-2 text-left font-medium">{lang === "th" ? "ชนิด" : "Kind"}</th>
+                  <th className="px-3 py-2 text-left font-medium">MIME</th>
+                  <th className="px-3 py-2 text-right font-medium">{lang === "th" ? "ขนาด" : "Size"}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {attachments.map((a, i) => (
+                  <tr key={i} className="border-t border-border">
+                    <td className="px-3 py-2 text-foreground">{a.name}</td>
+                    <td className="px-3 py-2"><Badge variant="outline" className="text-[10px]">{a.kind}</Badge></td>
+                    <td className="px-3 py-2 text-xs text-muted-foreground">{a.mime ?? "—"}</td>
+                    <td className="px-3 py-2 text-right text-xs text-muted-foreground">{fmtSize(a.size)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <div className="mt-4 rounded-lg border border-border bg-card p-5">
         <div className="mb-3 flex items-center justify-between gap-2">
@@ -92,6 +140,9 @@ function RunDetail() {
           <div className="flex items-center gap-1">
             <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(output); toast.success(t("copied")); }}>
               <Copy className="mr-1.5 h-3.5 w-3.5" />{t("copy")}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={downloadOutput}>
+              <Download className="mr-1.5 h-3.5 w-3.5" />.txt
             </Button>
             <ExportDialog
               run={{ ...run, output }}
