@@ -8,16 +8,18 @@ import { TEMPLATES } from "@/lib/templates";
 import { useI18n } from "@/lib/i18n";
 import {
   LayoutDashboard, Sparkles, LibraryBig, History as HistoryIcon,
-  Settings, PieChart, Bell,
+  Settings, PieChart, Bell, MessageSquare, BarChart3,
 } from "lucide-react";
 
 const PAGES = [
   { to: "/", labelTh: "หน้าหลัก", labelEn: "Dashboard", icon: LayoutDashboard },
   { to: "/run", labelTh: "สั่งงานอิสระ", labelEn: "Freeform Run", icon: Sparkles },
+  { to: "/chat", labelTh: "ถาม-ตอบกฎระเบียบ (KB Chat)", labelEn: "KB Chat (RAG Q&A)", icon: MessageSquare },
   { to: "/templates", labelTh: "เทมเพลตทั้งหมด", labelEn: "All Templates", icon: LibraryBig },
   { to: "/history", labelTh: "ประวัติการใช้งาน", labelEn: "History", icon: HistoryIcon },
   { to: "/settings", labelTh: "ตั้งค่า", labelEn: "Settings", icon: Settings },
   { to: "/admin/dashboard", labelTh: "แดชบอร์ดผู้บริหาร", labelEn: "Executive Dashboard", icon: PieChart },
+  { to: "/admin/usage", labelTh: "การใช้งาน AI (admin)", labelEn: "AI Usage (admin)", icon: BarChart3 },
   { to: "/admin/notifications", labelTh: "การแจ้งเตือน", labelEn: "Notifications", icon: Bell },
 ] as const;
 
