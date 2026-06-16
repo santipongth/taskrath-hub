@@ -1,10 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { useState } from "react";
 import { useI18n } from "@/lib/i18n";
-import { adminUsageStats } from "@/lib/ai.functions";
+import { adminUsageStats, adminMonthlyReport } from "@/lib/ai.functions";
+import { buildMonthlyCsv, buildMonthlyPdf, downloadBlob, reportFilename } from "@/lib/admin-report";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BarChart3, Coins, Activity, Users, AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { BarChart3, Coins, Activity, Users, AlertTriangle, FileDown, FileText, Loader2 } from "lucide-react";
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
 } from "recharts";
