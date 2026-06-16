@@ -16,7 +16,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { MoreHorizontal, FileDown, FileText, Search, X } from "lucide-react";
+import { MoreHorizontal, FileDown, FileText, Search, X, Paperclip } from "lucide-react";
 import { exportRunToPdf, exportRunToDocx } from "@/lib/export";
 import { toast } from "sonner";
 
