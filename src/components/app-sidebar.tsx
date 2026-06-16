@@ -45,10 +45,7 @@ export function AppSidebar() {
         <Link to="/" className="flex items-center gap-2">
           <img src={logo.url} alt="RathCoWork" className="h-8 w-8 object-contain" />
           {!collapsed && (
-            <div className="flex flex-col leading-tight">
-              <span className="text-sm font-semibold text-foreground">RathCoWork</span>
-              <span className="text-[11px] text-muted-foreground">ทาสก์-รัฐ</span>
-            </div>
+            <span className="text-sm font-semibold text-foreground">RathCoWork</span>
           )}
         </Link>
       </SidebarHeader>
