@@ -45,6 +45,28 @@ function AdminUsagePage() {
   const [loadingReport, setLoadingReport] = useState(false);
   const [exporting, setExporting] = useState<"pdf" | "csv" | null>(null);
   const [preview, setPreview] = useState<MonthlyReport | null>(null);
+  const [signerName, setSignerName] = useState("");
+  const [signerPosition, setSignerPosition] = useState("");
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("rathcowork.report.signer");
+      if (raw) {
+        const p = JSON.parse(raw) as { name?: string; position?: string };
+        setSignerName(p.name ?? "");
+        setSignerPosition(p.position ?? "");
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "rathcowork.report.signer",
+        JSON.stringify({ name: signerName, position: signerPosition }),
+      );
+    } catch { /* ignore */ }
+  }, [signerName, signerPosition]);
 
   async function loadPreview() {
     setLoadingReport(true);
@@ -62,10 +84,13 @@ function AdminUsagePage() {
     if (!preview) return;
     setExporting(kind);
     try {
+      const signer = (signerName || signerPosition)
+        ? { name: signerName.trim(), position: signerPosition.trim() }
+        : null;
       if (kind === "csv") {
         downloadBlob(reportFilename(preview, "csv"), "text/csv;charset=utf-8", buildMonthlyCsv(preview));
       } else {
-        const blob = await buildMonthlyPdf(preview);
+        const blob = await buildMonthlyPdf(preview, { signer });
         downloadBlob(reportFilename(preview, "pdf"), "application/pdf", blob);
       }
       toast.success(L("ดาวน์โหลดสำเร็จ", "Download started"));
@@ -75,6 +100,7 @@ function AdminUsagePage() {
       setExporting(null);
     }
   }
+
 
 
   if (error) {
