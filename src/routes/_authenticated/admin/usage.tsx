@@ -118,13 +118,9 @@ function AdminUsagePage() {
               <option key={y} value={y}>{y}</option>
             ))}
           </select>
-          <Button size="sm" variant="outline" disabled={!!exporting} onClick={() => handleExport("csv")}>
-            {exporting === "csv" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-            <span className="ml-1">CSV</span>
-          </Button>
-          <Button size="sm" disabled={!!exporting} onClick={() => handleExport("pdf")}>
-            {exporting === "pdf" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
-            <span className="ml-1">PDF</span>
+          <Button size="sm" disabled={loadingReport} onClick={loadPreview}>
+            {loadingReport ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
+            <span className="ml-1">{L("พรีวิวรายงาน", "Preview report")}</span>
           </Button>
         </div>
       </div>
