@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useI18n } from "@/lib/i18n";
 import { adminUsageStats } from "@/lib/ai.functions";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BarChart3, Coins, Activity, Users } from "lucide-react";
+import { BarChart3, Coins, Activity, Users, AlertTriangle } from "lucide-react";
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
 } from "recharts";
@@ -61,11 +61,16 @@ function AdminUsagePage() {
         </div>
       ) : data ? (
         <>
-          <div className="grid gap-3 sm:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <StatCard icon={Activity} label={L("งานทั้งหมด", "Total runs")} value={data.totals.runs.toLocaleString()} />
             <StatCard icon={BarChart3} label={L("โทเค็น (input)", "Prompt tokens")} value={fmtTokens(data.totals.promptTokens)} />
             <StatCard icon={BarChart3} label={L("โทเค็น (output)", "Completion tokens")} value={fmtTokens(data.totals.completionTokens)} />
             <StatCard icon={Coins} label={L("ต้นทุนรวม", "Total cost")} value={fmtCost(data.totals.costUsd)} />
+            <StatCard
+              icon={AlertTriangle}
+              label={L("อัตรา fail", "Fail rate")}
+              value={`${(data.totals.failRate * 100).toFixed(1)}% (${data.totals.fails})`}
+            />
           </div>
 
           <section className="mt-8 rounded-lg border border-border bg-card p-5">
@@ -110,11 +115,35 @@ function AdminUsagePage() {
                 {L("เทมเพลตยอดนิยม", "Top templates")}
               </h2>
               <Table
-                head={[L("เทมเพลต", "Template"), L("งาน", "Runs"), L("โทเค็น", "Tokens"), L("ต้นทุน", "Cost")]}
-                rows={data.topTemplates.map((t) => [t.id, t.runs.toString(), fmtTokens(t.tokens), fmtCost(t.cost)])}
+                head={[L("เทมเพลต", "Template"), L("งาน", "Runs"), L("เฉลี่ย tok", "Avg tok"), L("ต้นทุน", "Cost"), L("fail %", "Fail %")]}
+                rows={data.topTemplates.map((t) => [
+                  t.id,
+                  t.runs.toString(),
+                  fmtTokens(t.avgTokens),
+                  fmtCost(t.cost),
+                  `${(t.failRate * 100).toFixed(1)}%`,
+                ])}
               />
             </section>
           </div>
+
+          {data.worstTemplates.length > 0 && (
+            <section className="mt-6 rounded-lg border border-amber-500/40 bg-amber-500/5 p-5">
+              <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                {L("เทมเพลตที่ fail บ่อย", "Templates with most failures")}
+              </h2>
+              <Table
+                head={[L("เทมเพลต", "Template"), L("fail", "Fails"), L("งาน", "Runs"), L("fail %", "Fail %")]}
+                rows={data.worstTemplates.map((t) => [
+                  t.id,
+                  t.fails.toString(),
+                  t.runs.toString(),
+                  `${(t.failRate * 100).toFixed(1)}%`,
+                ])}
+              />
+            </section>
+          )}
         </>
       ) : null}
     </div>

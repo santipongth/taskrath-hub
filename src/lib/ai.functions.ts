@@ -512,7 +512,7 @@ export const adminUsageStats = createServerFn({ method: "GET" })
     const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const { data: runs, error } = await supabase
       .from("ai_runs")
-      .select("user_id, template_id, prompt_tokens, completion_tokens, cost_usd, created_at")
+      .select("user_id, template_id, prompt_tokens, completion_tokens, cost_usd, status, created_at")
       .gte("created_at", since)
       .order("created_at", { ascending: false })
       .limit(5000);
@@ -524,18 +524,21 @@ export const adminUsageStats = createServerFn({ method: "GET" })
     let totalPromptTokens = 0;
     let totalCompletionTokens = 0;
     let totalCost = 0;
+    let totalFails = 0;
     const byDay = new Map<string, { tokens: number; cost: number; runs: number }>();
     const byUser = new Map<string, { runs: number; tokens: number; cost: number }>();
-    const byTemplate = new Map<string, { runs: number; tokens: number; cost: number }>();
+    const byTemplate = new Map<string, { runs: number; tokens: number; cost: number; fails: number }>();
 
     for (const r of list) {
       const pt = r.prompt_tokens ?? 0;
       const ct = r.completion_tokens ?? 0;
       const cost = Number(r.cost_usd ?? 0);
       const tokens = pt + ct;
+      const failed = r.status === "error" || r.status === "failed";
       totalPromptTokens += pt;
       totalCompletionTokens += ct;
       totalCost += cost;
+      if (failed) totalFails += 1;
       const day = r.created_at.slice(0, 10);
       const d = byDay.get(day) ?? { tokens: 0, cost: 0, runs: 0 };
       d.tokens += tokens; d.cost += cost; d.runs += 1;
@@ -544,8 +547,8 @@ export const adminUsageStats = createServerFn({ method: "GET" })
       u.runs += 1; u.tokens += tokens; u.cost += cost;
       byUser.set(r.user_id, u);
       const tid = r.template_id ?? "(freeform)";
-      const t = byTemplate.get(tid) ?? { runs: 0, tokens: 0, cost: 0 };
-      t.runs += 1; t.tokens += tokens; t.cost += cost;
+      const t = byTemplate.get(tid) ?? { runs: 0, tokens: 0, cost: 0, fails: 0 };
+      t.runs += 1; t.tokens += tokens; t.cost += cost; if (failed) t.fails += 1;
       byTemplate.set(tid, t);
     }
 
@@ -555,12 +558,21 @@ export const adminUsageStats = createServerFn({ method: "GET" })
       : { data: [] as { id: string; display_name: string | null }[] };
     const nameMap = new Map((profiles ?? []).map((p) => [p.id, p.display_name ?? p.id.slice(0, 8)]));
 
+    const tplRows = [...byTemplate.entries()].map(([id, v]) => ({
+      id,
+      ...v,
+      avgTokens: v.runs ? Math.round(v.tokens / v.runs) : 0,
+      failRate: v.runs ? v.fails / v.runs : 0,
+    }));
+
     return {
       totals: {
         runs: list.length,
         promptTokens: totalPromptTokens,
         completionTokens: totalCompletionTokens,
         costUsd: totalCost,
+        fails: totalFails,
+        failRate: list.length ? totalFails / list.length : 0,
       },
       daily: [...byDay.entries()]
         .map(([day, v]) => ({ day, ...v }))
@@ -569,9 +581,9 @@ export const adminUsageStats = createServerFn({ method: "GET" })
         .map(([id, v]) => ({ id, name: nameMap.get(id) ?? id.slice(0, 8), ...v }))
         .sort((a, b) => b.cost - a.cost)
         .slice(0, 10),
-      topTemplates: [...byTemplate.entries()]
-        .map(([id, v]) => ({ id, ...v }))
-        .sort((a, b) => b.runs - a.runs)
+      topTemplates: [...tplRows].sort((a, b) => b.runs - a.runs).slice(0, 15),
+      worstTemplates: tplRows.filter((t) => t.fails > 0)
+        .sort((a, b) => b.failRate - a.failRate || b.fails - a.fails)
         .slice(0, 10),
     };
   });

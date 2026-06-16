@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Search, LogOut, User as UserIcon } from "lucide-react";
+import { Search, LogOut, User as UserIcon, Keyboard } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./app-sidebar";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import {
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { CommandPalette } from "./command-palette";
+import { KeyboardShortcuts } from "./keyboard-shortcuts";
 import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "@tanstack/react-router";
@@ -39,6 +40,14 @@ export function AppShell({ children, userEmail }: { children: ReactNode; userEma
               </kbd>
             </button>
             <div className="ml-auto flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                title={lang === "th" ? "คีย์ลัด (?)" : "Keyboard shortcuts (?)"}
+                onClick={() => window.dispatchEvent(new CustomEvent("open-shortcuts"))}
+              >
+                <Keyboard className="h-4 w-4" />
+              </Button>
               <div className="flex items-center rounded-md border border-border p-0.5 text-xs">
                 <button
                   onClick={() => setLang("th")}
@@ -76,6 +85,7 @@ export function AppShell({ children, userEmail }: { children: ReactNode; userEma
         </div>
       </div>
       <CommandPalette />
+      <KeyboardShortcuts />
     </SidebarProvider>
   );
 }
