@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { VoiceInputButton } from "@/components/voice-input-button";
 
-export const Route = createFileRoute("/_authenticated/agents")({
+export const Route = createFileRoute("/_authenticated/agents/")({
   head: () => ({ meta: [{ title: "Agents · RathCoWork" }] }),
   component: AgentsPage,
 });
