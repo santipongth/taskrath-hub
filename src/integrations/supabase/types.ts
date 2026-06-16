@@ -19,6 +19,9 @@ export type Database = {
           completion_tokens: number
           cost_usd: number
           created_at: string
+          department: string | null
+          dept_agent_id: string | null
+          dept_skill_id: string | null
           id: string
           input: Json
           metadata: Json
@@ -34,6 +37,9 @@ export type Database = {
           completion_tokens?: number
           cost_usd?: number
           created_at?: string
+          department?: string | null
+          dept_agent_id?: string | null
+          dept_skill_id?: string | null
           id?: string
           input?: Json
           metadata?: Json
@@ -49,6 +55,9 @@ export type Database = {
           completion_tokens?: number
           cost_usd?: number
           created_at?: string
+          department?: string | null
+          dept_agent_id?: string | null
+          dept_skill_id?: string | null
           id?: string
           input?: Json
           metadata?: Json
@@ -60,7 +69,22 @@ export type Database = {
           title?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ai_runs_dept_agent_id_fkey"
+            columns: ["dept_agent_id"]
+            isOneToOne: false
+            referencedRelation: "dept_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_runs_dept_skill_id_fkey"
+            columns: ["dept_skill_id"]
+            isOneToOne: false
+            referencedRelation: "dept_skills"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       app_settings: {
         Row: {
@@ -263,6 +287,126 @@ export type Database = {
           system_prompt_th?: string
           title_en?: string
           title_th?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      dept_agent_skills: {
+        Row: {
+          agent_id: string
+          order_index: number
+          skill_id: string
+        }
+        Insert: {
+          agent_id: string
+          order_index?: number
+          skill_id: string
+        }
+        Update: {
+          agent_id?: string
+          order_index?: number
+          skill_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dept_agent_skills_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "dept_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dept_agent_skills_skill_id_fkey"
+            columns: ["skill_id"]
+            isOneToOne: false
+            referencedRelation: "dept_skills"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dept_agents: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          default_model: string | null
+          department: string
+          description: string | null
+          id: string
+          name: string
+          role_prompt: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          default_model?: string | null
+          department: string
+          description?: string | null
+          id?: string
+          name: string
+          role_prompt?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          default_model?: string | null
+          department?: string
+          description?: string | null
+          id?: string
+          name?: string
+          role_prompt?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      dept_skills: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          department: string
+          description: string | null
+          fields: Json
+          id: string
+          kb_category: string | null
+          model: string | null
+          name: string
+          needs_approval: boolean
+          status: string
+          system_prompt: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          department: string
+          description?: string | null
+          fields?: Json
+          id?: string
+          kb_category?: string | null
+          model?: string | null
+          name: string
+          needs_approval?: boolean
+          status?: string
+          system_prompt?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          department?: string
+          description?: string | null
+          fields?: Json
+          id?: string
+          kb_category?: string | null
+          model?: string | null
+          name?: string
+          needs_approval?: boolean
+          status?: string
+          system_prompt?: string
           updated_at?: string
         }
         Relationships: []
@@ -485,6 +629,14 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_dept_admin: {
+        Args: { _dept: string; _user_id: string }
+        Returns: boolean
+      }
+      is_in_department: {
+        Args: { _dept: string; _user_id: string }
         Returns: boolean
       }
       log_audit: {
