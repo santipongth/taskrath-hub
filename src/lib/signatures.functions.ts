@@ -47,15 +47,14 @@ export const createSignature = createServerFn({ method: "POST" })
     return { id: row.id as string, signedAt: row.signed_at as string };
   });
 
-// Public (no auth) — used by /verify/$id page; uses anon RLS SELECT policy
+// Public (no auth) — used by /verify/$id page; calls SECURITY DEFINER RPC
+// that returns only the single requested row (no table-wide enumeration).
 export async function fetchVerifySignature(id: string): Promise<VerifySignature | null> {
-  const { data, error } = await publicClient
-    .from("signed_documents")
-    .select("id, signer_name, signer_position, agency_name, document_subject, ref_no, content_hash, signed_at")
-    .eq("id", id)
-    .maybeSingle();
-  if (error || !data) return null;
-  return data as VerifySignature;
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return null;
+  const { data, error } = await publicClient.rpc("verify_signed_document", { p_id: id });
+  if (error || !data || (Array.isArray(data) && data.length === 0)) return null;
+  const row = Array.isArray(data) ? data[0] : data;
+  return row as VerifySignature;
 }
 
 // Browser-side helper
