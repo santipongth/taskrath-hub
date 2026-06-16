@@ -4,11 +4,12 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { adminUsageStats, adminMonthlyReport } from "@/lib/ai.functions";
-import { buildMonthlyCsv, buildMonthlyPdf, downloadBlob, reportFilename } from "@/lib/admin-report";
+import { buildMonthlyCsv, buildMonthlyPdf, downloadBlob, reportFilename, type MonthlyReport } from "@/lib/admin-report";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { BarChart3, Coins, Activity, Users, AlertTriangle, FileDown, FileText, Loader2 } from "lucide-react";
+import { BarChart3, Coins, Activity, Users, AlertTriangle, FileDown, FileText, Loader2, Eye } from "lucide-react";
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
 } from "recharts";
