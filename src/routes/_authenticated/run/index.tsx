@@ -61,20 +61,24 @@ function RunPage() {
       <div className="rounded-lg border border-border bg-card p-5">
         <Textarea
           value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
+          onChange={(e) => { baseRef.current = e.target.value; setPrompt(e.target.value); }}
           placeholder={t("freeformPlaceholder")}
           rows={6}
           className="resize-none border-border shadow-none focus-visible:ring-1"
         />
-        <div className="mt-3 flex items-center justify-between">
+        <div className="mt-3 flex items-center justify-between gap-2">
           <p className="text-xs text-muted-foreground">
             {lang === "th" ? "หรือเลือกเทมเพลตเพื่อกรอกฟอร์มที่มีโครงสร้าง" : "Or pick a template for a structured form"}
           </p>
-          <Button onClick={onRun} disabled={loading || !prompt.trim()}>
-            {loading ? t("running") : t("run")}
-          </Button>
+          <div className="flex items-center gap-2">
+            <VoiceInputButton onTranscript={onVoice} />
+            <Button onClick={onRun} disabled={loading || !prompt.trim()}>
+              {loading ? t("running") : t("run")}
+            </Button>
+          </div>
         </div>
       </div>
+
 
       {output && (
         <div className="mt-6 rounded-lg border border-border bg-card p-5">
