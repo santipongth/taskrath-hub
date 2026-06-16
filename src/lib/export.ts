@@ -330,7 +330,6 @@ export async function exportRunToPdf(
   options: ExportOptions = {},
 ) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
-  doc.setProperties({ title: subject, subject, author: "RathCoWork", creator: "RathCoWork" });
   await ensureSarabun(doc);
 
   const margin = 56;
