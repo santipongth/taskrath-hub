@@ -43,7 +43,7 @@ function ExecutiveDashboard() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `taskrath-usage-${days}d.csv`;
+    a.download = `rathcowork-usage-${days}d.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
