@@ -426,46 +426,98 @@ function AdminUsagePage() {
                   <ImageUploadField
                     label={L("รูปลายเซ็น (ฟุตเตอร์, PNG/JPG ≤2MB)", "Signature image (footer, PNG/JPG ≤2MB)")}
                     value={signatureDataUrl}
+                    processed={processedSig}
+                    scale={sigScale} onScale={setSigScale}
+                    sharp={sigSharp} onSharp={setSigSharp}
+                    trim={sigTrim} onTrim={setSigTrim}
                     onPick={(f) => onPickImage("signature", f)}
                     onClear={() => setSignatureDataUrl(null)}
                   />
                   <ImageUploadField
                     label={L("ตราประทับ (หัวกระดาษ, PNG/JPG ≤2MB)", "Stamp (header, PNG/JPG ≤2MB)")}
                     value={stampDataUrl}
+                    processed={processedStamp}
+                    scale={stampScale} onScale={setStampScale}
+                    sharp={stampSharp} onSharp={setStampSharp}
+                    trim={stampTrim} onTrim={setStampTrim}
                     onPick={(f) => onPickImage("stamp", f)}
                     onClear={() => setStampDataUrl(null)}
                   />
                 </div>
 
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-xs text-muted-foreground">
+                      {L("ภาษาในหัว/ฟุตเตอร์ PDF", "PDF header/footer language")}
+                    </label>
+                    <select
+                      className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+                      value={reportLocale}
+                      onChange={(e) => {
+                        const v = e.target.value as ReportLocale;
+                        setReportLocale(v);
+                        setDateFormat(v === "en" ? "en-long" : "th-long");
+                      }}
+                    >
+                      <option value="th">ไทย</option>
+                      <option value="en">English</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-muted-foreground">
+                      {L("รูปแบบวันที่", "Date format")}
+                    </label>
+                    <select
+                      className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+                      value={dateFormat}
+                      onChange={(e) => setDateFormat(e.target.value as DateFormat)}
+                    >
+                      <option value="th-long">{L("ไทยแบบยาว (พ.ศ.)", "Thai long (B.E.)")} — 16 มิถุนายน 2569</option>
+                      <option value="th-short">{L("ไทยแบบสั้น", "Thai short")} — 16/06/2569</option>
+                      <option value="en-long">English long — June 16, 2026</option>
+                      <option value="en-short">English short — 06/16/2026</option>
+                      <option value="iso">ISO — 2026-06-16</option>
+                    </select>
+                  </div>
+                </div>
+
                 <div className="mt-4 rounded-md border border-dashed border-border bg-background p-3 text-xs">
                   <p className="mb-2 font-medium text-muted-foreground">{L("ตัวอย่างที่จะอยู่ใน PDF", "PDF preview")}</p>
                   <div className="flex items-start justify-between gap-3 border-b border-border pb-2 text-[11px] text-muted-foreground">
-                    <span>RathCoWork · รายงานการใช้งานรายเดือน</span>
+                    <span>
+                      {reportLocale === "en"
+                        ? "RathCoWork · Monthly Usage Report"
+                        : "RathCoWork · รายงานการใช้งานรายเดือน"}
+                    </span>
                     <div className="flex items-start gap-2">
                       <div className="text-right">
-                        <div>{String(preview.period.month).padStart(2, "0")}/{preview.period.year}</div>
+                        <div>{formatPeriod(preview.period.year, preview.period.month, reportLocale)}</div>
                         {(signerName || signerPosition) && (
                           <div className="text-[10px]">
-                            ผู้รับผิดชอบ: {signerName}{signerPosition ? ` · ${signerPosition}` : ""}
+                            {reportLocale === "en" ? "Owner" : "ผู้รับผิดชอบ"}: {signerName}{signerPosition ? ` · ${signerPosition}` : ""}
                           </div>
                         )}
                       </div>
-                      {stampDataUrl && (
-                        <img src={stampDataUrl} alt="stamp" className="h-10 w-auto object-contain" />
+                      {(processedStamp ?? stampDataUrl) && (
+                        <img src={processedStamp ?? stampDataUrl ?? ""} alt="stamp" className="h-10 w-auto object-contain" />
                       )}
                     </div>
                   </div>
                   <div className="mt-3 flex items-end justify-between gap-3 border-t border-border pt-2 text-[10px] text-muted-foreground">
                     <div>
-                      <div>สร้างเมื่อ {new Date().toLocaleString("th-TH")}</div>
+                      <div>
+                        {reportLocale === "en" ? "Generated" : "สร้างเมื่อ"} {formatReportDate(new Date(), dateFormat)}
+                      </div>
                       {(signerName || signerPosition) && (
-                        <div>ลงนาม: {signerName}{signerPosition ? ` (${signerPosition})` : ""}</div>
+                        <div>
+                          {reportLocale === "en" ? "Signed" : "ลงนาม"}: {signerName}{signerPosition ? ` (${signerPosition})` : ""}
+                        </div>
                       )}
                     </div>
-                    {signatureDataUrl && (
-                      <img src={signatureDataUrl} alt="signature" className="h-10 w-auto object-contain" />
+                    {(processedSig ?? signatureDataUrl) && (
+                      <img src={processedSig ?? signatureDataUrl ?? ""} alt="signature" className="h-10 w-auto object-contain" />
                     )}
-                    <div>หน้า 1 / N</div>
+                    <div>{reportLocale === "en" ? "Page" : "หน้า"} 1 / N</div>
                   </div>
                 </div>
               </section>
