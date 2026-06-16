@@ -366,7 +366,7 @@ export const runDeptAgent = createServerFn({ method: "POST" })
     if (needsApproval) {
       await supabase.from("approvals").insert({
         run_id: run.id,
-        requested_by: userId,
+        requester_id: userId,
         status: "pending",
       });
       await notifyEvent(
