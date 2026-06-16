@@ -47,26 +47,57 @@ function AdminUsagePage() {
   const [preview, setPreview] = useState<MonthlyReport | null>(null);
   const [signerName, setSignerName] = useState("");
   const [signerPosition, setSignerPosition] = useState("");
+  const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
+  const [stampDataUrl, setStampDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem("rathcowork.report.signer");
       if (raw) {
-        const p = JSON.parse(raw) as { name?: string; position?: string };
+        const p = JSON.parse(raw) as { name?: string; position?: string; signature?: string; stamp?: string };
         setSignerName(p.name ?? "");
         setSignerPosition(p.position ?? "");
+        if (p.signature) setSignatureDataUrl(p.signature);
+        if (p.stamp) setStampDataUrl(p.stamp);
       }
     } catch { /* ignore */ }
   }, []);
 
   useEffect(() => {
     try {
-      localStorage.setItem(
-        "rathcowork.report.signer",
-        JSON.stringify({ name: signerName, position: signerPosition }),
-      );
-    } catch { /* ignore */ }
-  }, [signerName, signerPosition]);
+      const payload: Record<string, string> = { name: signerName, position: signerPosition };
+      // Persist images only when small enough for localStorage (~250KB cap each)
+      if (signatureDataUrl && signatureDataUrl.length < 250_000) payload.signature = signatureDataUrl;
+      if (stampDataUrl && stampDataUrl.length < 250_000) payload.stamp = stampDataUrl;
+      localStorage.setItem("rathcowork.report.signer", JSON.stringify(payload));
+    } catch { /* quota exceeded — ignore */ }
+  }, [signerName, signerPosition, signatureDataUrl, stampDataUrl]);
+
+  async function readImage(file: File): Promise<string> {
+    if (!/^image\/(png|jpe?g)$/.test(file.type)) {
+      throw new Error(L("รองรับเฉพาะ PNG/JPG", "Only PNG/JPG allowed"));
+    }
+    if (file.size > 2_000_000) {
+      throw new Error(L("ขนาดเกิน 2MB", "File exceeds 2MB"));
+    }
+    return await new Promise<string>((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(String(fr.result));
+      fr.onerror = () => reject(new Error("read error"));
+      fr.readAsDataURL(file);
+    });
+  }
+
+  async function onPickImage(kind: "signature" | "stamp", file: File | undefined) {
+    if (!file) return;
+    try {
+      const url = await readImage(file);
+      if (kind === "signature") setSignatureDataUrl(url);
+      else setStampDataUrl(url);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Upload failed");
+    }
+  }
 
   async function loadPreview() {
     setLoadingReport(true);
@@ -90,7 +121,11 @@ function AdminUsagePage() {
       if (kind === "csv") {
         downloadBlob(reportFilename(preview, "csv"), "text/csv;charset=utf-8", buildMonthlyCsv(preview));
       } else {
-        const blob = await buildMonthlyPdf(preview, { signer });
+        const blob = await buildMonthlyPdf(preview, {
+          signer,
+          signatureDataUrl,
+          stampDataUrl,
+        });
         downloadBlob(reportFilename(preview, "pdf"), "application/pdf", blob);
       }
       toast.success(L("ดาวน์โหลดสำเร็จ", "Download started"));
@@ -100,6 +135,7 @@ function AdminUsagePage() {
       setExporting(null);
     }
   }
+
 
 
 
@@ -335,26 +371,50 @@ function AdminUsagePage() {
                     />
                   </div>
                 </div>
-                <div className="mt-3 rounded-md border border-dashed border-border bg-background p-3 text-xs">
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <ImageUploadField
+                    label={L("รูปลายเซ็น (ฟุตเตอร์, PNG/JPG ≤2MB)", "Signature image (footer, PNG/JPG ≤2MB)")}
+                    value={signatureDataUrl}
+                    onPick={(f) => onPickImage("signature", f)}
+                    onClear={() => setSignatureDataUrl(null)}
+                  />
+                  <ImageUploadField
+                    label={L("ตราประทับ (หัวกระดาษ, PNG/JPG ≤2MB)", "Stamp (header, PNG/JPG ≤2MB)")}
+                    value={stampDataUrl}
+                    onPick={(f) => onPickImage("stamp", f)}
+                    onClear={() => setStampDataUrl(null)}
+                  />
+                </div>
+
+                <div className="mt-4 rounded-md border border-dashed border-border bg-background p-3 text-xs">
                   <p className="mb-2 font-medium text-muted-foreground">{L("ตัวอย่างที่จะอยู่ใน PDF", "PDF preview")}</p>
-                  <div className="flex items-start justify-between border-b border-border pb-1 text-[11px] text-muted-foreground">
+                  <div className="flex items-start justify-between gap-3 border-b border-border pb-2 text-[11px] text-muted-foreground">
                     <span>RathCoWork · รายงานการใช้งานรายเดือน</span>
-                    <div className="text-right">
-                      <div>{String(preview.period.month).padStart(2, "0")}/{preview.period.year}</div>
-                      {(signerName || signerPosition) && (
-                        <div className="text-[10px]">
-                          ผู้รับผิดชอบ: {signerName}{signerPosition ? ` · ${signerPosition}` : ""}
-                        </div>
+                    <div className="flex items-start gap-2">
+                      <div className="text-right">
+                        <div>{String(preview.period.month).padStart(2, "0")}/{preview.period.year}</div>
+                        {(signerName || signerPosition) && (
+                          <div className="text-[10px]">
+                            ผู้รับผิดชอบ: {signerName}{signerPosition ? ` · ${signerPosition}` : ""}
+                          </div>
+                        )}
+                      </div>
+                      {stampDataUrl && (
+                        <img src={stampDataUrl} alt="stamp" className="h-10 w-auto object-contain" />
                       )}
                     </div>
                   </div>
-                  <div className="mt-3 flex items-end justify-between border-t border-border pt-1 text-[10px] text-muted-foreground">
+                  <div className="mt-3 flex items-end justify-between gap-3 border-t border-border pt-2 text-[10px] text-muted-foreground">
                     <div>
                       <div>สร้างเมื่อ {new Date().toLocaleString("th-TH")}</div>
                       {(signerName || signerPosition) && (
                         <div>ลงนาม: {signerName}{signerPosition ? ` (${signerPosition})` : ""}</div>
                       )}
                     </div>
+                    {signatureDataUrl && (
+                      <img src={signatureDataUrl} alt="signature" className="h-10 w-auto object-contain" />
+                    )}
                     <div>หน้า 1 / N</div>
                   </div>
                 </div>
@@ -417,5 +477,49 @@ function Table({ head, rows }: { head: string[]; rows: string[][] }) {
         ))}
       </tbody>
     </table>
+  );
+}
+
+function ImageUploadField({
+  label,
+  value,
+  onPick,
+  onClear,
+}: {
+  label: string;
+  value: string | null;
+  onPick: (file: File | undefined) => void;
+  onClear: () => void;
+}) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs text-muted-foreground">{label}</label>
+      <div className="flex items-center gap-3 rounded-md border border-border bg-background p-2">
+        <div className="flex h-14 w-24 items-center justify-center overflow-hidden rounded border border-dashed border-border bg-muted/30">
+          {value ? (
+            <img src={value} alt="" className="h-full w-full object-contain" />
+          ) : (
+            <span className="text-[10px] text-muted-foreground">—</span>
+          )}
+        </div>
+        <div className="flex flex-col gap-1">
+          <input
+            type="file"
+            accept="image/png,image/jpeg"
+            onChange={(e) => onPick(e.target.files?.[0])}
+            className="text-xs file:mr-2 file:rounded-md file:border file:border-border file:bg-background file:px-2 file:py-1 file:text-xs file:text-foreground hover:file:bg-muted"
+          />
+          {value && (
+            <button
+              type="button"
+              onClick={onClear}
+              className="self-start text-[11px] text-muted-foreground underline-offset-2 hover:underline"
+            >
+              ลบรูป
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
