@@ -1,0 +1,19 @@
+{
+  "name": "RathCoWork",
+  "short_name": "RathCoWork",
+  "description": "RathCoWork — ผู้ช่วย AI สำหรับเจ้าหน้าที่ภาครัฐไทย",
+  "lang": "th",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0c2340",
+  "icons": [
+    {
+      "src": "/__l5e/assets-v1/106f4d78-c3ab-4aec-a467-9ded04a9c4a4/rathcowork-logo.png",
+      "sizes": "192x192 512x512 any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
