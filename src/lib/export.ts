@@ -245,7 +245,7 @@ export async function exportRunToDocx(
   }) : null;
 
   const doc = new Document({
-    creator: "TaskRath",
+    creator: "RathCoWork",
     title: subject,
     styles: { default: { document: { run: { font: FONT, size: SIZE_BODY } } } },
     sections: [

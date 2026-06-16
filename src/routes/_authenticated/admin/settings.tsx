@@ -14,7 +14,7 @@ import { Building2, Save, Upload, Image as ImageIcon, X } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/settings")({
-  head: () => ({ meta: [{ title: "ตั้งค่าหน่วยงาน · TaskRath Admin" }] }),
+  head: () => ({ meta: [{ title: "ตั้งค่าหน่วยงาน · RathCoWork Admin" }] }),
   component: AdminSettingsPage,
 });
 

@@ -10,7 +10,7 @@ import { Sparkles, Copy } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/run/")({
-  head: () => ({ meta: [{ title: "สั่งงาน AI · TaskRath" }] }),
+  head: () => ({ meta: [{ title: "สั่งงาน AI · RathCoWork" }] }),
   component: RunPage,
 });
 

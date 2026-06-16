@@ -238,7 +238,7 @@ export const runTemplate = createServerFn({ method: "POST" })
       kb_citations: kbCtx?.citations.length ?? 0,
     });
 
-    await notifyEvent(supabase, "complete", `✅ TaskRath: รัน "${data.templateId}" เสร็จสิ้น`);
+    await notifyEvent(supabase, "complete", `✅ RathCoWork: รัน "${data.templateId}" เสร็จสิ้น`);
 
     return { id: run.id, output, pii: piiSummary(piiCounts), guard: { score: guard.score, decision: guard.decision }, usage, citations: kbCtx?.citations ?? [] };
 
@@ -281,7 +281,7 @@ export const runFreeform = createServerFn({ method: "POST" })
       .single();
     if (error) throw new Error(error.message);
     await logAudit(supabase, userId, "ai.run", null, { run_id: run.id, pii: piiSummary(r.counts), guard_score: guard.score, usage: ai.usage, kb_citations: kbCtx?.citations.length ?? 0 });
-    await notifyEvent(supabase, "complete", `✅ TaskRath: รันคำสั่ง AI เสร็จสิ้น`);
+    await notifyEvent(supabase, "complete", `✅ RathCoWork: รันคำสั่ง AI เสร็จสิ้น`);
     return { id: run.id, output, pii: piiSummary(r.counts), guard: { score: guard.score, decision: guard.decision }, usage: ai.usage, citations: kbCtx?.citations ?? [] };
 
   });
@@ -710,7 +710,7 @@ export const runAgent = createServerFn({ method: "POST" })
       usage: ai.usage,
       kb_citations: kbCtx?.citations.length ?? 0,
     });
-    await notifyEvent(supabase, "complete", `🤖 TaskRath Agent "${agent.titleTh}" ตอบเสร็จแล้ว`);
+    await notifyEvent(supabase, "complete", `🤖 RathCoWork Agent "${agent.titleTh}" ตอบเสร็จแล้ว`);
 
     return { id: run.id, output, usage: ai.usage, pii: piiSummary(r.counts), citations: kbCtx?.citations ?? [] };
 

@@ -20,7 +20,7 @@ import { Plus, Pencil, Trash2, Save, X } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/templates")({
-  head: () => ({ meta: [{ title: "เทมเพลตของหน่วยงาน · TaskRath Admin" }] }),
+  head: () => ({ meta: [{ title: "เทมเพลตของหน่วยงาน · RathCoWork Admin" }] }),
   component: AdminTemplatesPage,
 });
 

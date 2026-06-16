@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { VoiceInputButton } from "@/components/voice-input-button";
 
 export const Route = createFileRoute("/_authenticated/agents")({
-  head: () => ({ meta: [{ title: "Agents · TaskRath" }] }),
+  head: () => ({ meta: [{ title: "Agents · RathCoWork" }] }),
   component: AgentsPage,
 });
 

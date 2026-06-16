@@ -5,7 +5,7 @@ import { ShieldCheck, ShieldX, ArrowLeft } from "lucide-react";
 export const Route = createFileRoute("/verify/$id")({
   head: ({ params }) => ({
     meta: [
-      { title: `ตรวจสอบลายเซ็นดิจิทัล · ${params.id.slice(0, 8)} · TaskRath` },
+      { title: `ตรวจสอบลายเซ็นดิจิทัล · ${params.id.slice(0, 8)} · RathCoWork` },
       { name: "robots", content: "noindex" },
     ],
   }),

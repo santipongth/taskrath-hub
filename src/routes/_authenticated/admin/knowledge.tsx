@@ -25,7 +25,7 @@ import { BookText, Trash2, Upload, Search, Loader2, FileText, AlertCircle } from
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/knowledge")({
-  head: () => ({ meta: [{ title: "Knowledge Base · TaskRath" }] }),
+  head: () => ({ meta: [{ title: "Knowledge Base · RathCoWork" }] }),
   component: KnowledgePage,
 });
 

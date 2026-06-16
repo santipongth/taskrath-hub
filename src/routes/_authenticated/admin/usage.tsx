@@ -10,7 +10,7 @@ import {
 } from "recharts";
 
 export const Route = createFileRoute("/_authenticated/admin/usage")({
-  head: () => ({ meta: [{ title: "การใช้งาน · TaskRath Admin" }] }),
+  head: () => ({ meta: [{ title: "การใช้งาน · RathCoWork Admin" }] }),
   component: AdminUsagePage,
 });
 

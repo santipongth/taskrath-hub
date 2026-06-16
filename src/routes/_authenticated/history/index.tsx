@@ -21,7 +21,7 @@ import { exportRunToPdf, exportRunToDocx } from "@/lib/export";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/history/")({
-  head: () => ({ meta: [{ title: "ประวัติการใช้งาน · TaskRath" }] }),
+  head: () => ({ meta: [{ title: "ประวัติการใช้งาน · RathCoWork" }] }),
   component: HistoryPage,
 });
 

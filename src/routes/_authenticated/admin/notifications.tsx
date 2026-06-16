@@ -19,7 +19,7 @@ import { Bell, Save, Send } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/notifications")({
-  head: () => ({ meta: [{ title: "การแจ้งเตือน · TaskRath Admin" }] }),
+  head: () => ({ meta: [{ title: "การแจ้งเตือน · RathCoWork Admin" }] }),
   component: NotificationsPage,
 });
 
@@ -33,7 +33,7 @@ function NotificationsPage() {
 
   const { data, isLoading } = useQuery({ queryKey: ["notif-cfg"], queryFn: () => fetchCfg() });
   const [form, setForm] = useState<NotificationSettings | null>(null);
-  const [testMsg, setTestMsg] = useState("📢 ทดสอบการแจ้งเตือนจาก TaskRath");
+  const [testMsg, setTestMsg] = useState("📢 ทดสอบการแจ้งเตือนจาก RathCoWork");
   useEffect(() => { if (data && !form) setForm(data); }, [data, form]);
 
   const mut = useMutation({

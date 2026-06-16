@@ -11,9 +11,9 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
-      { title: "เข้าสู่ระบบ · TaskRath" },
-      { name: "description", content: "เข้าสู่ระบบ TaskRath เพื่อใช้งานผู้ช่วย AI สำหรับเจ้าหน้าที่ภาครัฐไทย ร่างหนังสือ สรุปประชุม และจัดการงานราชการอย่างปลอดภัย" },
-      { property: "og:title", content: "เข้าสู่ระบบ · TaskRath" },
+      { title: "เข้าสู่ระบบ · RathCoWork" },
+      { name: "description", content: "เข้าสู่ระบบ RathCoWork เพื่อใช้งานผู้ช่วย AI สำหรับเจ้าหน้าที่ภาครัฐไทย ร่างหนังสือ สรุปประชุม และจัดการงานราชการอย่างปลอดภัย" },
+      { property: "og:title", content: "เข้าสู่ระบบ · RathCoWork" },
       { property: "og:description", content: "เข้าสู่ระบบเพื่อใช้งานผู้ช่วย AI สำหรับเจ้าหน้าที่ภาครัฐไทย" },
       { property: "og:url", content: "https://taskrath-hub.lovable.app/login" },
     ],
@@ -87,7 +87,7 @@ function LoginPage() {
           <Link to="/" className="flex items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground text-sm font-semibold">T</div>
             <div className="flex flex-col leading-tight">
-              <span className="text-sm font-semibold">TaskRath</span>
+              <span className="text-sm font-semibold">RathCoWork</span>
               <span className="text-[11px] text-muted-foreground">ทาสก์-รัฐ</span>
             </div>
           </Link>

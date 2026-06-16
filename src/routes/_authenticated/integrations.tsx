@@ -13,7 +13,7 @@ const ITEMS = [
 ];
 
 export const Route = createFileRoute("/_authenticated/integrations")({
-  head: () => ({ meta: [{ title: "Integrations · TaskRath" }] }),
+  head: () => ({ meta: [{ title: "Integrations · RathCoWork" }] }),
   component: IntegrationsPage,
 });
 

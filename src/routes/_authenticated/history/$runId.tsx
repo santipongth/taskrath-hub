@@ -16,7 +16,7 @@ import { RefineBar } from "@/components/refine-bar";
 type Revision = { output: string; instruction: string; preset?: string; at: string };
 
 export const Route = createFileRoute("/_authenticated/history/$runId")({
-  head: () => ({ meta: [{ title: "รายละเอียดงาน · TaskRath" }] }),
+  head: () => ({ meta: [{ title: "รายละเอียดงาน · RathCoWork" }] }),
   component: RunDetail,
 });
 

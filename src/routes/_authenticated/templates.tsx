@@ -14,7 +14,7 @@ import { Search } from "lucide-react";
 const CATS: (TemplateCategory | "all")[] = ["all", "meeting", "letter", "analysis", "legal", "citizen"];
 
 export const Route = createFileRoute("/_authenticated/templates")({
-  head: () => ({ meta: [{ title: "คลังงานสำเร็จรูป · TaskRath" }] }),
+  head: () => ({ meta: [{ title: "คลังงานสำเร็จรูป · RathCoWork" }] }),
   component: TemplatesPage,
 });
 

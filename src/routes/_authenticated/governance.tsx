@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/_authenticated/governance")({
-  head: () => ({ meta: [{ title: "ธรรมาภิบาล · TaskRath" }] }),
+  head: () => ({ meta: [{ title: "ธรรมาภิบาล · RathCoWork" }] }),
   component: GovernancePage,
 });
 

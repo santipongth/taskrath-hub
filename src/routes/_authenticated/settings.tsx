@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Upload, X, PenLine } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/settings")({
-  head: () => ({ meta: [{ title: "ตั้งค่า · TaskRath" }] }),
+  head: () => ({ meta: [{ title: "ตั้งค่า · RathCoWork" }] }),
   component: SettingsPage,
 });
 

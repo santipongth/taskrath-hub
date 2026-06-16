@@ -13,7 +13,7 @@ import {
 } from "recharts";
 
 export const Route = createFileRoute("/_authenticated/admin/dashboard")({
-  head: () => ({ meta: [{ title: "Executive Dashboard · TaskRath" }] }),
+  head: () => ({ meta: [{ title: "Executive Dashboard · RathCoWork" }] }),
   component: ExecutiveDashboard,
 });
 
