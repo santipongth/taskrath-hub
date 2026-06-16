@@ -35,6 +35,7 @@ import { Route as AuthenticatedAdminNotificationsRouteImport } from './routes/_a
 import { Route as AuthenticatedAdminKnowledgeRouteImport } from './routes/_authenticated/admin/knowledge'
 import { Route as AuthenticatedAdminDashboardRouteImport } from './routes/_authenticated/admin/dashboard'
 import { Route as AuthenticatedAgentsManageRunsRouteImport } from './routes/_authenticated/agents.manage.runs'
+import { Route as AuthenticatedAgentsManageProvidersRouteImport } from './routes/_authenticated/agents.manage.providers'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -178,6 +179,12 @@ const AuthenticatedAgentsManageRunsRoute =
     path: '/runs',
     getParentRoute: () => AuthenticatedAgentsManageRoute,
   } as any)
+const AuthenticatedAgentsManageProvidersRoute =
+  AuthenticatedAgentsManageProvidersRouteImport.update({
+    id: '/providers',
+    path: '/providers',
+    getParentRoute: () => AuthenticatedAgentsManageRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -204,6 +211,7 @@ export interface FileRoutesByFullPath {
   '/chat/': typeof AuthenticatedChatIndexRoute
   '/history/': typeof AuthenticatedHistoryIndexRoute
   '/run/': typeof AuthenticatedRunIndexRoute
+  '/agents/manage/providers': typeof AuthenticatedAgentsManageProvidersRoute
   '/agents/manage/runs': typeof AuthenticatedAgentsManageRunsRoute
 }
 export interface FileRoutesByTo {
@@ -230,6 +238,7 @@ export interface FileRoutesByTo {
   '/chat': typeof AuthenticatedChatIndexRoute
   '/history': typeof AuthenticatedHistoryIndexRoute
   '/run': typeof AuthenticatedRunIndexRoute
+  '/agents/manage/providers': typeof AuthenticatedAgentsManageProvidersRoute
   '/agents/manage/runs': typeof AuthenticatedAgentsManageRunsRoute
 }
 export interface FileRoutesById {
@@ -259,6 +268,7 @@ export interface FileRoutesById {
   '/_authenticated/chat/': typeof AuthenticatedChatIndexRoute
   '/_authenticated/history/': typeof AuthenticatedHistoryIndexRoute
   '/_authenticated/run/': typeof AuthenticatedRunIndexRoute
+  '/_authenticated/agents/manage/providers': typeof AuthenticatedAgentsManageProvidersRoute
   '/_authenticated/agents/manage/runs': typeof AuthenticatedAgentsManageRunsRoute
 }
 export interface FileRouteTypes {
@@ -288,6 +298,7 @@ export interface FileRouteTypes {
     | '/chat/'
     | '/history/'
     | '/run/'
+    | '/agents/manage/providers'
     | '/agents/manage/runs'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -314,6 +325,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/history'
     | '/run'
+    | '/agents/manage/providers'
     | '/agents/manage/runs'
   id:
     | '__root__'
@@ -342,6 +354,7 @@ export interface FileRouteTypes {
     | '/_authenticated/chat/'
     | '/_authenticated/history/'
     | '/_authenticated/run/'
+    | '/_authenticated/agents/manage/providers'
     | '/_authenticated/agents/manage/runs'
   fileRoutesById: FileRoutesById
 }
@@ -537,15 +550,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAgentsManageRunsRouteImport
       parentRoute: typeof AuthenticatedAgentsManageRoute
     }
+    '/_authenticated/agents/manage/providers': {
+      id: '/_authenticated/agents/manage/providers'
+      path: '/providers'
+      fullPath: '/agents/manage/providers'
+      preLoaderRoute: typeof AuthenticatedAgentsManageProvidersRouteImport
+      parentRoute: typeof AuthenticatedAgentsManageRoute
+    }
   }
 }
 
 interface AuthenticatedAgentsManageRouteChildren {
+  AuthenticatedAgentsManageProvidersRoute: typeof AuthenticatedAgentsManageProvidersRoute
   AuthenticatedAgentsManageRunsRoute: typeof AuthenticatedAgentsManageRunsRoute
 }
 
 const AuthenticatedAgentsManageRouteChildren: AuthenticatedAgentsManageRouteChildren =
   {
+    AuthenticatedAgentsManageProvidersRoute:
+      AuthenticatedAgentsManageProvidersRoute,
     AuthenticatedAgentsManageRunsRoute: AuthenticatedAgentsManageRunsRoute,
   }
 

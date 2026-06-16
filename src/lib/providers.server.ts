@@ -12,6 +12,7 @@ export type ProviderRow = {
   price_in_per_mtok: number;
   price_out_per_mtok: number;
   enabled: boolean;
+  sort_order?: number;
 };
 
 export type ProviderCallResult = {
