@@ -132,9 +132,12 @@ export async function buildMonthlyPdf(r: MonthlyReport, opts: BuildOptions = {})
   const contentBottom = pageH - margin - footerH;
   const contentW = pageW - margin * 2;
   let y = contentTop;
-  const periodLabel = `${TH_MONTHS[r.period.month - 1]} ${r.period.year + 543}`;
-  const generatedAt = new Date().toLocaleString("th-TH");
+  const locale: ReportLocale = opts.locale ?? "th";
+  const dateFormat: DateFormat = opts.dateFormat ?? (locale === "en" ? "en-long" : "th-long");
+  const periodLabel = formatPeriod(r.period.year, r.period.month, locale);
+  const generatedAt = formatReportDate(new Date(), dateFormat);
   const signer = opts.signer && (opts.signer.name || opts.signer.position) ? opts.signer : null;
+  const T = (th: string, en: string) => (locale === "en" ? en : th);
 
   const ensureSpace = (need: number) => {
     if (y + need > contentBottom) { doc.addPage(); y = contentTop; }
