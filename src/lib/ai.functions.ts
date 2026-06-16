@@ -246,11 +246,10 @@ export const runTemplate = createServerFn({ method: "POST" })
 
 const attachmentSchema = z.object({
   name: z.string().max(255),
-  // "image" → image_url block, "pdf" → file block, "text" → inlined as text
   kind: z.enum(["image", "pdf", "text"]),
-  // data URL for image/pdf; plain text content for "text"
   data: z.string().min(1).max(15_000_000),
   mime: z.string().max(120).optional(),
+  size: z.number().int().nonnegative().max(15_000_000).optional(),
 });
 export type AttachmentInput = z.infer<typeof attachmentSchema>;
 
