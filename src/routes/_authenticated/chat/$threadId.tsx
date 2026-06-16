@@ -23,6 +23,7 @@ import {
 import { Plus, Trash2, Send, Pencil, MessageSquare, BookText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
+import { VoiceInputButton } from "@/components/voice-input-button";
 
 export const Route = createFileRoute("/_authenticated/chat/$threadId")({
   head: () => ({ meta: [{ title: "ถาม-ตอบ KB · TaskRath" }] }),
