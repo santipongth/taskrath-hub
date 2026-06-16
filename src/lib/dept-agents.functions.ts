@@ -88,10 +88,13 @@ const skillInput = z.object({
         label: z.string().min(1).max(120),
         type: z.string().max(20).optional(),
         required: z.boolean().optional(),
+        placeholder: z.string().max(200).optional(),
+        example: z.string().max(500).optional(),
       }),
     )
     .max(20)
     .default([]),
+
   kb_category: z.string().max(80).optional().nullable(),
   model: z.string().max(80).optional().nullable(),
   needs_approval: z.boolean().default(false),
