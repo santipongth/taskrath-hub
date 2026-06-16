@@ -47,26 +47,57 @@ function AdminUsagePage() {
   const [preview, setPreview] = useState<MonthlyReport | null>(null);
   const [signerName, setSignerName] = useState("");
   const [signerPosition, setSignerPosition] = useState("");
+  const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
+  const [stampDataUrl, setStampDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem("rathcowork.report.signer");
       if (raw) {
-        const p = JSON.parse(raw) as { name?: string; position?: string };
+        const p = JSON.parse(raw) as { name?: string; position?: string; signature?: string; stamp?: string };
         setSignerName(p.name ?? "");
         setSignerPosition(p.position ?? "");
+        if (p.signature) setSignatureDataUrl(p.signature);
+        if (p.stamp) setStampDataUrl(p.stamp);
       }
     } catch { /* ignore */ }
   }, []);
 
   useEffect(() => {
     try {
-      localStorage.setItem(
-        "rathcowork.report.signer",
-        JSON.stringify({ name: signerName, position: signerPosition }),
-      );
-    } catch { /* ignore */ }
-  }, [signerName, signerPosition]);
+      const payload: Record<string, string> = { name: signerName, position: signerPosition };
+      // Persist images only when small enough for localStorage (~250KB cap each)
+      if (signatureDataUrl && signatureDataUrl.length < 250_000) payload.signature = signatureDataUrl;
+      if (stampDataUrl && stampDataUrl.length < 250_000) payload.stamp = stampDataUrl;
+      localStorage.setItem("rathcowork.report.signer", JSON.stringify(payload));
+    } catch { /* quota exceeded — ignore */ }
+  }, [signerName, signerPosition, signatureDataUrl, stampDataUrl]);
+
+  async function readImage(file: File): Promise<string> {
+    if (!/^image\/(png|jpe?g)$/.test(file.type)) {
+      throw new Error(L("รองรับเฉพาะ PNG/JPG", "Only PNG/JPG allowed"));
+    }
+    if (file.size > 2_000_000) {
+      throw new Error(L("ขนาดเกิน 2MB", "File exceeds 2MB"));
+    }
+    return await new Promise<string>((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(String(fr.result));
+      fr.onerror = () => reject(new Error("read error"));
+      fr.readAsDataURL(file);
+    });
+  }
+
+  async function onPickImage(kind: "signature" | "stamp", file: File | undefined) {
+    if (!file) return;
+    try {
+      const url = await readImage(file);
+      if (kind === "signature") setSignatureDataUrl(url);
+      else setStampDataUrl(url);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Upload failed");
+    }
+  }
 
   async function loadPreview() {
     setLoadingReport(true);
@@ -90,7 +121,11 @@ function AdminUsagePage() {
       if (kind === "csv") {
         downloadBlob(reportFilename(preview, "csv"), "text/csv;charset=utf-8", buildMonthlyCsv(preview));
       } else {
-        const blob = await buildMonthlyPdf(preview, { signer });
+        const blob = await buildMonthlyPdf(preview, {
+          signer,
+          signatureDataUrl,
+          stampDataUrl,
+        });
         downloadBlob(reportFilename(preview, "pdf"), "application/pdf", blob);
       }
       toast.success(L("ดาวน์โหลดสำเร็จ", "Download started"));
@@ -100,6 +135,7 @@ function AdminUsagePage() {
       setExporting(null);
     }
   }
+
 
 
 
