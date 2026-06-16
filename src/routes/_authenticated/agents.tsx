@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { VoiceInputButton } from "@/components/voice-input-button";
 
 export const Route = createFileRoute("/_authenticated/agents")({
   head: () => ({ meta: [{ title: "Agents · TaskRath" }] }),
@@ -99,13 +100,24 @@ function AgentsPage() {
               {lang === "th" ? `สั่งงาน ${active.titleTh}` : `Task ${active.titleEn}`}
             </h2>
           </div>
-          <Textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            rows={5}
-            placeholder={active.placeholderTh}
-            className="resize-none"
-          />
+          <div className="relative">
+            <Textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              rows={5}
+              placeholder={active.placeholderTh}
+              className="resize-none pr-10"
+            />
+            <div className="absolute right-1.5 top-1.5">
+              <VoiceInputButton
+                size="icon"
+                onTranscript={(text, isFinal) => {
+                  if (!isFinal) return;
+                  setPrompt((p) => (p ? p + " " : "") + text);
+                }}
+              />
+            </div>
+          </div>
           <div className="mt-3 flex justify-end">
             <Button onClick={onRun} disabled={loading || !prompt.trim()}>
               {loading ? t("running") : t("run")}
