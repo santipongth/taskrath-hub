@@ -22,7 +22,7 @@ type NotifSettings = {
   notifyOnComplete: boolean;
 };
 
-async function notifyEvent(
+export async function notifyEvent(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
   event: "complete" | "approval",
