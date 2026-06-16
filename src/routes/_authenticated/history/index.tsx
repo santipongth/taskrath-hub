@@ -140,6 +140,7 @@ function HistoryPage() {
               {filtered.map((r) => {
                 const tpl = r.template_id ? TEMPLATES_BY_ID[r.template_id] : null;
                 const title = tpl ? (lang === "th" ? tpl.titleTh : tpl.titleEn) : (lang === "th" ? "สั่งงานอิสระ" : "Freeform");
+                const atts = (((r as { input?: { attachments?: Array<{ kind: string }> } }).input?.attachments) ?? []) as Array<{ kind: string }>;
                 return (
                   <tr key={r.id} className="border-b border-border last:border-0 hover:bg-muted/30">
                     <td className="px-4 py-3">
@@ -148,6 +149,13 @@ function HistoryPage() {
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{r.title ?? "—"}</td>
+                    <td className="px-4 py-3">
+                      {atts.length > 0 ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                          <Paperclip className="h-3 w-3" />{atts.length}
+                        </span>
+                      ) : <span className="text-xs text-muted-foreground">—</span>}
+                    </td>
                     <td className="px-4 py-3">
                       <Badge variant="secondary">{r.status}</Badge>
                     </td>
