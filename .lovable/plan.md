@@ -1,77 +1,101 @@
+# Open Agent Framework — Model-Agnostic Layer
 
-# Agent & Skills แบบหน่วยงานสร้างเองได้ (Department-scoped Ecosystem)
+ทำให้ระบบ Agent & Skills รองรับโมเดลหลายค่าย (โมเดลไทย/อธิปไตย/พาณิชย์) โดยหน่วยงาน เลือกและจัดการ provider ของตัวเองได้ พร้อม fallback chain ที่ทนทาน
 
-## เป้าหมาย
-ให้ "Admin หน่วยงาน" (dept_admin) สร้าง/แก้ **Skill** และ **Agent** ของหน่วยงานตัวเองได้  
-สมาชิกในหน่วยงานเดียวกันใช้ได้ทุกคน — ไม่แชร์ข้ามหน่วยงาน — ระบบจึงโตเองตามการใช้งานจริง
+## 1. Provider Registry (DB)
 
-## โมเดลแนวคิด
+ตารางใหม่ `dept_model_providers` (ระดับหน่วยงาน, dept admin จัดการ):
+- `dept_id`, `name` (ชื่อแสดง), `kind` enum: `lovable` | `openai_compatible` | `typhoon` | `hiclaw`
+- `base_url`, `model_id` (เช่น `typhoon-v2-70b-instruct`, `openthaigpt-1.5-72b`)
+- `api_key_secret_name` — เก็บแค่ "ชื่อ secret" (เช่น `DEPT_FINANCE_TYPHOON_KEY`); ค่าจริงอยู่ใน Lovable Cloud secrets ไม่เก็บในตาราง
+- `price_in_per_mtok`, `price_out_per_mtok` (numeric, สำหรับ cost tracking)
+- `enabled` boolean, `sort_order`
 
-```
-Department ── owns ──▶ Skills (atomic capability)
-                 └──▶ Agents (persona + skills[] + system prompt)
-                                │
-                                ▼
-                         User runs Agent
-                         → Agent ใช้ skills เป็น tool/step
-                         → log ai_runs (dept_id)
-```
+ตารางใหม่ `dept_model_routes` (fallback chain):
+- `dept_id`, `name` (เช่น "Default", "Sovereign-first")
+- `is_default` boolean — 1 route ต่อ dept
+- `chain` jsonb: array ของ `{provider_id, on_error: ["429","5xx","timeout"]}` เรียงตามลำดับลอง
 
-- **Skill** = หน่วยความสามารถเดี่ยว  
-  - `name`, `description`, `system_prompt`, `fields[]` (เหมือน custom_templates), `kb_category?`, `model?`, `needs_approval?`
-- **Agent** = persona ที่รวม skill หลายตัว  
-  - `name`, `role_prompt` (บทบาท/บุคลิก), `skill_ids[]`, `default_skill_id?`, `tools_mode` (single | workflow)
-  - เวลารัน: agent เลือก skill ที่เหมาะ หรือรันตามลำดับ (workflow)
+แก้ตารางเดิม:
+- `dept_skills.model` → ใช้เก็บ `route_name` หรือ `provider_id` (เปลี่ยน semantics; รองรับ legacy string ของ Lovable model id)
+- `dept_agents.default_model` → เหมือนกัน
+- `departments` (หรือ `app_settings` ระดับ dept) เพิ่ม `default_route_id`
+- `ai_runs` เพิ่ม `provider_kind`, `provider_id`, `attempts` jsonb (log ลำดับที่ลอง + error)
 
-## สิ่งที่จะสร้าง (เฟส 1 — MVP)
+RLS: ทุกตารางใหม่ — SELECT/INSERT/UPDATE/DELETE เฉพาะ `is_dept_admin(auth.uid(), dept_id)`; service_role full
 
-### 1) Database (migration ใหม่)
-- เพิ่ม role `dept_admin` ลง enum `app_role`
-- ตาราง `dept_skills` (department_id, name, description, system_prompt, fields jsonb, kb_category, model, needs_approval, created_by, status: draft|active)
-- ตาราง `dept_agents` (department_id, name, role_prompt, default_model, status, created_by)
-- ตาราง `dept_agent_skills` (agent_id, skill_id, order_index) — many-to-many
-- ทุกตาราง: GRANT + RLS
-  - SELECT: สมาชิก department เดียวกัน (`profiles.department = X`)
-  - INSERT/UPDATE/DELETE: เฉพาะ `dept_admin` ของ department นั้น
-  - admin (global) เห็นทุก department
-- `has_dept_role(uid, dept_id, role)` security-definer helper
+## 2. Provider Abstraction (Server)
 
-### 2) Server Functions (`src/lib/dept-agents.functions.ts`)
-- `listDeptSkills() / upsertDeptSkill() / deleteDeptSkill()`
-- `listDeptAgents() / upsertDeptAgent() / deleteDeptAgent()`
-- `runDeptAgent({ agentId, input, skillId? })`
-  - ดึง agent + skills ของ dept
-  - ประกอบ system prompt = `agent.role_prompt` + skill ที่เลือก
-  - เรียก pipeline เดิม (PII redact → guard → RAG → gateway → log ai_runs พร้อม `dept_id`)
-- ทุก fn `.middleware([requireSupabaseAuth])` + ตรวจ dept membership / dept_admin
+ไฟล์ใหม่ `src/lib/providers.server.ts` — ฟังก์ชัน `callProvider(provider, system, user)` คืน `{text, usage}`:
+- `lovable` → `ai.gateway.lovable.dev/v1` ด้วย `LOVABLE_API_KEY` + `provider.model_id`
+- `openai_compatible` → `{base_url}/chat/completions` Bearer `process.env[api_key_secret_name]`
+- `typhoon` → preset `https://api.opentyphoon.ai/v1` + secret
+- `hiclaw` → ใช้ env `HICLAW_API_URL`/`HICLAW_API_KEY` ที่มีอยู่แล้ว (legacy)
 
-### 3) UI — เมนู Agents & Skills (เพิ่มในหน้า `/agents` เดิม)
-- Tab "Built-in" (เดิม) | "หน่วยงานของฉัน" (ใหม่)
-- การ์ด agent ของหน่วยงาน + ปุ่ม "สั่งงาน" (เหมือนเดิม)
-- ถ้าเป็น `dept_admin`: เห็นปุ่ม **"+ สร้าง Agent"** / **"จัดการ Skill"**
-- หน้าใหม่ `/agents/manage` (gate ด้วย dept_admin)
-  - **Skills tab**: list + dialog editor (name, description, system prompt, fields builder, kb category, model)
-  - **Agents tab**: list + editor (name, role prompt textarea, multi-select skill, default skill, model)
-  - ปุ่ม "ทดสอบรัน" inline ในตัว editor
+ไฟล์ใหม่ `src/lib/model-router.server.ts` — `runWithRoute(routeChain, system, user)`:
+- ลองตามลำดับ; ถ้า error match `on_error` → ลอง provider ถัดไป
+- เก็บ `attempts: [{provider_id, status, latency_ms, error?}]`
+- คืน `{text, usage, provider_used, attempts}`
 
-### 4) Integration กับระบบเดิม
-- `ai_runs` เพิ่มคอลัมน์ `dept_agent_id`, `dept_skill_id` (nullable) → ใช้ใน `/admin/usage` แยกตาม dept ได้
-- รายงาน PDF/CSV: เพิ่ม section "Top agents per department" (ใช้คอลัมน์ใหม่)
+## 3. แก้ `callAI` ให้ route-aware
 
-## เฟส 2 (อนาคต — ยังไม่ทำตอนนี้)
-- Workflow / multi-step: agent เรียก skill ต่อเป็น pipeline
-- Versioning ของ skill (draft → publish)
-- Marketplace ข้ามหน่วยงาน (ตอนนี้ไม่เอา)
+`src/lib/ai.functions.ts`:
+- เพิ่ม `callAIForDept(deptId, system, user, opts?: {routeName?, providerId?})` — resolve route → เรียก `runWithRoute`
+- `callAI` เดิมคงไว้เป็น fallback ระบบ (Lovable default) — เผื่อ built-in agents
+- คำนวณ cost จาก `provider.price_in/out_per_mtok` (override default)
 
-## รายละเอียดทางเทคนิคที่ควรทราบ
+แก้ `dept-agents.functions.ts` `runDeptAgent`:
+- resolve model ตามลำดับ: `skill.model` → `agent.default_model` → `dept.default_route_id` → Lovable default
+- เรียก `callAIForDept`; log `provider_kind/provider_id/attempts` ลง `ai_runs`
 
-- ใช้ `profiles.department` ที่มีอยู่แล้วเป็น `department_id` (string slug)
-- RLS pattern: ทุก policy ใช้ helper `is_in_department(uid, dept)` + `has_role(uid, 'dept_admin')` AND ตรง dept
-- Sidebar เพิ่มลิงก์ "จัดการ Agent (หน่วยงาน)" เฉพาะ dept_admin
-- เก็บ `fields` jsonb เป็น schema เดียวกับ `custom_templates` เพื่อ reuse `<RunForm/>` ได้เลย
-- Token/cost ยังคำนวณรวมที่ระดับ workspace (ไม่แยก quota ต่อ dept ในเฟสนี้ — บอกได้ถ้าอยากเพิ่ม)
+## 4. Server Functions ใหม่ (`src/lib/dept-providers.functions.ts`)
 
-## คำถามที่ยังเปิดอยู่ (ขอยืนยันก่อนลงมือ)
-1. ใครเป็นคน **assign สิทธิ์ `dept_admin`** ให้ใคร — global admin เท่านั้น ใช่ไหม? (จะเพิ่มหน้าใน `/admin/settings` ให้)
-2. สมาชิกหน่วยงาน (ที่ไม่ใช่ admin) ควร **เห็น Skill ทุกตัว** ของหน่วยงาน หรือเฉพาะที่ `status=active`?
-3. Agent ของหน่วยงาน A ควรเรียก KB ได้ทุก category หรือจำกัดเฉพาะ category ที่ admin หน่วยงานเลือก?
+ทั้งหมด guarded ด้วย `requireSupabaseAuth` + `is_dept_admin`:
+- `listDeptProviders(dept_id)`
+- `upsertDeptProvider({...})` — validate base_url, kind
+- `deleteDeptProvider(id)`
+- `testDeptProvider(id)` — ยิง prompt สั้น ("ping") คืน latency + sample
+- `listDeptRoutes(dept_id)` / `upsertDeptRoute` / `setDefaultRoute`
+- `listKnownSecretNames()` — คืน list secret name ที่มี (ใช้ `secrets--fetch_secrets` ฝั่ง backend) เพื่อ dropdown
+
+หมายเหตุ: การเพิ่ม secret ใหม่ ผู้ใช้ต้องร้องขอผ่าน flow `add_secret` ปกติ (UI แสดงคำแนะนำ); server fn อ่านได้แต่สร้างไม่ได้
+
+## 5. UI
+
+แก้ `/agents/manage` เพิ่มแท็บใหม่:
+- **"โมเดล (Providers)"**: ตาราง list + ปุ่มเพิ่ม/แก้/ลบ + ปุ่ม "ทดสอบ" (ping)
+  - Form: ชื่อ, kind (radio: Lovable / OpenAI-compatible / Typhoon / HiClaw), base_url (auto-fill ตาม kind), model_id, secret name (combobox จาก list), pricing
+  - Preset templates: "OpenThaiGPT (vLLM)", "Typhoon", "Qwen via OpenRouter", "DeepSeek API", "Pathumma (Local Ollama)"
+- **"Routing"**: drag-drop chain provider + เลือก route default ของหน่วยงาน + ติ๊ก error type ที่ trigger fallback
+
+แก้ skill/agent editor:
+- เปลี่ยนช่อง "model" จาก text เป็น `<Select>` แสดง: `(ใช้ค่าเริ่มต้นของหน่วยงาน)` / providers ของ dept / routes ของ dept
+
+แก้ `/agents/manage/runs`:
+- เพิ่มคอลัมน์ "Provider used" + filter
+- แสดง fallback chain ที่เกิดขึ้น (badge "fallback ×2") เมื่อมี `attempts.length > 1`
+
+## 6. Security & Validation
+
+- Secret value ไม่เคยส่งมา client (เก็บแค่ชื่อ); resolve `process.env[name]` ใน handler
+- Validate `base_url` ต้องขึ้นต้น `https://` (ยกเว้น `http://localhost` สำหรับ dev)
+- Whitelist kind enum ฝั่ง DB
+- Log audit: `provider.created/updated/deleted/tested`, `route.updated`
+- หาก secret ไม่พบ → fail ไป fallback ถัดไปทันที และ log warning
+
+## 7. ลำดับการทำ
+
+1. Migration: ตาราง providers + routes + ALTER `ai_runs` + RLS + GRANT
+2. `providers.server.ts` + `model-router.server.ts` + unit-test ผ่าน `testDeptProvider`
+3. `dept-providers.functions.ts` + แก้ `callAI` + `runDeptAgent`
+4. UI: แท็บ Providers + Routing ใน `/agents/manage`
+5. ผูก skill/agent editor + runs page อัพเดทคอลัมน์
+6. Seed preset templates (frontend constant — ไม่ใส่ใน DB)
+
+## Out of Scope (รอบหน้า)
+
+- Per-tenant rate limit / budget cap ต่อ provider
+- A/B routing (สุ่ม % แบ่งโมเดล)
+- Streaming responses (ตอนนี้ทั้งระบบเป็น non-stream)
+- Embedding model swap (KB ยังผูก Gemini embedding)
+- Marketplace แชร์ provider config ข้ามหน่วยงาน
