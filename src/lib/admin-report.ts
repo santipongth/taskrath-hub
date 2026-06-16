@@ -143,8 +143,10 @@ export async function buildMonthlyPdf(r: MonthlyReport, opts: BuildOptions = {})
   }
   y += Math.ceil(kpis.length / cols) * cellH + 14;
 
-  drawDailyChart(doc, r, margin, y, contentW, 160);
-  y += 160 + 14;
+  // Auto height: more days -> rotate x-labels -> need more bottom padding
+  const chartH = r.daily.length > 18 ? 190 : 160;
+  drawDailyChart(doc, r, margin, y, contentW, chartH);
+  y += chartH + 14;
 
   const drawTable = (title: string, head: string[], rows: string[][], widths: number[]) => {
     ensureSpace(40);
