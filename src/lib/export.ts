@@ -404,6 +404,7 @@ export async function exportRunToPdf(
   y += 16;
 
   const subject = run.title?.trim() || templateTitle;
+  doc.setProperties({ title: subject, subject, author: "RathCoWork", creator: "RathCoWork" });
   doc.setFont("Sarabun", "bold");
   doc.setFontSize(13);
   doc.setTextColor(20);
