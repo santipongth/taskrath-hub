@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Input } from "@/components/ui/input";
 import { useI18n } from "@/lib/i18n";
 import { adminUsageStats, adminMonthlyReport } from "@/lib/ai.functions";
 import { buildMonthlyCsv, buildMonthlyPdf, downloadBlob, reportFilename, type MonthlyReport } from "@/lib/admin-report";
@@ -44,6 +45,28 @@ function AdminUsagePage() {
   const [loadingReport, setLoadingReport] = useState(false);
   const [exporting, setExporting] = useState<"pdf" | "csv" | null>(null);
   const [preview, setPreview] = useState<MonthlyReport | null>(null);
+  const [signerName, setSignerName] = useState("");
+  const [signerPosition, setSignerPosition] = useState("");
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("rathcowork.report.signer");
+      if (raw) {
+        const p = JSON.parse(raw) as { name?: string; position?: string };
+        setSignerName(p.name ?? "");
+        setSignerPosition(p.position ?? "");
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "rathcowork.report.signer",
+        JSON.stringify({ name: signerName, position: signerPosition }),
+      );
+    } catch { /* ignore */ }
+  }, [signerName, signerPosition]);
 
   async function loadPreview() {
     setLoadingReport(true);
@@ -61,10 +84,13 @@ function AdminUsagePage() {
     if (!preview) return;
     setExporting(kind);
     try {
+      const signer = (signerName || signerPosition)
+        ? { name: signerName.trim(), position: signerPosition.trim() }
+        : null;
       if (kind === "csv") {
         downloadBlob(reportFilename(preview, "csv"), "text/csv;charset=utf-8", buildMonthlyCsv(preview));
       } else {
-        const blob = await buildMonthlyPdf(preview);
+        const blob = await buildMonthlyPdf(preview, { signer });
         downloadBlob(reportFilename(preview, "pdf"), "application/pdf", blob);
       }
       toast.success(L("ดาวน์โหลดสำเร็จ", "Download started"));
@@ -74,6 +100,7 @@ function AdminUsagePage() {
       setExporting(null);
     }
   }
+
 
 
   if (error) {
@@ -285,6 +312,53 @@ function AdminUsagePage() {
                   />
                 </section>
               </div>
+
+              <section className="rounded-lg border border-border bg-card p-4">
+                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {L("ผู้ลงนาม (จะแสดงในหัวกระดาษ/ฟุตเตอร์ของ PDF)", "Signer (shown in PDF header/footer)")}
+                </h3>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-xs text-muted-foreground">{L("ชื่อ", "Name")}</label>
+                    <Input
+                      value={signerName}
+                      onChange={(e) => setSignerName(e.target.value)}
+                      placeholder={L("เช่น นายสมชาย ใจดี", "e.g. Jane Smith")}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-muted-foreground">{L("ตำแหน่ง", "Position")}</label>
+                    <Input
+                      value={signerPosition}
+                      onChange={(e) => setSignerPosition(e.target.value)}
+                      placeholder={L("เช่น ผู้อำนวยการสำนัก", "e.g. CTO")}
+                    />
+                  </div>
+                </div>
+                <div className="mt-3 rounded-md border border-dashed border-border bg-background p-3 text-xs">
+                  <p className="mb-2 font-medium text-muted-foreground">{L("ตัวอย่างที่จะอยู่ใน PDF", "PDF preview")}</p>
+                  <div className="flex items-start justify-between border-b border-border pb-1 text-[11px] text-muted-foreground">
+                    <span>RathCoWork · รายงานการใช้งานรายเดือน</span>
+                    <div className="text-right">
+                      <div>{String(preview.period.month).padStart(2, "0")}/{preview.period.year}</div>
+                      {(signerName || signerPosition) && (
+                        <div className="text-[10px]">
+                          ผู้รับผิดชอบ: {signerName}{signerPosition ? ` · ${signerPosition}` : ""}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-end justify-between border-t border-border pt-1 text-[10px] text-muted-foreground">
+                    <div>
+                      <div>สร้างเมื่อ {new Date().toLocaleString("th-TH")}</div>
+                      {(signerName || signerPosition) && (
+                        <div>ลงนาม: {signerName}{signerPosition ? ` (${signerPosition})` : ""}</div>
+                      )}
+                    </div>
+                    <div>หน้า 1 / N</div>
+                  </div>
+                </div>
+              </section>
             </div>
           )}
           <DialogFooter className="gap-2 sm:gap-2">
