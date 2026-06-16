@@ -109,7 +109,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
             {
               "@type": "Organization",
               name: "RathCoWork",
-              alternateName: "",
               url: "https://taskrath-hub.lovable.app/",
               description: "ผู้ให้บริการผู้ช่วย AI สำหรับเจ้าหน้าที่ภาครัฐไทย",
             },
