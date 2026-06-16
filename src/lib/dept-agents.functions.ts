@@ -476,8 +476,9 @@ export const listDeptRuns = createServerFn({ method: "GET" })
       supabase.from("dept_agents").select("id,name").eq("department", dept),
       supabase.from("dept_skills").select("id,name").eq("department", dept),
     ]);
-    const agentMap = new Map((agents ?? []).map((a: { id: string; name: string }) => [a.id, a.name]));
-    const skillMap = new Map((skills ?? []).map((s: { id: string; name: string }) => [s.id, s.name]));
+    const agentMap = new Map<string, string>((agents ?? []).map((a: { id: string; name: string }) => [a.id, a.name] as [string, string]));
+    const skillMap = new Map<string, string>((skills ?? []).map((s: { id: string; name: string }) => [s.id, s.name] as [string, string]));
+
 
     const list = (runs ?? []) as DeptRunRow[];
     const total = list.length;
