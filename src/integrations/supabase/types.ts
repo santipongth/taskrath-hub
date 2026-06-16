@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       ai_runs: {
         Row: {
+          attempts: Json | null
           completion_tokens: number
           cost_usd: number
           created_at: string
@@ -28,12 +29,15 @@ export type Database = {
           needs_approval: boolean
           output: string | null
           prompt_tokens: number
+          provider_id: string | null
+          provider_kind: string | null
           status: string
           template_id: string | null
           title: string | null
           user_id: string
         }
         Insert: {
+          attempts?: Json | null
           completion_tokens?: number
           cost_usd?: number
           created_at?: string
@@ -46,12 +50,15 @@ export type Database = {
           needs_approval?: boolean
           output?: string | null
           prompt_tokens?: number
+          provider_id?: string | null
+          provider_kind?: string | null
           status?: string
           template_id?: string | null
           title?: string | null
           user_id: string
         }
         Update: {
+          attempts?: Json | null
           completion_tokens?: number
           cost_usd?: number
           created_at?: string
@@ -64,6 +71,8 @@ export type Database = {
           needs_approval?: boolean
           output?: string | null
           prompt_tokens?: number
+          provider_id?: string | null
+          provider_kind?: string | null
           status?: string
           template_id?: string | null
           title?: string | null
@@ -359,6 +368,90 @@ export type Database = {
           name?: string
           role_prompt?: string
           status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      dept_model_providers: {
+        Row: {
+          api_key_secret_name: string | null
+          base_url: string | null
+          created_at: string
+          created_by: string | null
+          department: string
+          enabled: boolean
+          id: string
+          kind: string
+          model_id: string
+          name: string
+          price_in_per_mtok: number
+          price_out_per_mtok: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          api_key_secret_name?: string | null
+          base_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          department: string
+          enabled?: boolean
+          id?: string
+          kind: string
+          model_id: string
+          name: string
+          price_in_per_mtok?: number
+          price_out_per_mtok?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          api_key_secret_name?: string | null
+          base_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          department?: string
+          enabled?: boolean
+          id?: string
+          kind?: string
+          model_id?: string
+          name?: string
+          price_in_per_mtok?: number
+          price_out_per_mtok?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      dept_model_routes: {
+        Row: {
+          chain: Json
+          created_at: string
+          created_by: string | null
+          department: string
+          id: string
+          is_default: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          chain?: Json
+          created_at?: string
+          created_by?: string | null
+          department: string
+          id?: string
+          is_default?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          chain?: Json
+          created_at?: string
+          created_by?: string | null
+          department?: string
+          id?: string
+          is_default?: boolean
+          name?: string
           updated_at?: string
         }
         Relationships: []
