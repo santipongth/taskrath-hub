@@ -487,6 +487,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      log_audit: {
+        Args: { p_action: string; p_metadata?: Json; p_resource: string }
+        Returns: undefined
+      }
       match_kb_chunks: {
         Args: {
           match_count?: number
@@ -502,6 +506,19 @@ export type Database = {
           similarity: number
           source: string
           title: string
+        }[]
+      }
+      verify_signed_document: {
+        Args: { p_id: string }
+        Returns: {
+          agency_name: string
+          content_hash: string
+          document_subject: string
+          id: string
+          ref_no: string
+          signed_at: string
+          signer_name: string
+          signer_position: string
         }[]
       }
     }

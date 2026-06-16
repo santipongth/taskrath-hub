@@ -146,7 +146,8 @@ async function logAudit(
   resource: string | null,
   metadata: Record<string, unknown>,
 ) {
-  await supabase.from("audit_logs").insert({ user_id: userId, action, resource, metadata });
+  void userId;
+  await supabase.rpc("log_audit", { p_action: action, p_resource: resource, p_metadata: metadata as never });
 }
 
 export const runTemplate = createServerFn({ method: "POST" })
