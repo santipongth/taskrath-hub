@@ -251,7 +251,7 @@ export async function buildMonthlyPdf(r: MonthlyReport, opts: BuildOptions = {})
     doc.setDrawColor(210);
     doc.setTextColor(95);
     doc.setFontSize(9);
-    doc.text("RathCoWork · รายงานการใช้งานรายเดือน", margin, margin + 12);
+    doc.text(T("RathCoWork · รายงานการใช้งานรายเดือน", "RathCoWork · Monthly Usage Report"), margin, margin + 12);
 
     // Stamp top-right (above the period label), preserves aspect ratio, capped
     let stampW = 0;
@@ -269,7 +269,7 @@ export async function buildMonthlyPdf(r: MonthlyReport, opts: BuildOptions = {})
     doc.text(periodLabel, pageW - margin - stampW - doc.getTextWidth(periodLabel), margin + 12);
     if (signer) {
       doc.setFontSize(8);
-      const line = `ผู้รับผิดชอบ: ${signer.name}${signer.position ? " · " + signer.position : ""}`;
+      const line = `${T("ผู้รับผิดชอบ", "Owner")}: ${signer.name}${signer.position ? " · " + signer.position : ""}`;
       doc.text(line, pageW - margin - stampW - doc.getTextWidth(line), margin + 24);
     }
     doc.line(margin, margin + headerH - 8, pageW - margin, margin + headerH - 8);
@@ -277,7 +277,7 @@ export async function buildMonthlyPdf(r: MonthlyReport, opts: BuildOptions = {})
     // Footer
     doc.line(margin, pageH - margin - footerH + 4, pageW - margin, pageH - margin - footerH + 4);
     doc.setFontSize(8);
-    doc.text(`สร้างเมื่อ ${generatedAt}`, margin, pageH - margin - 16);
+    doc.text(`${T("สร้างเมื่อ", "Generated")} ${generatedAt}`, margin, pageH - margin - 16);
 
     // Signature image (bottom-center / right of "ลงนาม" text)
     let sigOffset = 0;
@@ -294,11 +294,11 @@ export async function buildMonthlyPdf(r: MonthlyReport, opts: BuildOptions = {})
       } catch { /* ignore */ }
     }
     if (signer) {
-      const sigLine = `ลงนาม: ${signer.name}${signer.position ? " (" + signer.position + ")" : ""}`;
+      const sigLine = `${T("ลงนาม", "Signed")}: ${signer.name}${signer.position ? " (" + signer.position + ")" : ""}`;
       doc.text(sigLine, margin, pageH - margin - 4);
     }
     void sigOffset;
-    const pageStr = `หน้า ${p} / ${totalPages}`;
+    const pageStr = `${T("หน้า", "Page")} ${p} / ${totalPages}`;
     doc.text(pageStr, pageW - margin - doc.getTextWidth(pageStr), pageH - margin - 4);
     doc.setTextColor(0);
   }
