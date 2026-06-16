@@ -422,3 +422,108 @@ export const getDeptAdminInfo = createServerFn({ method: "GET" })
       canManage: isAdmin || (isDeptAdmin && !!dept),
     };
   });
+
+// ── Department-wide run history & stats ───────────────────
+export type DeptRunRow = {
+  id: string;
+  created_at: string;
+  user_id: string;
+  title: string | null;
+  status: string;
+  needs_approval: boolean;
+  prompt_tokens: number | null;
+  completion_tokens: number | null;
+  cost_usd: number | null;
+  dept_agent_id: string | null;
+  dept_skill_id: string | null;
+};
+
+export const listDeptRuns = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        days: z.number().int().min(1).max(180).default(30),
+        agentId: z.string().uuid().optional(),
+        skillId: z.string().uuid().optional(),
+      })
+      .parse(input ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as { supabase: SB; userId: string };
+    const dept = await getMyDepartment(supabase, userId);
+    if (!dept) {
+      return { department: null, runs: [], stats: null, byAgent: [], bySkill: [], agents: [], skills: [] };
+    }
+    await assertDeptAdmin(supabase, userId, dept);
+
+    const since = new Date(Date.now() - data.days * 86400_000).toISOString();
+    let q = supabase
+      .from("ai_runs")
+      .select(
+        "id,created_at,user_id,title,status,needs_approval,prompt_tokens,completion_tokens,cost_usd,dept_agent_id,dept_skill_id",
+      )
+      .eq("department", dept)
+      .gte("created_at", since)
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (data.agentId) q = q.eq("dept_agent_id", data.agentId);
+    if (data.skillId) q = q.eq("dept_skill_id", data.skillId);
+    const { data: runs, error } = await q;
+    if (error) throw new Error(error.message);
+
+    const [{ data: agents }, { data: skills }] = await Promise.all([
+      supabase.from("dept_agents").select("id,name").eq("department", dept),
+      supabase.from("dept_skills").select("id,name").eq("department", dept),
+    ]);
+    const agentMap = new Map((agents ?? []).map((a: { id: string; name: string }) => [a.id, a.name]));
+    const skillMap = new Map((skills ?? []).map((s: { id: string; name: string }) => [s.id, s.name]));
+
+    const list = (runs ?? []) as DeptRunRow[];
+    const total = list.length;
+    const ok = list.filter((r) => r.status === "completed").length;
+    const failed = list.filter((r) => r.status === "failed" || r.status === "error").length;
+    const pending = list.filter((r) => r.needs_approval).length;
+    const totalCost = list.reduce((s, r) => s + Number(r.cost_usd ?? 0), 0);
+    const totalTokens = list.reduce(
+      (s, r) => s + Number(r.prompt_tokens ?? 0) + Number(r.completion_tokens ?? 0),
+      0,
+    );
+
+    type Bucket = { id: string; name: string; total: number; ok: number; failed: number; cost: number };
+    const byAgent: Record<string, Bucket> = {};
+    const bySkill: Record<string, Bucket> = {};
+    for (const r of list) {
+      if (r.dept_agent_id) {
+        const k = r.dept_agent_id;
+        byAgent[k] ??= { id: k, name: agentMap.get(k) ?? "(ลบแล้ว)", total: 0, ok: 0, failed: 0, cost: 0 };
+        byAgent[k].total++;
+        if (r.status === "completed") byAgent[k].ok++;
+        if (r.status === "failed" || r.status === "error") byAgent[k].failed++;
+        byAgent[k].cost += Number(r.cost_usd ?? 0);
+      }
+      if (r.dept_skill_id) {
+        const k = r.dept_skill_id;
+        bySkill[k] ??= { id: k, name: skillMap.get(k) ?? "(ลบแล้ว)", total: 0, ok: 0, failed: 0, cost: 0 };
+        bySkill[k].total++;
+        if (r.status === "completed") bySkill[k].ok++;
+        if (r.status === "failed" || r.status === "error") bySkill[k].failed++;
+        bySkill[k].cost += Number(r.cost_usd ?? 0);
+      }
+    }
+
+    return {
+      department: dept,
+      runs: list.map((r) => ({
+        ...r,
+        agent_name: r.dept_agent_id ? agentMap.get(r.dept_agent_id) ?? null : null,
+        skill_name: r.dept_skill_id ? skillMap.get(r.dept_skill_id) ?? null : null,
+      })),
+      stats: { total, ok, failed, pending, totalCost, totalTokens },
+      byAgent: Object.values(byAgent).sort((a, b) => b.total - a.total),
+      bySkill: Object.values(bySkill).sort((a, b) => b.total - a.total),
+      agents: (agents ?? []) as Array<{ id: string; name: string }>,
+      skills: (skills ?? []) as Array<{ id: string; name: string }>,
+    };
+  });
+
