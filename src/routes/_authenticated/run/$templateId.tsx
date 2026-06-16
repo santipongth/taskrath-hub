@@ -17,6 +17,8 @@ import { ArrowLeft, Copy, ImagePlus, ShieldCheck, RotateCcw, Pencil } from "luci
 import { toast } from "sonner";
 import { RefineBar } from "@/components/refine-bar";
 import { ExportDialog } from "@/components/export-dialog";
+import { VoiceInputButton } from "@/components/voice-input-button";
+import { BatchRunDialog } from "@/components/batch-run-dialog";
 
 type Revision = { output: string; instruction: string; preset?: string; at: string };
 
