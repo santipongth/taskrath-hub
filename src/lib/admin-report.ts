@@ -80,11 +80,16 @@ export async function buildMonthlyPdf(r: MonthlyReport): Promise<Blob> {
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const margin = 40;
-  let y = margin;
+  const headerH = 28;
+  const footerH = 24;
+  const contentTop = margin + headerH;
+  const contentBottom = pageH - margin - footerH;
+  let y = contentTop;
   const periodLabel = `${TH_MONTHS[r.period.month - 1]} ${r.period.year + 543}`;
+  const generatedAt = new Date().toLocaleString("th-TH");
 
   const ensureSpace = (need: number) => {
-    if (y + need > pageH - margin) { doc.addPage(); y = margin; }
+    if (y + need > contentBottom) { doc.addPage(); y = contentTop; }
   };
 
   doc.setFontSize(16);
@@ -92,7 +97,7 @@ export async function buildMonthlyPdf(r: MonthlyReport): Promise<Blob> {
   doc.setFontSize(11);
   doc.setTextColor(90);
   doc.text(`รอบการใช้งาน: ${periodLabel}`, margin, y); y += 14;
-  doc.text(`สร้างเมื่อ: ${new Date().toLocaleString("th-TH")}`, margin, y); y += 20;
+  doc.text(`สร้างเมื่อ: ${generatedAt}`, margin, y); y += 20;
   doc.setTextColor(0);
 
   // KPI grid
