@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Layers, Upload, Download, FileSpreadsheet, X } from "lucide-react";
+import { Layers, Upload, Download, FileSpreadsheet, X, Eye, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { runTemplate } from "@/lib/ai.functions";
 import type { TemplateField } from "@/lib/templates";
@@ -38,6 +38,7 @@ export function BatchRunDialog({
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [results, setResults] = useState<Result[]>([]);
+  const [preview, setPreview] = useState<{ loading: boolean; output?: string; error?: string } | null>(null);
   const cancelRef = useRef(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -127,8 +128,25 @@ export function BatchRunDialog({
     downloadCSV(`${templateId}-batch-results.csv`, toCSV([outHdrs, ...data]));
   };
 
+  const runPreview = async () => {
+    if (rows.length === 0) return;
+    setPreview({ loading: true });
+    const row = rows[0];
+    const inputs: Record<string, string> = {};
+    for (const f of fields) {
+      const h = mapping[f.name];
+      if (h && h !== SKIP) inputs[f.name] = row[h] ?? "";
+    }
+    try {
+      const res = await run({ data: { templateId, inputs, title: "Batch preview (แถวที่ 1)" } });
+      setPreview({ loading: false, output: res.output });
+    } catch (e) {
+      setPreview({ loading: false, error: e instanceof Error ? e.message : "error" });
+    }
+  };
+
   const reset = () => {
-    setHeaders([]); setRows([]); setMapping({}); setResults([]); setProgress(0);
+    setHeaders([]); setRows([]); setMapping({}); setResults([]); setProgress(0); setPreview(null);
   };
 
   const okCount = useMemo(() => results.filter((r) => r.ok).length, [results]);
@@ -246,6 +264,42 @@ export function BatchRunDialog({
                 ))}
               </div>
             </div>
+
+            {ready && !running && results.length === 0 && (
+              <div className="space-y-2 rounded-md border border-border bg-card p-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium inline-flex items-center gap-1.5">
+                    <Eye className="h-3.5 w-3.5" /> ตัวอย่างผลลัพธ์ (แถวที่ 1)
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-[11px]"
+                    onClick={runPreview}
+                    disabled={preview?.loading}
+                  >
+                    {preview?.loading ? (
+                      <><Loader2 className="mr-1 h-3 w-3 animate-spin" />กำลังรัน...</>
+                    ) : (
+                      <>{preview ? "รันใหม่" : "ลองรัน 1 แถว"}</>
+                    )}
+                  </Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  ทดลองรันด้วยข้อมูลแถวแรกก่อน เพื่อตรวจสอบผลลัพธ์ก่อนรันทั้งชุด ({rows.length} แถว)
+                </p>
+                {preview?.output && (
+                  <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded border border-border bg-muted/30 p-2 text-[11px] text-foreground">
+                    {preview.output}
+                  </pre>
+                )}
+                {preview?.error && (
+                  <p className="rounded border border-destructive/40 bg-destructive/10 p-2 text-[11px] text-destructive">
+                    {preview.error}
+                  </p>
+                )}
+              </div>
+            )}
 
             {(running || results.length > 0) && (
               <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3">
