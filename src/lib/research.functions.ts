@@ -121,7 +121,7 @@ export const runDeepResearch = createServerFn({ method: "POST" })
 
     const contextBlock = docs
       .map((d, i) => `[${i + 1}] ${d.title}\nURL: ${d.url}\n\n${d.markdown || d.snippet}`)
-      .join("\n\n---\n\n") || (lang === "th" ? "(ไม่มีแหล่ง URL — ใช้ไฟล์แนบเป็นหลัก)" : "(no URL sources — use attachments)");
+      .join("\n\n---\n\n") || (data.lang === "th" ? "(ไม่มีแหล่ง URL — ใช้ไฟล์แนบเป็นหลัก)" : "(no URL sources — use attachments)");
 
     const memBlock = await loadUserMemoryBlock(supabase, userId);
     const systemPrompt =
