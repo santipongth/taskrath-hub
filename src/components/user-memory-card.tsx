@@ -88,25 +88,53 @@ export function UserMemoryCard({ lang }: { lang: "th" | "en" }) {
     }
   };
 
-  const onClearAll = async () => {
-    if (entries.length === 0) return;
-    const ok = window.confirm(
-      lang === "th"
-        ? `ลบบริบททั้งหมด ${entries.length} รายการ? การกระทำนี้ย้อนกลับไม่ได้`
-        : `Delete all ${entries.length} entries? This cannot be undone`,
-    );
-    if (!ok) return;
+  const performClear = async () => {
+    if (entries.length === 0) { setConfirmOpen(false); return; }
+    const snapshot = entries.map((e) => ({ key: e.key, value: e.value }));
     setBusy(true);
+    setConfirmOpen(false);
     try {
       await clearAllFn();
       await invalidate();
-      toast.success(lang === "th" ? "ล้างบริบทแล้ว" : "Memory cleared");
+      toast.success(
+        lang === "th" ? `ล้างบริบท ${snapshot.length} รายการแล้ว` : `Cleared ${snapshot.length} entries`,
+        {
+          duration: 10_000,
+          action: {
+            label: lang === "th" ? "เลิกทำ" : "Undo",
+            onClick: async () => {
+              const t = toast.loading(lang === "th" ? "กำลังกู้คืน…" : "Restoring…");
+              try {
+                const results = await Promise.allSettled(
+                  snapshot.map((s) => upsert({ data: { key: s.key, value: s.value } })),
+                );
+                const failed = results.filter((r) => r.status === "rejected").length;
+                await invalidate();
+                toast.dismiss(t);
+                if (failed === 0) {
+                  toast.success(lang === "th" ? "กู้คืนสำเร็จ" : "Restored");
+                } else {
+                  toast.warning(
+                    lang === "th"
+                      ? `กู้คืน ${snapshot.length - failed}/${snapshot.length} รายการ`
+                      : `Restored ${snapshot.length - failed}/${snapshot.length}`,
+                  );
+                }
+              } catch (err) {
+                toast.dismiss(t);
+                toast.error(err instanceof Error ? err.message : "Restore failed");
+              }
+            },
+          },
+        },
+      );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error");
     } finally {
       setBusy(false);
     }
   };
+
 
   return (
     <div className="space-y-3 rounded-lg border border-border bg-card p-5">
