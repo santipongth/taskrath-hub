@@ -12,6 +12,13 @@ export type ResearchSource = {
   snippet: string;
 };
 
+export type ResearchDoc = {
+  url: string;
+  title: string;
+  snippet: string;
+  markdown: string;
+};
+
 export type ResearchResult = {
   runId: string;
   report: string;
@@ -27,7 +34,7 @@ function fcKey() {
   return k;
 }
 
-async function firecrawlSearch(query: string, limit: number, lang: string) {
+async function firecrawlSearch(query: string, limit: number, lang: string): Promise<ResearchDoc[]> {
   const res = await fetch(`${FIRECRAWL}/search`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${fcKey()}` },
@@ -52,7 +59,7 @@ async function firecrawlSearch(query: string, limit: number, lang: string) {
   }));
 }
 
-async function firecrawlScrape(url: string) {
+async function firecrawlScrape(url: string): Promise<ResearchDoc> {
   const res = await fetch(`${FIRECRAWL}/scrape`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${fcKey()}` },
@@ -73,7 +80,15 @@ async function firecrawlScrape(url: string) {
   };
 }
 
-export const runDeepResearch = createServerFn({ method: "POST" })
+const docSchema = z.object({
+  url: z.string(),
+  title: z.string(),
+  snippet: z.string(),
+  markdown: z.string().max(20_000),
+});
+
+/** Step 1: gather sources (search the web OR scrape provided URLs). */
+export const prepareResearchSources = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
@@ -82,38 +97,58 @@ export const runDeepResearch = createServerFn({ method: "POST" })
         limit: z.number().int().min(3).max(10).optional().default(6),
         lang: z.enum(["th", "en"]).optional().default("th"),
         urls: z.array(z.string().url()).max(8).optional().default([]),
-        attachments: z.array(attachmentSchema).max(6).optional().default([]),
+        hasAttachments: z.boolean().optional().default(false),
       })
       .parse(input),
   )
-  .handler(async ({ data, context }): Promise<ResearchResult> => {
-    const { supabase, userId } = context;
-
+  .handler(async ({ data }) => {
     const guard = checkPromptInjection(data.question);
-    if (guard.decision === "block") {
-      throw new Error("คำถามมีรูปแบบที่ไม่อนุญาต (prompt injection)");
-    }
+    if (guard.decision === "block") throw new Error("คำถามมีรูปแบบที่ไม่อนุญาต (prompt injection)");
 
     const urls = (data.urls ?? []).filter(Boolean);
-    const atts = (data.attachments ?? []) as AttachmentInput[];
-    const useProvided = urls.length > 0 || atts.length > 0;
-
-    type Doc = { url: string; title: string; snippet: string; markdown: string };
-    let docs: Doc[] = [];
+    const useProvided = urls.length > 0 || data.hasAttachments;
+    let docs: ResearchDoc[] = [];
+    const failed: string[] = [];
 
     if (urls.length > 0) {
-      const scraped = await Promise.allSettled(urls.map((u) => firecrawlScrape(u)));
-      for (const s of scraped) {
-        if (s.status === "fulfilled") docs.push(s.value);
-      }
+      const results = await Promise.allSettled(urls.map((u) => firecrawlScrape(u)));
+      results.forEach((r, i) => {
+        if (r.status === "fulfilled") docs.push(r.value);
+        else failed.push(urls[i]);
+      });
     }
 
     if (!useProvided) {
       docs = await firecrawlSearch(data.question, data.limit, data.lang);
       if (docs.length === 0) throw new Error("ไม่พบแหล่งข้อมูล กรุณาลองคำถามใหม่");
-    } else if (docs.length === 0 && atts.length === 0) {
+    } else if (docs.length === 0 && !data.hasAttachments) {
       throw new Error("ดึงข้อมูลจาก URL ที่ระบุไม่สำเร็จ");
     }
+
+    const sources: ResearchSource[] = docs.map((d, i) => ({
+      n: i + 1, title: d.title, url: d.url, snippet: d.snippet,
+    }));
+    return { sources, docs, failed, mode: useProvided ? ("provided" as const) : ("search" as const) };
+  });
+
+/** Step 2: synthesize report from prepared docs (+ optional file attachments). */
+export const synthesizeResearchReport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        question: z.string().trim().min(5).max(2000),
+        lang: z.enum(["th", "en"]).optional().default("th"),
+        docs: z.array(docSchema).max(10),
+        attachments: z.array(attachmentSchema).max(6).optional().default([]),
+        mode: z.enum(["search", "provided"]).optional().default("search"),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }): Promise<ResearchResult> => {
+    const { supabase, userId } = context;
+    const atts = (data.attachments ?? []) as AttachmentInput[];
+    const docs = data.docs;
 
     const sources: ResearchSource[] = docs.map((d, i) => ({
       n: i + 1, title: d.title, url: d.url, snippet: d.snippet,
@@ -126,17 +161,13 @@ export const runDeepResearch = createServerFn({ method: "POST" })
     const memBlock = await loadUserMemoryBlock(supabase, userId);
     const systemPrompt =
       (data.lang === "th"
-        ? "คุณเป็นนักวิเคราะห์ราชการไทย จงเขียนรายงานสรุปจากแหล่งข้อมูลและไฟล์แนบที่ให้มา ใช้ภาษาทางการ จัดหัวข้อชัดเจน อ้างอิงด้วยเลขในวงเล็บ [n] ทุกข้อความที่อ้างจากแหล่ง สำหรับไฟล์แนบให้ระบุ [ไฟล์: ชื่อไฟล์] ห้ามแต่งข้อมูลที่ไม่มีในแหล่ง หากแหล่งขัดแย้งให้บันทึกไว้"
+        ? "คุณเป็นนักวิเคราะห์ราชการไทย จงเขียนรายงานสรุปจากแหล่งข้อมูลและไฟล์แนบที่ให้มา ใช้ภาษาทางการ จัดหัวข้อชัดเจน อ้างอิงด้วยเลขในวงเล็บ [n] ทุกข้อความที่อ้างจากแหล่ง สำหรับไฟล์แนบให้ระบุ [ไฟล์: ชื่อไฟล์] ห้ามแต่งข้อมูลที่ไม่มีในแหล่ง"
         : "You are a research analyst. Write a clear report from the provided sources and attachments. Cite every factual claim using [n] for URLs or [file: name] for attachments. Do not invent information.") +
       memBlock;
 
     const userPrompt =
-      (data.lang === "th" ? "คำถามวิจัย:\n" : "Research question:\n") +
-      data.question +
-      "\n\n" +
-      (data.lang === "th" ? "แหล่งข้อมูล:\n" : "Sources:\n") +
-      contextBlock +
-      "\n\n" +
+      (data.lang === "th" ? "คำถามวิจัย:\n" : "Research question:\n") + data.question + "\n\n" +
+      (data.lang === "th" ? "แหล่งข้อมูล:\n" : "Sources:\n") + contextBlock + "\n\n" +
       (data.lang === "th"
         ? "เขียนรายงาน Markdown มีหัวข้อ: บทสรุปผู้บริหาร, ประเด็นสำคัญ, ข้อค้นพบ (อ้างอิง), ข้อจำกัด, แหล่งอ้างอิง."
         : "Write a Markdown report with sections: Executive summary, Key points, Findings (cited), Limitations, References.");
@@ -159,13 +190,13 @@ export const runDeepResearch = createServerFn({ method: "POST" })
         user_id: userId,
         template_id: "deep-research",
         title: data.question.slice(0, 120),
-        input: { question: data.question, limit: data.limit, lang: data.lang, urls, attachments: atts.map((a) => ({ name: a.name, kind: a.kind })) },
+        input: { question: data.question, lang: data.lang, sources: sources.map((s) => s.url), attachments: atts.map((a) => ({ name: a.name, kind: a.kind })) },
         output: report,
         status: "completed",
         prompt_tokens: ai.usage.promptTokens,
         completion_tokens: ai.usage.completionTokens,
         cost_usd: ai.usage.costUsd,
-        metadata: { kind: "deep_research", sources, mode: useProvided ? "provided" : "search" },
+        metadata: { kind: "deep_research", sources, mode: data.mode },
       })
       .select("id")
       .single();
@@ -174,7 +205,7 @@ export const runDeepResearch = createServerFn({ method: "POST" })
     await supabase.rpc("log_audit", {
       p_action: "research.run",
       p_resource: run.id,
-      p_metadata: { sources: sources.length, attachments: atts.length, mode: useProvided ? "provided" : "search", usage: ai.usage } as never,
+      p_metadata: { sources: sources.length, attachments: atts.length, mode: data.mode, usage: ai.usage } as never,
     });
 
     return { runId: run.id as string, report, sources, usage: ai.usage };
