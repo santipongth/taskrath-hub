@@ -114,6 +114,21 @@ function RunPage() {
 
   const removeAttachment = (i: number) => { setAttachments(attachments.filter((_, idx) => idx !== i)); setConfirmedWarnings(false); };
 
+  const [ocrWarnings, setOcrWarnings] = [stateOcrWarnings, setStateOcrWarnings] as const;
+
+  const assessOcrQuality = (name: string, text: string): string | null => {
+    const trimmed = text.trim();
+    if (trimmed.length === 0) return lang === "th" ? `${name}: ถอดข้อความไม่ได้เลย — ไฟล์อาจพร่ามัว/ว่าง` : `${name}: no text extracted — image may be blank/blurry`;
+    if (trimmed.length < 30) return lang === "th" ? `${name}: ถอดข้อความได้สั้นมาก (${trimmed.length} ตัวอักษร) — อาจพร่ามัวหรือคุณภาพต่ำ` : `${name}: very little text (${trimmed.length} chars) — may be blurry/low quality`;
+    // High ratio of replacement / non-printable chars → likely garbled OCR
+    const garbled = (trimmed.match(/[\uFFFD\u0000-\u0008\u000E-\u001F]/g) ?? []).length;
+    if (garbled / trimmed.length > 0.05) return lang === "th" ? `${name}: ผลถอดข้อความมีอักขระผิดปกติจำนวนมาก — อาจไม่ชัด` : `${name}: many garbled characters — likely unclear scan`;
+    // Mostly punctuation/whitespace (no letters/digits)
+    const wordy = (trimmed.match(/[\p{L}\p{N}]/gu) ?? []).length;
+    if (wordy / trimmed.length < 0.3) return lang === "th" ? `${name}: เนื้อความส่วนใหญ่ไม่ใช่ตัวอักษร — อาจพร่ามัว` : `${name}: low letter density — possibly blurry`;
+    return null;
+  };
+
   const onRun = async () => {
     if (!prompt.trim() && attachments.length === 0) return;
     if (warnings.length > 0 && !confirmedWarnings) {
@@ -131,17 +146,29 @@ function RunPage() {
       try {
         const res = await ocr({ data: { items: targets.map((a) => ({ name: a.name, dataUrl: a.data })) } });
         const map = new Map(res.results.map((r) => [r.name, r] as const));
+        const newOcrWarnings: string[] = [];
         workAtts = attachments.map((a) => {
           if (a.kind !== "image" && a.kind !== "pdf") return a;
           const o = map.get(a.name);
-          if (!o || o.error) { toast.error(`OCR ${a.name}: ${o?.error ?? "failed"}`); return a; }
+          if (!o || o.error) {
+            newOcrWarnings.push(lang === "th" ? `${a.name}: OCR ล้มเหลว (${o?.error ?? "ไม่ทราบสาเหตุ"})` : `${a.name}: OCR failed (${o?.error ?? "unknown"})`);
+            return a;
+          }
+          const issue = assessOcrQuality(a.name, o.text);
+          if (issue) newOcrWarnings.push(issue);
           return { ...a, kind: "text" as const, data: o.text, mime: "text/plain", size: o.text.length, textLen: o.text.length };
         });
         setAttachments(workAtts);
+        setStateOcrWarnings(newOcrWarnings);
+        setOcrLoading(false);
+        if (newOcrWarnings.length > 0 && !confirmedWarnings) {
+          toast.warning(lang === "th" ? "OCR มีคำเตือนคุณภาพ — กด Run อีกครั้งเพื่อรันต่อ" : "OCR quality warnings — click Run again to continue");
+          setConfirmedWarnings(true);
+          return;
+        }
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "OCR error"); setOcrLoading(false); return;
       }
-      setOcrLoading(false);
     }
 
     setLoading(true); setOutput("");
@@ -154,6 +181,7 @@ function RunPage() {
       });
       setOutput(res.output);
       setConfirmedWarnings(false);
+      setStateOcrWarnings([]);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error");
     } finally {
