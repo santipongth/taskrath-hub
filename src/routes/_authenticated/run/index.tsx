@@ -114,7 +114,7 @@ function RunPage() {
 
   const removeAttachment = (i: number) => { setAttachments(attachments.filter((_, idx) => idx !== i)); setConfirmedWarnings(false); };
 
-  const [ocrWarnings, setOcrWarnings] = [stateOcrWarnings, setStateOcrWarnings] as const;
+  const [ocrWarnings, setOcrWarnings] = useState<string[]>([]);
 
   const assessOcrQuality = (name: string, text: string): string | null => {
     const trimmed = text.trim();
