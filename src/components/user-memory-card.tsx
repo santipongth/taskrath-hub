@@ -42,6 +42,8 @@ export function UserMemoryCard({ lang }: { lang: "th" | "en" }) {
   const [value, setValue] = useState("");
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["user-memory"] });
 
