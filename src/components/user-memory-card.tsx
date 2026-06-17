@@ -14,8 +14,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Brain, Trash2, Plus, Eraser } from "lucide-react";
 import { toast } from "sonner";
+
 
 export function UserMemoryCard({ lang }: { lang: "th" | "en" }) {
   const qc = useQueryClient();
@@ -37,6 +42,8 @@ export function UserMemoryCard({ lang }: { lang: "th" | "en" }) {
   const [value, setValue] = useState("");
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["user-memory"] });
 
@@ -81,25 +88,53 @@ export function UserMemoryCard({ lang }: { lang: "th" | "en" }) {
     }
   };
 
-  const onClearAll = async () => {
-    if (entries.length === 0) return;
-    const ok = window.confirm(
-      lang === "th"
-        ? `ลบบริบททั้งหมด ${entries.length} รายการ? การกระทำนี้ย้อนกลับไม่ได้`
-        : `Delete all ${entries.length} entries? This cannot be undone`,
-    );
-    if (!ok) return;
+  const performClear = async () => {
+    if (entries.length === 0) { setConfirmOpen(false); return; }
+    const snapshot = entries.map((e) => ({ key: e.key, value: e.value }));
     setBusy(true);
+    setConfirmOpen(false);
     try {
       await clearAllFn();
       await invalidate();
-      toast.success(lang === "th" ? "ล้างบริบทแล้ว" : "Memory cleared");
+      toast.success(
+        lang === "th" ? `ล้างบริบท ${snapshot.length} รายการแล้ว` : `Cleared ${snapshot.length} entries`,
+        {
+          duration: 10_000,
+          action: {
+            label: lang === "th" ? "เลิกทำ" : "Undo",
+            onClick: async () => {
+              const t = toast.loading(lang === "th" ? "กำลังกู้คืน…" : "Restoring…");
+              try {
+                const results = await Promise.allSettled(
+                  snapshot.map((s) => upsert({ data: { key: s.key, value: s.value } })),
+                );
+                const failed = results.filter((r) => r.status === "rejected").length;
+                await invalidate();
+                toast.dismiss(t);
+                if (failed === 0) {
+                  toast.success(lang === "th" ? "กู้คืนสำเร็จ" : "Restored");
+                } else {
+                  toast.warning(
+                    lang === "th"
+                      ? `กู้คืน ${snapshot.length - failed}/${snapshot.length} รายการ`
+                      : `Restored ${snapshot.length - failed}/${snapshot.length}`,
+                  );
+                }
+              } catch (err) {
+                toast.dismiss(t);
+                toast.error(err instanceof Error ? err.message : "Restore failed");
+              }
+            },
+          },
+        },
+      );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error");
     } finally {
       setBusy(false);
     }
   };
+
 
   return (
     <div className="space-y-3 rounded-lg border border-border bg-card p-5">
@@ -150,12 +185,37 @@ export function UserMemoryCard({ lang }: { lang: "th" | "en" }) {
 
       {entries.length > 0 && (
         <div>
-          <Button variant="ghost" size="sm" onClick={onClearAll} disabled={busy} className="text-destructive hover:text-destructive">
+          <Button variant="ghost" size="sm" onClick={() => setConfirmOpen(true)} disabled={busy} className="text-destructive hover:text-destructive">
             <Eraser className="mr-1 h-3.5 w-3.5" />
             {lang === "th" ? "ล้างบริบททั้งหมด" : "Clear all"}
           </Button>
         </div>
       )}
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {lang === "th" ? `ลบบริบททั้งหมด ${entries.length} รายการ?` : `Delete all ${entries.length} entries?`}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {lang === "th"
+                ? "ระบบจะเปิดให้กด \"เลิกทำ\" ภายใน 10 วินาทีหลังลบ เพื่อกู้คืนรายการทั้งหมด"
+                : "You'll have 10 seconds to click \"Undo\" after clearing to restore all entries."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{lang === "th" ? "ยกเลิก" : "Cancel"}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={performClear}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {lang === "th" ? "ลบทั้งหมด" : "Delete all"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
 
       <div className="space-y-2 border-t border-border pt-3">
         <div className="space-y-1.5">
