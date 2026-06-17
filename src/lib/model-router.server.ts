@@ -1,5 +1,9 @@
-// Server-only: resolve dept route/provider and run through chain
+// Server-only: resolve dept route/provider and run through chain.
+// Provider configuration is read with the service-role client so that
+// regular department members can run AI (RLS on dept_model_providers is
+// restricted to dept admins; routing here is trusted server-side code).
 import { runWithRoute, type ProviderRow, type RouteChain, type AttemptLog } from "@/lib/providers.server";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SB = any;
@@ -27,8 +31,9 @@ export async function runViaDeptRoute(
   systemPrompt: string,
   userPrompt: string,
 ): Promise<RoutedResult> {
-  // Load providers (RLS allows dept members)
-  const { data: provRows, error: pErr } = await supabase
+  // Load providers via service role (RLS allows only dept admins to read
+  // these rows, but routing runs for all dept members).
+  const { data: provRows, error: pErr } = await supabaseAdmin
     .from("dept_model_providers")
     .select("*")
     .eq("department", department)
