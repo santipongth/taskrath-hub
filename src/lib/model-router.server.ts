@@ -1,5 +1,9 @@
-// Server-only: resolve dept route/provider and run through chain
+// Server-only: resolve dept route/provider and run through chain.
+// Provider configuration is read with the service-role client so that
+// regular department members can run AI (RLS on dept_model_providers is
+// restricted to dept admins; routing here is trusted server-side code).
 import { runWithRoute, type ProviderRow, type RouteChain, type AttemptLog } from "@/lib/providers.server";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SB = any;
