@@ -114,6 +114,21 @@ function RunPage() {
 
   const removeAttachment = (i: number) => { setAttachments(attachments.filter((_, idx) => idx !== i)); setConfirmedWarnings(false); };
 
+  const [ocrWarnings, setOcrWarnings] = useState<string[]>([]);
+
+  const assessOcrQuality = (name: string, text: string): string | null => {
+    const trimmed = text.trim();
+    if (trimmed.length === 0) return lang === "th" ? `${name}: ถอดข้อความไม่ได้เลย — ไฟล์อาจพร่ามัว/ว่าง` : `${name}: no text extracted — image may be blank/blurry`;
+    if (trimmed.length < 30) return lang === "th" ? `${name}: ถอดข้อความได้สั้นมาก (${trimmed.length} ตัวอักษร) — อาจพร่ามัวหรือคุณภาพต่ำ` : `${name}: very little text (${trimmed.length} chars) — may be blurry/low quality`;
+    // High ratio of replacement / non-printable chars → likely garbled OCR
+    const garbled = (trimmed.match(/[\uFFFD\u0000-\u0008\u000E-\u001F]/g) ?? []).length;
+    if (garbled / trimmed.length > 0.05) return lang === "th" ? `${name}: ผลถอดข้อความมีอักขระผิดปกติจำนวนมาก — อาจไม่ชัด` : `${name}: many garbled characters — likely unclear scan`;
+    // Mostly punctuation/whitespace (no letters/digits)
+    const wordy = (trimmed.match(/[\p{L}\p{N}]/gu) ?? []).length;
+    if (wordy / trimmed.length < 0.3) return lang === "th" ? `${name}: เนื้อความส่วนใหญ่ไม่ใช่ตัวอักษร — อาจพร่ามัว` : `${name}: low letter density — possibly blurry`;
+    return null;
+  };
+
   const onRun = async () => {
     if (!prompt.trim() && attachments.length === 0) return;
     if (warnings.length > 0 && !confirmedWarnings) {
@@ -131,17 +146,29 @@ function RunPage() {
       try {
         const res = await ocr({ data: { items: targets.map((a) => ({ name: a.name, dataUrl: a.data })) } });
         const map = new Map(res.results.map((r) => [r.name, r] as const));
+        const newOcrWarnings: string[] = [];
         workAtts = attachments.map((a) => {
           if (a.kind !== "image" && a.kind !== "pdf") return a;
           const o = map.get(a.name);
-          if (!o || o.error) { toast.error(`OCR ${a.name}: ${o?.error ?? "failed"}`); return a; }
+          if (!o || o.error) {
+            newOcrWarnings.push(lang === "th" ? `${a.name}: OCR ล้มเหลว (${o?.error ?? "ไม่ทราบสาเหตุ"})` : `${a.name}: OCR failed (${o?.error ?? "unknown"})`);
+            return a;
+          }
+          const issue = assessOcrQuality(a.name, o.text);
+          if (issue) newOcrWarnings.push(issue);
           return { ...a, kind: "text" as const, data: o.text, mime: "text/plain", size: o.text.length, textLen: o.text.length };
         });
         setAttachments(workAtts);
+        setOcrWarnings(newOcrWarnings);
+        setOcrLoading(false);
+        if (newOcrWarnings.length > 0 && !confirmedWarnings) {
+          toast.warning(lang === "th" ? "OCR มีคำเตือนคุณภาพ — กด Run อีกครั้งเพื่อรันต่อ" : "OCR quality warnings — click Run again to continue");
+          setConfirmedWarnings(true);
+          return;
+        }
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "OCR error"); setOcrLoading(false); return;
       }
-      setOcrLoading(false);
     }
 
     setLoading(true); setOutput("");
@@ -154,6 +181,7 @@ function RunPage() {
       });
       setOutput(res.output);
       setConfirmedWarnings(false);
+      setOcrWarnings([]);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error");
     } finally {
@@ -219,6 +247,18 @@ function RunPage() {
             </div>
             <ul className="ml-5 list-disc space-y-0.5">
               {warnings.map((w, i) => <li key={i}>{w}</li>)}
+            </ul>
+          </div>
+        )}
+
+        {ocrWarnings.length > 0 && (
+          <div className="mt-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200">
+            <div className="mb-1 flex items-center gap-1.5 font-medium">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              {lang === "th" ? "คุณภาพผลลัพธ์ OCR" : "OCR quality"}
+            </div>
+            <ul className="ml-5 list-disc space-y-0.5">
+              {ocrWarnings.map((w, i) => <li key={i}>{w}</li>)}
             </ul>
           </div>
         )}
