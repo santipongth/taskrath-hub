@@ -1,11 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { runFreeform, ocrAttachments } from "@/lib/ai.functions";
+import { runFreeform, ocrAttachments, compareFreeform, listMyDeptModels } from "@/lib/ai.functions";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Copy, Paperclip, X, FileText, Image as ImageIcon, FileType2, AlertTriangle } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Sparkles, Copy, Paperclip, X, FileText, Image as ImageIcon, FileType2, AlertTriangle, GitCompare, Cpu } from "lucide-react";
 import { toast } from "sonner";
 import { VoiceInputButton } from "@/components/voice-input-button";
 
@@ -24,10 +26,15 @@ type Attachment = {
   textLen?: number;
 };
 
+type CompareItem =
+  | { selector: string; ok: true; output: string; usage: { promptTokens: number; completionTokens: number; costUsd: number }; provider: { id: string; kind: string }; latency_ms: number }
+  | { selector: string; ok: false; error: string; latency_ms: number };
+
 const MAX_FILES = 8;
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const TEXT_EXT = /\.(txt|md|markdown|csv|tsv|json|xml|yaml|yml|log|html?|css|js|ts|tsx|jsx|py|sql)$/i;
 const MAX_PDF_PAGES = 40;
+const DEFAULT_MODEL_KEY = "__default__";
 
 const readAsDataUrl = (f: File) => new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = () => rej(r.error); r.readAsDataURL(f); });
 const readAsText = (f: File) => new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = () => rej(r.error); r.readAsText(f); });
@@ -45,12 +52,26 @@ function RunPage() {
   const { t, lang } = useI18n();
   const run = useServerFn(runFreeform);
   const ocr = useServerFn(ocrAttachments);
+  const compare = useServerFn(compareFreeform);
+  const fetchModels = useServerFn(listMyDeptModels);
+
+  const { data: modelsData } = useQuery({
+    queryKey: ["my-dept-models"],
+    queryFn: () => fetchModels(),
+    staleTime: 5 * 60 * 1000,
+  });
+  const models = modelsData?.models ?? [];
+
   const [prompt, setPrompt] = useState("");
   const [output, setOutput] = useState("");
   const [loading, setLoading] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [confirmedWarnings, setConfirmedWarnings] = useState(false);
+  const [providerSelector, setProviderSelector] = useState<string>(DEFAULT_MODEL_KEY);
+  const [compareMode, setCompareMode] = useState(false);
+  const [compareIds, setCompareIds] = useState<string[]>([]);
+  const [compareResults, setCompareResults] = useState<CompareItem[] | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const baseRef = useRef("");
 
@@ -117,18 +138,39 @@ function RunPage() {
 
   const assessOcrQuality = (name: string, text: string): string | null => {
     const trimmed = text.trim();
-    if (trimmed.length === 0) return lang === "th" ? `${name}: ถอดข้อความไม่ได้เลย — ไฟล์อาจพร่ามัว/ว่าง` : `${name}: no text extracted — image may be blank/blurry`;
-    if (trimmed.length < 30) return lang === "th" ? `${name}: ถอดข้อความได้สั้นมาก (${trimmed.length} ตัวอักษร) — อาจพร่ามัวหรือคุณภาพต่ำ` : `${name}: very little text (${trimmed.length} chars) — may be blurry/low quality`;
-    // High ratio of replacement / non-printable chars → likely garbled OCR
+    if (trimmed.length === 0) return lang === "th" ? `${name}: ถอดข้อความไม่ได้เลย — ไฟล์อาจพร่ามัว/ว่าง` : `${name}: no text extracted`;
+    if (trimmed.length < 30) return lang === "th" ? `${name}: ถอดข้อความได้สั้นมาก (${trimmed.length} ตัวอักษร)` : `${name}: very little text (${trimmed.length} chars)`;
     const garbled = (trimmed.match(/[\uFFFD\u0000-\u0008\u000E-\u001F]/g) ?? []).length;
-    if (garbled / trimmed.length > 0.05) return lang === "th" ? `${name}: ผลถอดข้อความมีอักขระผิดปกติจำนวนมาก — อาจไม่ชัด` : `${name}: many garbled characters — likely unclear scan`;
-    // Mostly punctuation/whitespace (no letters/digits)
+    if (garbled / trimmed.length > 0.05) return lang === "th" ? `${name}: ผลถอดข้อความมีอักขระผิดปกติจำนวนมาก` : `${name}: many garbled characters`;
     const wordy = (trimmed.match(/[\p{L}\p{N}]/gu) ?? []).length;
-    if (wordy / trimmed.length < 0.3) return lang === "th" ? `${name}: เนื้อความส่วนใหญ่ไม่ใช่ตัวอักษร — อาจพร่ามัว` : `${name}: low letter density — possibly blurry`;
+    if (wordy / trimmed.length < 0.3) return lang === "th" ? `${name}: เนื้อความส่วนใหญ่ไม่ใช่ตัวอักษร` : `${name}: low letter density`;
     return null;
   };
 
+  const toggleCompareId = (id: string) => {
+    setCompareIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= 4) { toast.error(lang === "th" ? "เลือกได้สูงสุด 4 โมเดล" : "Max 4 models"); return prev; }
+      return [...prev, id];
+    });
+  };
+
+  const onCompare = async () => {
+    if (!prompt.trim()) { toast.error(lang === "th" ? "กรอกคำสั่งก่อน" : "Enter a prompt"); return; }
+    if (compareIds.length < 2) { toast.error(lang === "th" ? "เลือกอย่างน้อย 2 โมเดล" : "Pick at least 2 models"); return; }
+    setLoading(true); setCompareResults(null); setOutput("");
+    try {
+      const res = await compare({ data: { prompt: prompt.trim(), selectors: compareIds.map((id) => `provider:${id}`) } });
+      setCompareResults(res.results as CompareItem[]);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const onRun = async () => {
+    if (compareMode) { void onCompare(); return; }
     if (!prompt.trim() && attachments.length === 0) return;
     if (warnings.length > 0 && !confirmedWarnings) {
       toast.warning(lang === "th" ? "พบคำเตือน — กด Run อีกครั้งเพื่อดำเนินการต่อ" : "Warnings — click Run again to continue");
@@ -137,8 +179,6 @@ function RunPage() {
     }
 
     let workAtts = attachments;
-
-    // OCR is always-on default: convert image/PDF → text attachments
     const targets = attachments.filter((a) => a.kind === "image" || a.kind === "pdf");
     if (targets.length > 0) {
       setOcrLoading(true);
@@ -150,7 +190,7 @@ function RunPage() {
           if (a.kind !== "image" && a.kind !== "pdf") return a;
           const o = map.get(a.name);
           if (!o || o.error) {
-            newOcrWarnings.push(lang === "th" ? `${a.name}: OCR ล้มเหลว (${o?.error ?? "ไม่ทราบสาเหตุ"})` : `${a.name}: OCR failed (${o?.error ?? "unknown"})`);
+            newOcrWarnings.push(lang === "th" ? `${a.name}: OCR ล้มเหลว (${o?.error ?? "ไม่ทราบสาเหตุ"})` : `${a.name}: OCR failed`);
             return a;
           }
           const issue = assessOcrQuality(a.name, o.text);
@@ -161,7 +201,7 @@ function RunPage() {
         setOcrWarnings(newOcrWarnings);
         setOcrLoading(false);
         if (newOcrWarnings.length > 0 && !confirmedWarnings) {
-          toast.warning(lang === "th" ? "OCR มีคำเตือนคุณภาพ — กด Run อีกครั้งเพื่อรันต่อ" : "OCR quality warnings — click Run again to continue");
+          toast.warning(lang === "th" ? "OCR มีคำเตือนคุณภาพ — กด Run อีกครั้งเพื่อรันต่อ" : "OCR quality warnings");
           setConfirmedWarnings(true);
           return;
         }
@@ -170,12 +210,14 @@ function RunPage() {
       }
     }
 
-    setLoading(true); setOutput("");
+    setLoading(true); setOutput(""); setCompareResults(null);
     try {
+      const selector = providerSelector !== DEFAULT_MODEL_KEY ? `provider:${providerSelector}` : null;
       const res = await run({
         data: {
           prompt: prompt.trim() || (lang === "th" ? "ช่วยวิเคราะห์/สรุปไฟล์แนบ" : "Please analyze the attached files"),
           attachments: workAtts.map(({ name, kind, data, mime, size }) => ({ name, kind, data, mime, size })),
+          providerSelector: selector,
         },
       });
       setOutput(res.output);
@@ -198,9 +240,10 @@ function RunPage() {
   const iconFor = (k: Attachment["kind"]) =>
     k === "image" ? <ImageIcon className="h-3.5 w-3.5" /> : k === "pdf" ? <FileType2 className="h-3.5 w-3.5" /> : <FileText className="h-3.5 w-3.5" />;
   const fmtSize = (b: number) => (b < 1024 ? `${b}B` : b < 1024 * 1024 ? `${(b / 1024).toFixed(0)}KB` : `${(b / 1024 / 1024).toFixed(1)}MB`);
+  const nameOf = (id: string) => models.find((m) => m.id === id)?.name ?? id.slice(0, 8);
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-8">
+    <div className="mx-auto max-w-5xl px-6 py-8">
       <div className="mb-6">
         <h1 className="flex items-center gap-2 text-xl font-semibold text-foreground">
           <Sparkles className="h-5 w-5 text-primary" />{t("freeformTitle")}
@@ -211,8 +254,60 @@ function RunPage() {
       <div
         className="rounded-lg border border-border bg-card p-5"
         onDragOver={(e) => { e.preventDefault(); }}
-        onDrop={(e) => { e.preventDefault(); onFilesPicked(e.dataTransfer.files); }}
+        onDrop={(e) => { e.preventDefault(); if (!compareMode) onFilesPicked(e.dataTransfer.files); }}
       >
+        {/* Model + compare controls */}
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Cpu className="h-3.5 w-3.5" />
+            {lang === "th" ? "โมเดล" : "Model"}
+          </div>
+          {compareMode ? (
+            <div className="flex flex-wrap gap-1.5">
+              {models.length === 0 && (
+                <span className="text-xs text-muted-foreground">
+                  {lang === "th" ? "ยังไม่มีโมเดลของหน่วยงาน — แจ้งผู้ดูแลเพิ่ม provider" : "No dept models — ask admin"}
+                </span>
+              )}
+              {models.map((m) => {
+                const active = compareIds.includes(m.id);
+                return (
+                  <button
+                    key={m.id}
+                    onClick={() => toggleCompareId(m.id)}
+                    className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${active ? "border-primary bg-primary/10 text-foreground" : "border-border bg-background text-muted-foreground hover:text-foreground"}`}
+                  >
+                    {m.name}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <Select value={providerSelector} onValueChange={setProviderSelector}>
+              <SelectTrigger className="h-8 w-auto min-w-[180px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={DEFAULT_MODEL_KEY}>{lang === "th" ? "ค่าเริ่มต้น (Gemini)" : "Default (Gemini)"}</SelectItem>
+                {models.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>{m.name} <span className="text-muted-foreground">· {m.model_id}</span></SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <div className="ml-auto">
+            <Button
+              variant={compareMode ? "default" : "outline"}
+              size="sm"
+              onClick={() => { setCompareMode((v) => !v); setCompareResults(null); }}
+              disabled={loading || ocrLoading}
+            >
+              <GitCompare className="mr-1.5 h-3.5 w-3.5" />
+              {lang === "th" ? "เทียบโมเดล" : "Compare"}
+            </Button>
+          </div>
+        </div>
+
         <Textarea
           value={prompt}
           onChange={(e) => { baseRef.current = e.target.value; setPrompt(e.target.value); }}
@@ -221,7 +316,7 @@ function RunPage() {
           className="resize-none border-border shadow-none focus-visible:ring-1"
         />
 
-        {attachments.length > 0 && (
+        {!compareMode && attachments.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2">
             {attachments.map((a, i) => (
               <div key={i} className="flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 text-xs">
@@ -238,7 +333,7 @@ function RunPage() {
           </div>
         )}
 
-        {warnings.length > 0 && (
+        {!compareMode && warnings.length > 0 && (
           <div className="mt-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200">
             <div className="mb-1 flex items-center gap-1.5 font-medium">
               <AlertTriangle className="h-3.5 w-3.5" />
@@ -250,7 +345,7 @@ function RunPage() {
           </div>
         )}
 
-        {ocrWarnings.length > 0 && (
+        {!compareMode && ocrWarnings.length > 0 && (
           <div className="mt-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200">
             <div className="mb-1 flex items-center gap-1.5 font-medium">
               <AlertTriangle className="h-3.5 w-3.5" />
@@ -273,23 +368,66 @@ function RunPage() {
 
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={loading || ocrLoading}>
-              <Paperclip className="mr-1.5 h-3.5 w-3.5" />
-              {lang === "th" ? "แนบไฟล์" : "Attach"}
-            </Button>
-            <p className="hidden text-xs text-muted-foreground sm:block">
-              {lang === "th" ? "รูปภาพ · PDF · ข้อความ (≤10MB/ไฟล์) · OCR อัตโนมัติ" : "Images · PDF · text (≤10MB each) · auto OCR"}
-            </p>
+            {!compareMode && (
+              <>
+                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={loading || ocrLoading}>
+                  <Paperclip className="mr-1.5 h-3.5 w-3.5" />
+                  {lang === "th" ? "แนบไฟล์" : "Attach"}
+                </Button>
+                <p className="hidden text-xs text-muted-foreground sm:block">
+                  {lang === "th" ? "รูปภาพ · PDF · ข้อความ (≤10MB) · OCR อัตโนมัติ" : "Images · PDF · text · auto OCR"}
+                </p>
+              </>
+            )}
+            {compareMode && (
+              <p className="text-xs text-muted-foreground">
+                {lang === "th"
+                  ? `เลือก 2–4 โมเดลเพื่อรันพร้อมกันและเทียบผล (ข้อความเท่านั้น) — เลือกแล้ว ${compareIds.length}`
+                  : `Pick 2–4 models to run in parallel (text only) — ${compareIds.length} selected`}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <VoiceInputButton onTranscript={onVoice} />
-            <Button onClick={onRun} disabled={loading || ocrLoading || (!prompt.trim() && attachments.length === 0)}>
-              {ocrLoading ? (lang === "th" ? "กำลัง OCR…" : "OCR…") : loading ? t("running") : warnings.length > 0 && confirmedWarnings ? (lang === "th" ? "รันต่อไป" : "Run anyway") : t("run")}
+            <Button onClick={onRun} disabled={loading || ocrLoading || (!prompt.trim() && attachments.length === 0) || (compareMode && compareIds.length < 2)}>
+              {ocrLoading
+                ? (lang === "th" ? "กำลัง OCR…" : "OCR…")
+                : loading
+                  ? t("running")
+                  : compareMode
+                    ? (lang === "th" ? "เทียบโมเดล" : "Compare")
+                    : (warnings.length > 0 && confirmedWarnings ? (lang === "th" ? "รันต่อไป" : "Run anyway") : t("run"))}
             </Button>
           </div>
         </div>
       </div>
 
+      {compareResults && (
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          {compareResults.map((r, i) => (
+            <div key={i} className="rounded-lg border border-border bg-card p-4">
+              <div className="mb-2 flex items-center justify-between text-xs">
+                <div className="font-medium text-foreground">{nameOf(r.selector.replace(/^provider:/, ""))}</div>
+                <div className="text-muted-foreground">{r.latency_ms}ms</div>
+              </div>
+              {r.ok ? (
+                <>
+                  <pre className="max-h-[420px] overflow-auto whitespace-pre-wrap text-sm text-foreground">{r.output}</pre>
+                  <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
+                    <span>tok: {r.usage.promptTokens}+{r.usage.completionTokens}</span>
+                    <span>${r.usage.costUsd.toFixed(5)}</span>
+                    <Button variant="ghost" size="sm" className="h-6 px-2 text-[11px]" onClick={() => { navigator.clipboard.writeText(r.output); toast.success(t("copied")); }}>
+                      <Copy className="mr-1 h-3 w-3" />{t("copy")}
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <div className="text-sm text-destructive">{r.error}</div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {output && (
         <div className="mt-6 rounded-lg border border-border bg-card p-5">
@@ -308,7 +446,6 @@ function RunPage() {
           <pre className="whitespace-pre-wrap text-sm text-foreground">{output}</pre>
         </div>
       )}
-
     </div>
   );
 }
