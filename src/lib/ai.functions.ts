@@ -315,6 +315,7 @@ export const runFreeform = createServerFn({ method: "POST" })
         prompt: z.string().min(1).max(20000),
         redactPii: z.boolean().optional().default(true),
         attachments: z.array(attachmentSchema).max(10).optional().default([]),
+        providerSelector: z.string().min(1).max(120).optional().nullable(),
       })
       .parse(input),
   )
@@ -327,37 +328,169 @@ export const runFreeform = createServerFn({ method: "POST" })
     }
     const r = data.redactPii ? redactPII(data.prompt) : { text: data.prompt, map: {}, counts: {} };
     const kbCtx = await retrieveKbContext(supabase, data.prompt);
-    const systemPrompt = withKbContext(
-      "คุณเป็นผู้ช่วย AI สำหรับเจ้าหน้าที่ราชการไทย ตอบอย่างกระชับ สุภาพ และใช้ภาษาทางการ หากมีไฟล์แนบ (รูปภาพ/PDF/ข้อความ) ให้วิเคราะห์เนื้อหาไฟล์ประกอบคำตอบด้วย",
-      kbCtx,
-    );
+    const memBlock = await loadUserMemoryBlock(supabase, userId);
+    const baseSystem =
+      "คุณเป็นผู้ช่วย AI สำหรับเจ้าหน้าที่ราชการไทย ตอบอย่างกระชับ สุภาพ และใช้ภาษาทางการ หากมีไฟล์แนบ (รูปภาพ/PDF/ข้อความ) ให้วิเคราะห์เนื้อหาไฟล์ประกอบคำตอบด้วย";
+    const systemPrompt = withKbContext(baseSystem + memBlock, kbCtx);
     const atts = data.attachments ?? [];
-    const ai = atts.length > 0
-      ? await callAIMultimodal(systemPrompt, r.text, atts)
-      : await callAI(systemPrompt, r.text);
-    const output = data.redactPii ? restorePII(ai.text, r.map) : ai.text;
+
+    let aiText: string;
+    let usage: AIUsage;
+    let providerInfo: { kind: string; id: string } | null = null;
+
+    if (data.providerSelector && atts.length === 0) {
+      // Route via dept provider — text only.
+      const dept = await getMyDepartment(supabase, userId);
+      if (!dept) throw new Error("ไม่ได้กำหนดหน่วยงานในโปรไฟล์");
+      const { runViaDeptRoute } = await import("@/lib/model-router.server");
+      const routed = await runViaDeptRoute(supabase, dept, data.providerSelector, systemPrompt, r.text);
+      aiText = routed.text;
+      usage = routed.usage;
+      providerInfo = { kind: routed.provider_kind, id: routed.provider_id };
+    } else {
+      const ai = atts.length > 0
+        ? await callAIMultimodal(systemPrompt, r.text, atts)
+        : await callAI(systemPrompt, r.text);
+      aiText = ai.text;
+      usage = ai.usage;
+    }
+
+    const output = data.redactPii ? restorePII(aiText, r.map) : aiText;
     const attachmentsMeta = atts.map((a) => ({ name: a.name, kind: a.kind, mime: a.mime ?? null, size: a.size ?? null }));
     const { data: run, error } = await supabase
       .from("ai_runs")
       .insert({
         user_id: userId,
         template_id: null,
-        input: { prompt: data.prompt, attachments: attachmentsMeta },
+        input: { prompt: data.prompt, attachments: attachmentsMeta, providerSelector: data.providerSelector ?? null },
         output,
         status: "completed",
-        prompt_tokens: ai.usage.promptTokens,
-        completion_tokens: ai.usage.completionTokens,
-        cost_usd: ai.usage.costUsd,
+        prompt_tokens: usage.promptTokens,
+        completion_tokens: usage.completionTokens,
+        cost_usd: usage.costUsd,
+        provider_id: providerInfo?.id ?? null,
+        provider_kind: providerInfo?.kind ?? null,
         metadata: { ...(kbCtx ? { citations: kbCtx.citations } : {}), attachments: attachmentsMeta },
       })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
-    await logAudit(supabase, userId, "ai.run", null, { run_id: run.id, pii: piiSummary(r.counts), guard_score: guard.score, usage: ai.usage, kb_citations: kbCtx?.citations.length ?? 0, attachments: attachmentsMeta.length });
+    await logAudit(supabase, userId, "ai.run", null, { run_id: run.id, pii: piiSummary(r.counts), guard_score: guard.score, usage, kb_citations: kbCtx?.citations.length ?? 0, attachments: attachmentsMeta.length, provider: providerInfo });
     await notifyEvent(supabase, "complete", `✅ RathCoWork: รันคำสั่ง AI เสร็จสิ้น`);
-    return { id: run.id, output, pii: piiSummary(r.counts), guard: { score: guard.score, decision: guard.decision }, usage: ai.usage, citations: kbCtx?.citations ?? [] };
+    return { id: run.id, output, pii: piiSummary(r.counts), guard: { score: guard.score, decision: guard.decision }, usage, citations: kbCtx?.citations ?? [], provider: providerInfo };
 
   });
+
+// List dept providers available to the current user (safe fields only).
+// Uses service-role client because RLS on dept_model_providers restricts to admins,
+// but regular members need to know which models they can pick.
+export const listMyDeptModels = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const dept = await getMyDepartment(supabase, userId);
+    if (!dept) return { models: [] as Array<{ id: string; name: string; model_id: string; kind: string }>, department: null };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin
+      .from("dept_model_providers")
+      .select("id, name, model_id, kind, enabled, sort_order")
+      .eq("department", dept)
+      .eq("enabled", true)
+      .order("sort_order", { ascending: true });
+    if (error) throw new Error(error.message);
+    const models = (data ?? []).map((p) => ({ id: p.id as string, name: p.name as string, model_id: p.model_id as string, kind: p.kind as string }));
+    return { models, department: dept };
+  });
+
+// Compare: run the same prompt across multiple provider selectors in parallel.
+export const compareFreeform = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        prompt: z.string().min(1).max(20000),
+        selectors: z.array(z.string().min(1).max(120)).min(2).max(4),
+        redactPii: z.boolean().optional().default(true),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const guard = checkPromptInjection(data.prompt);
+    if (guard.decision === "block") {
+      throw new Error("พบรูปแบบคำสั่งที่อาจเป็น prompt injection — ปฏิเสธการประมวลผล");
+    }
+    const dept = await getMyDepartment(supabase, userId);
+    if (!dept) throw new Error("ไม่ได้กำหนดหน่วยงานในโปรไฟล์");
+
+    const r = data.redactPii ? redactPII(data.prompt) : { text: data.prompt, map: {}, counts: {} };
+    const kbCtx = await retrieveKbContext(supabase, data.prompt);
+    const memBlock = await loadUserMemoryBlock(supabase, userId);
+    const systemPrompt = withKbContext(
+      "คุณเป็นผู้ช่วย AI สำหรับเจ้าหน้าที่ราชการไทย ตอบอย่างกระชับ สุภาพ และใช้ภาษาทางการ" + memBlock,
+      kbCtx,
+    );
+
+    const { runViaDeptRoute } = await import("@/lib/model-router.server");
+    const startedAt = Date.now();
+    const results = await Promise.all(
+      data.selectors.map(async (sel) => {
+        const t0 = Date.now();
+        try {
+          const routed = await runViaDeptRoute(supabase, dept, sel, systemPrompt, r.text);
+          const output = data.redactPii ? restorePII(routed.text, r.map) : routed.text;
+          return {
+            selector: sel,
+            ok: true as const,
+            output,
+            usage: routed.usage,
+            provider: { id: routed.provider_id, kind: routed.provider_kind },
+            latency_ms: Date.now() - t0,
+          };
+        } catch (e) {
+          return {
+            selector: sel,
+            ok: false as const,
+            error: e instanceof Error ? e.message : String(e),
+            latency_ms: Date.now() - t0,
+          };
+        }
+      }),
+    );
+
+    const totalUsage = results.reduce(
+      (acc, x) => x.ok ? { promptTokens: acc.promptTokens + x.usage.promptTokens, completionTokens: acc.completionTokens + x.usage.completionTokens, costUsd: acc.costUsd + x.usage.costUsd } : acc,
+      { promptTokens: 0, completionTokens: 0, costUsd: 0 },
+    );
+
+    const { data: run } = await supabase
+      .from("ai_runs")
+      .insert({
+        user_id: userId,
+        template_id: "compare",
+        title: data.prompt.slice(0, 120),
+        input: { prompt: data.prompt, selectors: data.selectors },
+        output: results.filter((x) => x.ok).map((x) => `## ${x.selector}\n${("output" in x ? x.output : "")}`).join("\n\n---\n\n"),
+        status: "completed",
+        prompt_tokens: totalUsage.promptTokens,
+        completion_tokens: totalUsage.completionTokens,
+        cost_usd: totalUsage.costUsd,
+        metadata: { kind: "compare", results: results.map((x) => ({ selector: x.selector, ok: x.ok, latency_ms: x.latency_ms, ...(x.ok ? { usage: x.usage, provider: x.provider } : { error: x.error }) })) },
+      })
+      .select("id")
+      .single();
+
+    await logAudit(supabase, userId, "ai.compare", run?.id ?? null, {
+      selectors: data.selectors,
+      ok: results.filter((x) => x.ok).length,
+      total: results.length,
+      total_ms: Date.now() - startedAt,
+      usage: totalUsage,
+    });
+
+    return { runId: run?.id ?? null, results, usage: totalUsage };
+  });
+
 
 // OCR via Gemini Vision (multimodal). Accepts base64-encoded image data URL.
 export const extractTextFromImage = createServerFn({ method: "POST" })
