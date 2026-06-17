@@ -251,7 +251,7 @@ export const runTemplate = createServerFn({ method: "POST" })
 
   });
 
-const attachmentSchema = z.object({
+export const attachmentSchema = z.object({
   name: z.string().max(255),
   kind: z.enum(["image", "pdf", "text"]),
   data: z.string().min(1).max(15_000_000),
@@ -260,7 +260,8 @@ const attachmentSchema = z.object({
 });
 export type AttachmentInput = z.infer<typeof attachmentSchema>;
 
-async function callAIMultimodal(
+export async function callAIMultimodal(
+
   systemPrompt: string,
   userText: string,
   attachments: AttachmentInput[],
