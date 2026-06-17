@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { redactPII, restorePII, piiSummary } from "@/lib/pii";
 import { checkPromptInjection } from "@/lib/prompt-guard";
 import { retrieveKbContext, type Citation } from "@/lib/kb.functions";
+import { loadUserMemoryBlock } from "@/lib/user-memory.functions";
 
 const KB_INSTRUCTION =
   "หากใช้ข้อมูลจาก <ระเบียบที่เกี่ยวข้อง> ให้อ้างอิงในรูปแบบ [หมายเลข] ท้ายประโยคที่เกี่ยวข้อง ห้ามแต่งข้อกฎหมายเอง หากไม่พบข้อมูลที่ตรงให้ระบุไว้";
@@ -11,6 +12,12 @@ const KB_INSTRUCTION =
 export function withKbContext(systemPrompt: string, ctx: { block: string; citations: Citation[] } | null): string {
   if (!ctx) return systemPrompt;
   return `${systemPrompt}\n\n<ระเบียบที่เกี่ยวข้อง>\n${ctx.block}\n</ระเบียบที่เกี่ยวข้อง>\n\n${KB_INSTRUCTION}`;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function getMyDepartment(supabase: any, userId: string): Promise<string | null> {
+  const { data } = await supabase.from("profiles").select("department").eq("id", userId).maybeSingle();
+  return (data?.department as string | null) ?? null;
 }
 
 
