@@ -717,6 +717,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      approvals_update_safe: {
+        Args: {
+          _new: Database["public"]["Tables"]["approvals"]["Row"]
+          _old: Database["public"]["Tables"]["approvals"]["Row"]
+        }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
