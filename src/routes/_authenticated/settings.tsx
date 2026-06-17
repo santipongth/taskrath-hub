@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Upload, X, PenLine } from "lucide-react";
+import { UserMemoryCard } from "@/components/user-memory-card";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({ meta: [{ title: "ตั้งค่า · RathCoWork" }] }),
@@ -121,6 +122,10 @@ function SettingsPage() {
             onChange={(e) => e.target.files?.[0] && onPickSignature(e.target.files[0])}
           />
         </div>
+      </div>
+
+      <div className="mt-4">
+        <UserMemoryCard lang={lang} />
       </div>
 
       <div className="mt-4 flex justify-between">

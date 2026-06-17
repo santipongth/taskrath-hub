@@ -21,6 +21,7 @@ import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authent
 import { Route as AuthenticatedGovernanceRouteImport } from './routes/_authenticated/governance'
 import { Route as AuthenticatedAgentsRouteImport } from './routes/_authenticated/agents'
 import { Route as AuthenticatedRunIndexRouteImport } from './routes/_authenticated/run/index'
+import { Route as AuthenticatedResearchIndexRouteImport } from './routes/_authenticated/research/index'
 import { Route as AuthenticatedHistoryIndexRouteImport } from './routes/_authenticated/history/index'
 import { Route as AuthenticatedChatIndexRouteImport } from './routes/_authenticated/chat/index'
 import { Route as AuthenticatedAgentsIndexRouteImport } from './routes/_authenticated/agents.index'
@@ -97,6 +98,12 @@ const AuthenticatedRunIndexRoute = AuthenticatedRunIndexRouteImport.update({
   path: '/run/',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedResearchIndexRoute =
+  AuthenticatedResearchIndexRouteImport.update({
+    id: '/research/',
+    path: '/research/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedHistoryIndexRoute =
   AuthenticatedHistoryIndexRouteImport.update({
     id: '/history/',
@@ -210,6 +217,7 @@ export interface FileRoutesByFullPath {
   '/agents/': typeof AuthenticatedAgentsIndexRoute
   '/chat/': typeof AuthenticatedChatIndexRoute
   '/history/': typeof AuthenticatedHistoryIndexRoute
+  '/research/': typeof AuthenticatedResearchIndexRoute
   '/run/': typeof AuthenticatedRunIndexRoute
   '/agents/manage/providers': typeof AuthenticatedAgentsManageProvidersRoute
   '/agents/manage/runs': typeof AuthenticatedAgentsManageRunsRoute
@@ -237,6 +245,7 @@ export interface FileRoutesByTo {
   '/agents': typeof AuthenticatedAgentsIndexRoute
   '/chat': typeof AuthenticatedChatIndexRoute
   '/history': typeof AuthenticatedHistoryIndexRoute
+  '/research': typeof AuthenticatedResearchIndexRoute
   '/run': typeof AuthenticatedRunIndexRoute
   '/agents/manage/providers': typeof AuthenticatedAgentsManageProvidersRoute
   '/agents/manage/runs': typeof AuthenticatedAgentsManageRunsRoute
@@ -267,6 +276,7 @@ export interface FileRoutesById {
   '/_authenticated/agents/': typeof AuthenticatedAgentsIndexRoute
   '/_authenticated/chat/': typeof AuthenticatedChatIndexRoute
   '/_authenticated/history/': typeof AuthenticatedHistoryIndexRoute
+  '/_authenticated/research/': typeof AuthenticatedResearchIndexRoute
   '/_authenticated/run/': typeof AuthenticatedRunIndexRoute
   '/_authenticated/agents/manage/providers': typeof AuthenticatedAgentsManageProvidersRoute
   '/_authenticated/agents/manage/runs': typeof AuthenticatedAgentsManageRunsRoute
@@ -297,6 +307,7 @@ export interface FileRouteTypes {
     | '/agents/'
     | '/chat/'
     | '/history/'
+    | '/research/'
     | '/run/'
     | '/agents/manage/providers'
     | '/agents/manage/runs'
@@ -324,6 +335,7 @@ export interface FileRouteTypes {
     | '/agents'
     | '/chat'
     | '/history'
+    | '/research'
     | '/run'
     | '/agents/manage/providers'
     | '/agents/manage/runs'
@@ -353,6 +365,7 @@ export interface FileRouteTypes {
     | '/_authenticated/agents/'
     | '/_authenticated/chat/'
     | '/_authenticated/history/'
+    | '/_authenticated/research/'
     | '/_authenticated/run/'
     | '/_authenticated/agents/manage/providers'
     | '/_authenticated/agents/manage/runs'
@@ -450,6 +463,13 @@ declare module '@tanstack/react-router' {
       path: '/run'
       fullPath: '/run/'
       preLoaderRoute: typeof AuthenticatedRunIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/research/': {
+      id: '/_authenticated/research/'
+      path: '/research'
+      fullPath: '/research/'
+      preLoaderRoute: typeof AuthenticatedResearchIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/history/': {
@@ -608,6 +628,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedRunTemplateIdRoute: typeof AuthenticatedRunTemplateIdRoute
   AuthenticatedChatIndexRoute: typeof AuthenticatedChatIndexRoute
   AuthenticatedHistoryIndexRoute: typeof AuthenticatedHistoryIndexRoute
+  AuthenticatedResearchIndexRoute: typeof AuthenticatedResearchIndexRoute
   AuthenticatedRunIndexRoute: typeof AuthenticatedRunIndexRoute
 }
 
@@ -629,6 +650,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedRunTemplateIdRoute: AuthenticatedRunTemplateIdRoute,
   AuthenticatedChatIndexRoute: AuthenticatedChatIndexRoute,
   AuthenticatedHistoryIndexRoute: AuthenticatedHistoryIndexRoute,
+  AuthenticatedResearchIndexRoute: AuthenticatedResearchIndexRoute,
   AuthenticatedRunIndexRoute: AuthenticatedRunIndexRoute,
 }
 
