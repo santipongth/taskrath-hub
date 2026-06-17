@@ -1,11 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { runDeepResearch, type ResearchSource } from "@/lib/research.functions";
+import {
+  prepareResearchSources,
+  synthesizeResearchReport,
+  type ResearchSource,
+  type ResearchDoc,
+} from "@/lib/research.functions";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Telescope, Copy, ExternalLink, FileText, Paperclip, X, Image as ImageIcon, FileType2, Link as LinkIcon } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import {
+  Telescope, Copy, ExternalLink, FileText, Paperclip, X,
+  Image as ImageIcon, FileType2, Link as LinkIcon,
+  Loader2, CheckCircle2, Circle, AlertCircle,
+} from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/research/")({
@@ -21,6 +31,9 @@ type Attachment = {
   size: number;
 };
 
+type Stage = "idle" | "gather" | "synthesize" | "done" | "error";
+type StepStatus = "pending" | "active" | "done" | "error";
+
 const MAX_FILES = 6;
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const TEXT_EXT = /\.(txt|md|markdown|csv|tsv|json|xml|yaml|yml|log|html?)$/i;
@@ -28,20 +41,49 @@ const TEXT_EXT = /\.(txt|md|markdown|csv|tsv|json|xml|yaml|yml|log|html?)$/i;
 const readAsDataUrl = (f: File) => new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = () => rej(r.error); r.readAsDataURL(f); });
 const readAsText = (f: File) => new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = () => rej(r.error); r.readAsText(f); });
 
+function StepRow({ status, label, detail }: { status: StepStatus; label: string; detail?: string }) {
+  const Icon = status === "done" ? CheckCircle2 : status === "active" ? Loader2 : status === "error" ? AlertCircle : Circle;
+  const color = status === "done" ? "text-primary" : status === "active" ? "text-primary" : status === "error" ? "text-destructive" : "text-muted-foreground/60";
+  return (
+    <li className="flex items-start gap-2 text-xs">
+      <Icon className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${color} ${status === "active" ? "animate-spin" : ""}`} />
+      <div className="min-w-0 flex-1">
+        <div className={status === "pending" ? "text-muted-foreground" : "text-foreground"}>{label}</div>
+        {detail && <div className="mt-0.5 text-[11px] text-muted-foreground">{detail}</div>}
+      </div>
+    </li>
+  );
+}
+
 function ResearchPage() {
   const { lang } = useI18n();
-  const research = useServerFn(runDeepResearch);
+  const prepare = useServerFn(prepareResearchSources);
+  const synthesize = useServerFn(synthesizeResearchReport);
+
   const [question, setQuestion] = useState("");
   const [urlsText, setUrlsText] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [limit, setLimit] = useState(6);
-  const [loading, setLoading] = useState(false);
   const [report, setReport] = useState("");
   const [sources, setSources] = useState<ResearchSource[]>([]);
+  const [stage, setStage] = useState<Stage>("idle");
+  const [stageDetail, setStageDetail] = useState<string>("");
+  const [failedUrls, setFailedUrls] = useState<string[]>([]);
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const startedAtRef = useRef<number>(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const parsedUrls = urlsText.split(/\s+/).map((s) => s.trim()).filter((s) => /^https?:\/\//i.test(s));
   const hasProvided = parsedUrls.length > 0 || attachments.length > 0;
+  const loading = stage === "gather" || stage === "synthesize";
+  const progressValue = stage === "idle" ? 0 : stage === "gather" ? 35 : stage === "synthesize" ? 75 : 100;
+
+  useEffect(() => {
+    if (!loading) return;
+    startedAtRef.current = startedAtRef.current || Date.now();
+    const id = window.setInterval(() => setElapsedMs(Date.now() - startedAtRef.current), 250);
+    return () => window.clearInterval(id);
+  }, [loading]);
 
   const onPickFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -78,25 +120,55 @@ function ResearchPage() {
       toast.error(lang === "th" ? "พิมพ์คำถามอย่างน้อย 5 ตัวอักษร" : "Question too short");
       return;
     }
-    setLoading(true); setReport(""); setSources([]);
+    setReport(""); setSources([]); setFailedUrls([]);
+    startedAtRef.current = Date.now(); setElapsedMs(0);
+    setStage("gather");
+
     try {
-      const r = await research({
+      setStageDetail(
+        hasProvided
+          ? (lang === "th" ? `กำลังดึงเนื้อหาจาก ${parsedUrls.length} ลิงก์…` : `Fetching ${parsedUrls.length} link(s)…`)
+          : (lang === "th" ? `กำลังค้นเว็บสูงสุด ${limit} แหล่ง…` : `Searching the web for up to ${limit} sources…`),
+      );
+
+      const prepared = await prepare({
         data: {
           question: question.trim(),
           limit,
           lang,
           urls: parsedUrls,
+          hasAttachments: attachments.length > 0,
+        },
+      });
+      setSources(prepared.sources);
+      setFailedUrls(prepared.failed ?? []);
+
+      setStage("synthesize");
+      setStageDetail(
+        lang === "th"
+          ? `กำลังสรุปจาก ${prepared.sources.length} แหล่ง${attachments.length ? ` + ${attachments.length} ไฟล์` : ""}…`
+          : `Synthesizing from ${prepared.sources.length} sources${attachments.length ? ` + ${attachments.length} files` : ""}…`,
+      );
+
+      const docs = prepared.docs as ResearchDoc[];
+      const r = await synthesize({
+        data: {
+          question: question.trim(),
+          lang,
+          docs,
           attachments: attachments.map((a) => ({ name: a.name, kind: a.kind, data: a.data, mime: a.mime, size: a.size })),
+          mode: prepared.mode,
         },
       });
       setReport(r.report);
       setSources(r.sources);
-      const tail = attachments.length > 0 ? ` + ${attachments.length} ${lang === "th" ? "ไฟล์" : "files"}` : "";
-      toast.success(lang === "th" ? `รวบรวมจาก ${r.sources.length} แหล่ง${tail}` : `Synthesized from ${r.sources.length} sources${tail}`);
+      setStage("done");
+      setStageDetail("");
+      toast.success(lang === "th" ? "รายงานพร้อมแล้ว" : "Report ready");
     } catch (e) {
+      setStage("error");
+      setStageDetail(e instanceof Error ? e.message : "Error");
       toast.error(e instanceof Error ? e.message : "Error");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -106,6 +178,10 @@ function ResearchPage() {
     const a = document.createElement("a"); a.href = url; a.download = `research-${Date.now()}.md`; a.click();
     URL.revokeObjectURL(url);
   };
+
+  const elapsedLabel = `${(elapsedMs / 1000).toFixed(1)}s`;
+  const gatherStatus: StepStatus = stage === "idle" ? "pending" : stage === "gather" ? "active" : stage === "error" && sources.length === 0 ? "error" : "done";
+  const synthStatus: StepStatus = stage === "synthesize" ? "active" : stage === "done" ? "done" : stage === "error" && sources.length > 0 ? "error" : "pending";
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-8">
@@ -127,6 +203,7 @@ function ResearchPage() {
           onChange={(e) => setQuestion(e.target.value)}
           placeholder={lang === "th" ? "เช่น สรุปสาระสำคัญของ พ.ร.บ. คุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 และผลกระทบต่อหน่วยงานราชการ" : "e.g. Summarize the Thai PDPA and its impact on government agencies"}
           rows={3}
+          disabled={loading}
           className="resize-none border-border shadow-none focus-visible:ring-1"
         />
 
@@ -140,6 +217,7 @@ function ResearchPage() {
             onChange={(e) => setUrlsText(e.target.value)}
             placeholder="https://www.example.go.th/regulation https://www.ratchakitcha.soc.go.th/..."
             rows={2}
+            disabled={loading}
             className="resize-none border-border font-mono text-xs shadow-none focus-visible:ring-1"
           />
           {parsedUrls.length > 0 && (
@@ -155,7 +233,7 @@ function ResearchPage() {
               <Paperclip className="h-3.5 w-3.5" />
               {lang === "th" ? "ไฟล์แนบ (รูป/PDF/ข้อความ)" : "Attachments (image/PDF/text)"}
             </span>
-            <Button variant="ghost" size="sm" type="button" onClick={() => fileRef.current?.click()} disabled={attachments.length >= MAX_FILES}>
+            <Button variant="ghost" size="sm" type="button" onClick={() => fileRef.current?.click()} disabled={loading || attachments.length >= MAX_FILES}>
               <Paperclip className="mr-1 h-3.5 w-3.5" />{lang === "th" ? "แนบไฟล์" : "Attach"}
             </Button>
             <input
@@ -174,7 +252,7 @@ function ResearchPage() {
                   {a.kind === "image" ? <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" /> : a.kind === "pdf" ? <FileType2 className="h-3.5 w-3.5 text-muted-foreground" /> : <FileText className="h-3.5 w-3.5 text-muted-foreground" />}
                   <span className="min-w-0 flex-1 truncate">{a.name}</span>
                   <span className="text-muted-foreground">{(a.size / 1024).toFixed(0)} KB</span>
-                  <button onClick={() => removeAtt(i)} aria-label="remove" className="text-muted-foreground hover:text-destructive">
+                  <button onClick={() => removeAtt(i)} aria-label="remove" disabled={loading} className="text-muted-foreground hover:text-destructive disabled:opacity-50">
                     <X className="h-3.5 w-3.5" />
                   </button>
                 </li>
@@ -191,7 +269,7 @@ function ResearchPage() {
               min={3}
               max={10}
               value={limit}
-              disabled={hasProvided}
+              disabled={hasProvided || loading}
               onChange={(e) => setLimit(Math.max(3, Math.min(10, Number(e.target.value) || 6)))}
               className="h-7 w-16 rounded-md border border-border bg-background px-2 text-xs disabled:opacity-50"
             />
@@ -206,7 +284,55 @@ function ResearchPage() {
         </div>
       </div>
 
-      {sources.length > 0 && (
+      {(stage !== "idle") && (
+        <div className="mt-4 rounded-lg border border-border bg-card p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold">
+              {stage === "done"
+                ? (lang === "th" ? "เสร็จสิ้น" : "Complete")
+                : stage === "error"
+                  ? (lang === "th" ? "เกิดข้อผิดพลาด" : "Error")
+                  : (lang === "th" ? "กำลังประมวลผล" : "Processing")}
+            </h2>
+            <span className="font-mono text-xs text-muted-foreground">{elapsedLabel}</span>
+          </div>
+          <Progress value={progressValue} className="h-1.5" />
+          <ul className="mt-3 space-y-1.5">
+            <StepRow
+              status={gatherStatus}
+              label={hasProvided
+                ? (lang === "th" ? "ดึงเนื้อหาจากลิงก์ที่ระบุ" : "Fetch provided links")
+                : (lang === "th" ? "ค้นเว็บและรวบรวมแหล่งข้อมูล" : "Search web & collect sources")}
+              detail={
+                gatherStatus === "active" ? stageDetail :
+                gatherStatus === "done" ? (lang === "th" ? `พบ ${sources.length} แหล่ง` : `${sources.length} sources`) +
+                  (failedUrls.length ? (lang === "th" ? ` (พลาด ${failedUrls.length} ลิงก์)` : ` (${failedUrls.length} failed)`) : "") :
+                undefined
+              }
+            />
+            <StepRow
+              status={synthStatus}
+              label={lang === "th" ? "สรุปและเรียบเรียงรายงานด้วย AI" : "Synthesize report with AI"}
+              detail={synthStatus === "active" ? stageDetail : undefined}
+            />
+            {stage === "error" && (
+              <li className="mt-1 rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">
+                {stageDetail}
+              </li>
+            )}
+          </ul>
+          {failedUrls.length > 0 && (
+            <div className="mt-3 rounded-md border border-border bg-muted/40 p-2 text-[11px] text-muted-foreground">
+              <div className="mb-1 font-medium">{lang === "th" ? "ลิงก์ที่ดึงไม่สำเร็จ:" : "Failed to fetch:"}</div>
+              <ul className="space-y-0.5">
+                {failedUrls.map((u) => <li key={u} className="truncate">• {u}</li>)}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
+      {sources.length > 0 && stage !== "gather" && (
         <div className="mt-6 rounded-lg border border-border bg-card p-5">
           <h2 className="mb-3 text-sm font-semibold">{lang === "th" ? "แหล่งข้อมูลที่ใช้" : "Sources"}</h2>
           <ol className="space-y-2 text-sm">
