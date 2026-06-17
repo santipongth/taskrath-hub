@@ -159,7 +159,7 @@ function RunPage() {
           return { ...a, kind: "text" as const, data: o.text, mime: "text/plain", size: o.text.length, textLen: o.text.length };
         });
         setAttachments(workAtts);
-        setStateOcrWarnings(newOcrWarnings);
+        setOcrWarnings(newOcrWarnings);
         setOcrLoading(false);
         if (newOcrWarnings.length > 0 && !confirmedWarnings) {
           toast.warning(lang === "th" ? "OCR มีคำเตือนคุณภาพ — กด Run อีกครั้งเพื่อรันต่อ" : "OCR quality warnings — click Run again to continue");
@@ -181,7 +181,7 @@ function RunPage() {
       });
       setOutput(res.output);
       setConfirmedWarnings(false);
-      setStateOcrWarnings([]);
+      setOcrWarnings([]);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error");
     } finally {
