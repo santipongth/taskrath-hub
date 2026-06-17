@@ -251,6 +251,18 @@ function RunPage() {
           </div>
         )}
 
+        {ocrWarnings.length > 0 && (
+          <div className="mt-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200">
+            <div className="mb-1 flex items-center gap-1.5 font-medium">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              {lang === "th" ? "คุณภาพผลลัพธ์ OCR" : "OCR quality"}
+            </div>
+            <ul className="ml-5 list-disc space-y-0.5">
+              {ocrWarnings.map((w, i) => <li key={i}>{w}</li>)}
+            </ul>
+          </div>
+        )}
+
         <input
           ref={fileInputRef}
           type="file"
