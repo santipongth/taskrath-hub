@@ -309,21 +309,6 @@ function RunPage() {
         </div>
       )}
 
-      <div className="mt-10">
-        <h2 className="mb-3 text-sm font-semibold text-foreground">{t("quickActions")}</h2>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-          {TEMPLATES.slice(0, 8).map((tpl) => (
-            <Link
-              key={tpl.id}
-              to="/run/$templateId"
-              params={{ templateId: tpl.id }}
-              className="rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground transition-colors hover:border-primary/40 hover:bg-muted"
-            >
-              {lang === "th" ? tpl.titleTh : tpl.titleEn}
-            </Link>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
