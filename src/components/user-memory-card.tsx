@@ -185,12 +185,37 @@ export function UserMemoryCard({ lang }: { lang: "th" | "en" }) {
 
       {entries.length > 0 && (
         <div>
-          <Button variant="ghost" size="sm" onClick={onClearAll} disabled={busy} className="text-destructive hover:text-destructive">
+          <Button variant="ghost" size="sm" onClick={() => setConfirmOpen(true)} disabled={busy} className="text-destructive hover:text-destructive">
             <Eraser className="mr-1 h-3.5 w-3.5" />
             {lang === "th" ? "ล้างบริบททั้งหมด" : "Clear all"}
           </Button>
         </div>
       )}
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {lang === "th" ? `ลบบริบททั้งหมด ${entries.length} รายการ?` : `Delete all ${entries.length} entries?`}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {lang === "th"
+                ? "ระบบจะเปิดให้กด \"เลิกทำ\" ภายใน 10 วินาทีหลังลบ เพื่อกู้คืนรายการทั้งหมด"
+                : "You'll have 10 seconds to click \"Undo\" after clearing to restore all entries."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{lang === "th" ? "ยกเลิก" : "Cancel"}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={performClear}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {lang === "th" ? "ลบทั้งหมด" : "Delete all"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
 
       <div className="space-y-2 border-t border-border pt-3">
         <div className="space-y-1.5">
