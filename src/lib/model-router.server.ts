@@ -31,8 +31,9 @@ export async function runViaDeptRoute(
   systemPrompt: string,
   userPrompt: string,
 ): Promise<RoutedResult> {
-  // Load providers (RLS allows dept members)
-  const { data: provRows, error: pErr } = await supabase
+  // Load providers via service role (RLS allows only dept admins to read
+  // these rows, but routing runs for all dept members).
+  const { data: provRows, error: pErr } = await supabaseAdmin
     .from("dept_model_providers")
     .select("*")
     .eq("department", department)
