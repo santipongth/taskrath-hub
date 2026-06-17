@@ -1,11 +1,10 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { runFreeform, ocrAttachments } from "@/lib/ai.functions";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { TEMPLATES } from "@/lib/templates";
 import { Sparkles, Copy, Paperclip, X, FileText, Image as ImageIcon, FileType2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { VoiceInputButton } from "@/components/voice-input-button";
@@ -310,21 +309,6 @@ function RunPage() {
         </div>
       )}
 
-      <div className="mt-10">
-        <h2 className="mb-3 text-sm font-semibold text-foreground">{t("quickActions")}</h2>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-          {TEMPLATES.slice(0, 8).map((tpl) => (
-            <Link
-              key={tpl.id}
-              to="/run/$templateId"
-              params={{ templateId: tpl.id }}
-              className="rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground transition-colors hover:border-primary/40 hover:bg-muted"
-            >
-              {lang === "th" ? tpl.titleTh : tpl.titleEn}
-            </Link>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
