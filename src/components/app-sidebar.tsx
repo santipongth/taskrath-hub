@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   LayoutDashboard, Sparkles, LibraryBig, History, Bot, Plug,
   ShieldCheck, Settings, BarChart3, PieChart, Building2, Bell, BookText, MessageSquare,
-  LayoutTemplate,
+  LayoutTemplate, Telescope,
 } from "lucide-react";
 
 import {
@@ -21,6 +21,7 @@ const ITEMS: { to: string; key: MessageKey; icon: typeof LayoutDashboard }[] = [
   { to: "/", key: "nav_dashboard", icon: LayoutDashboard },
   { to: "/run", key: "nav_run", icon: Sparkles },
   { to: "/chat", key: "nav_chat", icon: MessageSquare },
+  { to: "/research", key: "nav_research", icon: Telescope },
   { to: "/templates", key: "nav_templates", icon: LibraryBig },
   { to: "/history", key: "nav_history", icon: History },
   { to: "/settings", key: "nav_settings", icon: Settings },
