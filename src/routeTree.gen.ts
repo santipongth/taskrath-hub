@@ -20,6 +20,7 @@ import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authenticated/integrations'
 import { Route as AuthenticatedGovernanceRouteImport } from './routes/_authenticated/governance'
 import { Route as AuthenticatedAgentsRouteImport } from './routes/_authenticated/agents'
+import { Route as AuthenticatedTasksIndexRouteImport } from './routes/_authenticated/tasks/index'
 import { Route as AuthenticatedRunIndexRouteImport } from './routes/_authenticated/run/index'
 import { Route as AuthenticatedResearchIndexRouteImport } from './routes/_authenticated/research/index'
 import { Route as AuthenticatedHistoryIndexRouteImport } from './routes/_authenticated/history/index'
@@ -91,6 +92,11 @@ const AuthenticatedGovernanceRoute = AuthenticatedGovernanceRouteImport.update({
 const AuthenticatedAgentsRoute = AuthenticatedAgentsRouteImport.update({
   id: '/agents',
   path: '/agents',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedTasksIndexRoute = AuthenticatedTasksIndexRouteImport.update({
+  id: '/tasks/',
+  path: '/tasks/',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedRunIndexRoute = AuthenticatedRunIndexRouteImport.update({
@@ -219,6 +225,7 @@ export interface FileRoutesByFullPath {
   '/history/': typeof AuthenticatedHistoryIndexRoute
   '/research/': typeof AuthenticatedResearchIndexRoute
   '/run/': typeof AuthenticatedRunIndexRoute
+  '/tasks/': typeof AuthenticatedTasksIndexRoute
   '/agents/manage/providers': typeof AuthenticatedAgentsManageProvidersRoute
   '/agents/manage/runs': typeof AuthenticatedAgentsManageRunsRoute
 }
@@ -247,6 +254,7 @@ export interface FileRoutesByTo {
   '/history': typeof AuthenticatedHistoryIndexRoute
   '/research': typeof AuthenticatedResearchIndexRoute
   '/run': typeof AuthenticatedRunIndexRoute
+  '/tasks': typeof AuthenticatedTasksIndexRoute
   '/agents/manage/providers': typeof AuthenticatedAgentsManageProvidersRoute
   '/agents/manage/runs': typeof AuthenticatedAgentsManageRunsRoute
 }
@@ -278,6 +286,7 @@ export interface FileRoutesById {
   '/_authenticated/history/': typeof AuthenticatedHistoryIndexRoute
   '/_authenticated/research/': typeof AuthenticatedResearchIndexRoute
   '/_authenticated/run/': typeof AuthenticatedRunIndexRoute
+  '/_authenticated/tasks/': typeof AuthenticatedTasksIndexRoute
   '/_authenticated/agents/manage/providers': typeof AuthenticatedAgentsManageProvidersRoute
   '/_authenticated/agents/manage/runs': typeof AuthenticatedAgentsManageRunsRoute
 }
@@ -309,6 +318,7 @@ export interface FileRouteTypes {
     | '/history/'
     | '/research/'
     | '/run/'
+    | '/tasks/'
     | '/agents/manage/providers'
     | '/agents/manage/runs'
   fileRoutesByTo: FileRoutesByTo
@@ -337,6 +347,7 @@ export interface FileRouteTypes {
     | '/history'
     | '/research'
     | '/run'
+    | '/tasks'
     | '/agents/manage/providers'
     | '/agents/manage/runs'
   id:
@@ -367,6 +378,7 @@ export interface FileRouteTypes {
     | '/_authenticated/history/'
     | '/_authenticated/research/'
     | '/_authenticated/run/'
+    | '/_authenticated/tasks/'
     | '/_authenticated/agents/manage/providers'
     | '/_authenticated/agents/manage/runs'
   fileRoutesById: FileRoutesById
@@ -456,6 +468,13 @@ declare module '@tanstack/react-router' {
       path: '/agents'
       fullPath: '/agents'
       preLoaderRoute: typeof AuthenticatedAgentsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/tasks/': {
+      id: '/_authenticated/tasks/'
+      path: '/tasks'
+      fullPath: '/tasks/'
+      preLoaderRoute: typeof AuthenticatedTasksIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/run/': {
@@ -630,6 +649,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedHistoryIndexRoute: typeof AuthenticatedHistoryIndexRoute
   AuthenticatedResearchIndexRoute: typeof AuthenticatedResearchIndexRoute
   AuthenticatedRunIndexRoute: typeof AuthenticatedRunIndexRoute
+  AuthenticatedTasksIndexRoute: typeof AuthenticatedTasksIndexRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
@@ -652,6 +672,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedHistoryIndexRoute: AuthenticatedHistoryIndexRoute,
   AuthenticatedResearchIndexRoute: AuthenticatedResearchIndexRoute,
   AuthenticatedRunIndexRoute: AuthenticatedRunIndexRoute,
+  AuthenticatedTasksIndexRoute: AuthenticatedTasksIndexRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
