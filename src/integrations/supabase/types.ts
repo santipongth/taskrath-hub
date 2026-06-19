@@ -670,6 +670,112 @@ export type Database = {
           },
         ]
       }
+      task_events: {
+        Row: {
+          created_at: string
+          end_at: string
+          id: string
+          remind_at: string | null
+          reminded_at: string | null
+          start_at: string
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          end_at: string
+          id?: string
+          remind_at?: string | null
+          reminded_at?: string | null
+          start_at: string
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          end_at?: string
+          id?: string
+          remind_at?: string | null
+          reminded_at?: string | null
+          start_at?: string
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_events_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tasks: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          due_at: string | null
+          est_minutes: number | null
+          id: string
+          priority: number
+          project_id: string | null
+          sort_order: number
+          source_batch_id: string | null
+          status: string
+          suggested_tool: Json | null
+          title: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_at?: string | null
+          est_minutes?: number | null
+          id?: string
+          priority?: number
+          project_id?: string | null
+          sort_order?: number
+          source_batch_id?: string | null
+          status?: string
+          suggested_tool?: Json | null
+          title: string
+          type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_at?: string | null
+          est_minutes?: number | null
+          id?: string
+          priority?: number
+          project_id?: string | null
+          sort_order?: number
+          source_batch_id?: string | null
+          status?: string
+          suggested_tool?: Json | null
+          title?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "user_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       template_favorites: {
         Row: {
           created_at: string
@@ -718,6 +824,39 @@ export type Database = {
         }
         Relationships: []
       }
+      user_projects: {
+        Row: {
+          archived: boolean
+          color: string | null
+          context: string | null
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived?: boolean
+          color?: string | null
+          context?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archived?: boolean
+          color?: string | null
+          context?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -735,6 +874,42 @@ export type Database = {
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_skills: {
+        Row: {
+          created_at: string
+          default_model_selector: string | null
+          icon: string | null
+          id: string
+          name: string
+          role_prompt: string
+          sort_order: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          default_model_selector?: string | null
+          icon?: string | null
+          id?: string
+          name: string
+          role_prompt: string
+          sort_order?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          default_model_selector?: string | null
+          icon?: string | null
+          id?: string
+          name?: string
+          role_prompt?: string
+          sort_order?: number
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
