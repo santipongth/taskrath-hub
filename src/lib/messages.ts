@@ -11,6 +11,7 @@ export const messages = {
 
   // Nav
   nav_dashboard: { th: "หน้าหลัก", en: "Dashboard" },
+  nav_tasks: { th: "บริหารงาน", en: "Tasks" },
   nav_run: { th: "สั่งงาน AI", en: "Run AI" },
   nav_templates: { th: "คลังงานสำเร็จรูป", en: "Template Library" },
   nav_history: { th: "ประวัติการใช้งาน", en: "History" },

@@ -5,6 +5,8 @@ import { redactPII, restorePII, piiSummary } from "@/lib/pii";
 import { checkPromptInjection } from "@/lib/prompt-guard";
 import { retrieveKbContext, type Citation } from "@/lib/kb.functions";
 import { loadUserMemoryBlock } from "@/lib/user-memory.functions";
+import { loadSkillPrompt } from "@/lib/user-skills.functions";
+import { loadProjectContext } from "@/lib/user-projects.functions";
 
 const KB_INSTRUCTION =
   "หากใช้ข้อมูลจาก <ระเบียบที่เกี่ยวข้อง> ให้อ้างอิงในรูปแบบ [หมายเลข] ท้ายประโยคที่เกี่ยวข้อง ห้ามแต่งข้อกฎหมายเอง หากไม่พบข้อมูลที่ตรงให้ระบุไว้";
@@ -317,6 +319,8 @@ export const runFreeform = createServerFn({ method: "POST" })
         redactPii: z.boolean().optional().default(true),
         attachments: z.array(attachmentSchema).max(10).optional().default([]),
         providerSelector: z.string().min(1).max(120).optional().nullable(),
+        personalSkillId: z.string().uuid().optional().nullable(),
+        projectId: z.string().uuid().optional().nullable(),
       })
       .parse(input),
   )
@@ -330,9 +334,11 @@ export const runFreeform = createServerFn({ method: "POST" })
     const r = data.redactPii ? redactPII(data.prompt) : { text: data.prompt, map: {}, counts: {} };
     const kbCtx = await retrieveKbContext(supabase, data.prompt);
     const memBlock = await loadUserMemoryBlock(supabase, userId);
+    const skillBlock = await loadSkillPrompt(supabase, userId, data.personalSkillId);
+    const projectBlock = await loadProjectContext(supabase, userId, data.projectId);
     const baseSystem =
       "คุณเป็นผู้ช่วย AI สำหรับเจ้าหน้าที่ราชการไทย ตอบอย่างกระชับ สุภาพ และใช้ภาษาทางการ หากมีไฟล์แนบ (รูปภาพ/PDF/ข้อความ) ให้วิเคราะห์เนื้อหาไฟล์ประกอบคำตอบด้วย";
-    const systemPrompt = withKbContext(baseSystem + memBlock, kbCtx);
+    const systemPrompt = withKbContext(baseSystem + skillBlock + projectBlock + memBlock, kbCtx);
     const atts = data.attachments ?? [];
 
     let aiText: string;

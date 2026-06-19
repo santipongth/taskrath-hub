@@ -11,7 +11,7 @@ import { useI18n } from "@/lib/i18n";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 
-const CATS: (TemplateCategory | "all")[] = ["all", "meeting", "letter", "analysis", "legal", "citizen"];
+const CATS: (TemplateCategory | "all")[] = ["all", "meeting", "letter", "analysis", "legal", "citizen", "creative"];
 
 export const Route = createFileRoute("/_authenticated/templates")({
   head: () => ({ meta: [{ title: "คลังงานสำเร็จรูป · RathCoWork" }] }),
@@ -70,8 +70,8 @@ function TemplatesPage() {
               className={`rounded-md border px-3 py-1.5 text-xs transition-colors ${cat === c ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
             >
               {lang === "th"
-                ? { all: "ทั้งหมด", meeting: "ประชุม", letter: "หนังสือ", analysis: "วิเคราะห์", legal: "กฎหมาย", citizen: "ประชาชน" }[c]
-                : { all: "All", meeting: "Meetings", letter: "Letters", analysis: "Analysis", legal: "Legal", citizen: "Citizen" }[c]}
+                ? { all: "ทั้งหมด", meeting: "ประชุม", letter: "หนังสือ", analysis: "วิเคราะห์", legal: "กฎหมาย", citizen: "ประชาชน", creative: "ครีเอทีฟ/PR" }[c]
+                : { all: "All", meeting: "Meetings", letter: "Letters", analysis: "Analysis", legal: "Legal", citizen: "Citizen", creative: "Creative/PR" }[c]}
             </button>
           ))}
         </div>
