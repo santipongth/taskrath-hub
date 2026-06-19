@@ -36,6 +36,8 @@ import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminNotificationsRouteImport } from './routes/_authenticated/admin/notifications'
 import { Route as AuthenticatedAdminKnowledgeRouteImport } from './routes/_authenticated/admin/knowledge'
 import { Route as AuthenticatedAdminDashboardRouteImport } from './routes/_authenticated/admin/dashboard'
+import { Route as ApiPublicHooksTaskRemindersRouteImport } from './routes/api/public/hooks/task-reminders'
+import { Route as ApiPublicCalendarIcsRouteImport } from './routes/api/public/calendar/ics'
 import { Route as AuthenticatedAgentsManageRunsRouteImport } from './routes/_authenticated/agents.manage.runs'
 import { Route as AuthenticatedAgentsManageProvidersRouteImport } from './routes/_authenticated/agents.manage.providers'
 
@@ -186,6 +188,17 @@ const AuthenticatedAdminDashboardRoute =
     path: '/admin/dashboard',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const ApiPublicHooksTaskRemindersRoute =
+  ApiPublicHooksTaskRemindersRouteImport.update({
+    id: '/api/public/hooks/task-reminders',
+    path: '/api/public/hooks/task-reminders',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicCalendarIcsRoute = ApiPublicCalendarIcsRouteImport.update({
+  id: '/api/public/calendar/ics',
+  path: '/api/public/calendar/ics',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedAgentsManageRunsRoute =
   AuthenticatedAgentsManageRunsRouteImport.update({
     id: '/runs',
@@ -228,6 +241,8 @@ export interface FileRoutesByFullPath {
   '/tasks/': typeof AuthenticatedTasksIndexRoute
   '/agents/manage/providers': typeof AuthenticatedAgentsManageProvidersRoute
   '/agents/manage/runs': typeof AuthenticatedAgentsManageRunsRoute
+  '/api/public/calendar/ics': typeof ApiPublicCalendarIcsRoute
+  '/api/public/hooks/task-reminders': typeof ApiPublicHooksTaskRemindersRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -257,6 +272,8 @@ export interface FileRoutesByTo {
   '/tasks': typeof AuthenticatedTasksIndexRoute
   '/agents/manage/providers': typeof AuthenticatedAgentsManageProvidersRoute
   '/agents/manage/runs': typeof AuthenticatedAgentsManageRunsRoute
+  '/api/public/calendar/ics': typeof ApiPublicCalendarIcsRoute
+  '/api/public/hooks/task-reminders': typeof ApiPublicHooksTaskRemindersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -289,6 +306,8 @@ export interface FileRoutesById {
   '/_authenticated/tasks/': typeof AuthenticatedTasksIndexRoute
   '/_authenticated/agents/manage/providers': typeof AuthenticatedAgentsManageProvidersRoute
   '/_authenticated/agents/manage/runs': typeof AuthenticatedAgentsManageRunsRoute
+  '/api/public/calendar/ics': typeof ApiPublicCalendarIcsRoute
+  '/api/public/hooks/task-reminders': typeof ApiPublicHooksTaskRemindersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -321,6 +340,8 @@ export interface FileRouteTypes {
     | '/tasks/'
     | '/agents/manage/providers'
     | '/agents/manage/runs'
+    | '/api/public/calendar/ics'
+    | '/api/public/hooks/task-reminders'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -350,6 +371,8 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/agents/manage/providers'
     | '/agents/manage/runs'
+    | '/api/public/calendar/ics'
+    | '/api/public/hooks/task-reminders'
   id:
     | '__root__'
     | '/_authenticated'
@@ -381,6 +404,8 @@ export interface FileRouteTypes {
     | '/_authenticated/tasks/'
     | '/_authenticated/agents/manage/providers'
     | '/_authenticated/agents/manage/runs'
+    | '/api/public/calendar/ics'
+    | '/api/public/hooks/task-reminders'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -389,6 +414,8 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   VerifyIdRoute: typeof VerifyIdRoute
+  ApiPublicCalendarIcsRoute: typeof ApiPublicCalendarIcsRoute
+  ApiPublicHooksTaskRemindersRoute: typeof ApiPublicHooksTaskRemindersRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -582,6 +609,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminDashboardRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/api/public/hooks/task-reminders': {
+      id: '/api/public/hooks/task-reminders'
+      path: '/api/public/hooks/task-reminders'
+      fullPath: '/api/public/hooks/task-reminders'
+      preLoaderRoute: typeof ApiPublicHooksTaskRemindersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/calendar/ics': {
+      id: '/api/public/calendar/ics'
+      path: '/api/public/calendar/ics'
+      fullPath: '/api/public/calendar/ics'
+      preLoaderRoute: typeof ApiPublicCalendarIcsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/agents/manage/runs': {
       id: '/_authenticated/agents/manage/runs'
       path: '/runs'
@@ -685,6 +726,8 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   VerifyIdRoute: VerifyIdRoute,
+  ApiPublicCalendarIcsRoute: ApiPublicCalendarIcsRoute,
+  ApiPublicHooksTaskRemindersRoute: ApiPublicHooksTaskRemindersRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
