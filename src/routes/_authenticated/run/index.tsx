@@ -1,13 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { runFreeform, ocrAttachments, compareFreeform, listMyDeptModels } from "@/lib/ai.functions";
+import { listMySkills } from "@/lib/user-skills.functions";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sparkles, Copy, Paperclip, X, FileText, Image as ImageIcon, FileType2, AlertTriangle, GitCompare, Cpu } from "lucide-react";
+import { Sparkles, Copy, Paperclip, X, FileText, Image as ImageIcon, FileType2, AlertTriangle, GitCompare, Cpu, UserCog } from "lucide-react";
 import { toast } from "sonner";
 import { VoiceInputButton } from "@/components/voice-input-button";
 
@@ -54,6 +55,7 @@ function RunPage() {
   const ocr = useServerFn(ocrAttachments);
   const compare = useServerFn(compareFreeform);
   const fetchModels = useServerFn(listMyDeptModels);
+  const fetchSkills = useServerFn(listMySkills);
 
   const { data: modelsData } = useQuery({
     queryKey: ["my-dept-models"],
@@ -61,6 +63,11 @@ function RunPage() {
     staleTime: 5 * 60 * 1000,
   });
   const models = modelsData?.models ?? [];
+  const { data: skillsData } = useQuery({
+    queryKey: ["user-skills"],
+    queryFn: () => fetchSkills(),
+  });
+  const skills = skillsData?.skills ?? [];
 
   const [prompt, setPrompt] = useState("");
   const [output, setOutput] = useState("");
@@ -69,11 +76,24 @@ function RunPage() {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [confirmedWarnings, setConfirmedWarnings] = useState(false);
   const [providerSelector, setProviderSelector] = useState<string>(DEFAULT_MODEL_KEY);
+  const [personalSkillId, setPersonalSkillId] = useState<string>("__none__");
   const [compareMode, setCompareMode] = useState(false);
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [compareResults, setCompareResults] = useState<CompareItem[] | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const baseRef = useRef("");
+
+  // Prefill from /tasks "ทำเลย"
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("run:prefill");
+      if (!raw) return;
+      sessionStorage.removeItem("run:prefill");
+      const { prompt: p, skillId } = JSON.parse(raw) as { prompt?: string; skillId?: string };
+      if (p) { setPrompt(p); baseRef.current = p; }
+      if (skillId) setPersonalSkillId(skillId);
+    } catch { /* ignore */ }
+  }, []);
 
   const warnings = useMemo(() => {
     const w: string[] = [];
@@ -218,6 +238,7 @@ function RunPage() {
           prompt: prompt.trim() || (lang === "th" ? "ช่วยวิเคราะห์/สรุปไฟล์แนบ" : "Please analyze the attached files"),
           attachments: workAtts.map(({ name, kind, data, mime, size }) => ({ name, kind, data, mime, size })),
           providerSelector: selector,
+          personalSkillId: personalSkillId !== "__none__" ? personalSkillId : null,
         },
       });
       setOutput(res.output);
