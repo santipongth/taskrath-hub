@@ -73,6 +73,14 @@ function ResearchPage() {
   const startedAtRef = useRef<number>(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Prefill from /tasks "ทำเลย"
+  useEffect(() => {
+    try {
+      const p = sessionStorage.getItem("research:prefill");
+      if (p) { setQuestion(p); sessionStorage.removeItem("research:prefill"); }
+    } catch { /* ignore */ }
+  }, []);
+
   const parsedUrls = urlsText.split(/\s+/).map((s) => s.trim()).filter((s) => /^https?:\/\//i.test(s));
   const hasProvided = parsedUrls.length > 0 || attachments.length > 0;
   const loading = stage === "gather" || stage === "synthesize";
