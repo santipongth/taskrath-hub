@@ -316,6 +316,25 @@ function RunPage() {
               </SelectContent>
             </Select>
           )}
+          {!compareMode && skills.length > 0 && (
+            <>
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground ml-2">
+                <UserCog className="h-3.5 w-3.5" />
+                Skill
+              </div>
+              <Select value={personalSkillId} onValueChange={setPersonalSkillId}>
+                <SelectTrigger className="h-8 w-auto min-w-[160px] text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— ไม่ใช้ Skill —</SelectItem>
+                  {skills.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          )}
           <div className="ml-auto">
             <Button
               variant={compareMode ? "default" : "outline"}
