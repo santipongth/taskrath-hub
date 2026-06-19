@@ -3,10 +3,11 @@ import {
   FileSignature, Stamp, Megaphone, MessagesSquare, Languages,
   SpellCheck, Scale, CalendarClock, ShieldCheck, Tags,
   Users, ClipboardList, ShoppingCart, ShieldAlert, Coins,
+  Presentation, Image as ImageIcon, Film, Hash, Sparkles,
   type LucideIcon,
 } from "lucide-react";
 
-export type TemplateCategory = "meeting" | "letter" | "analysis" | "legal" | "citizen";
+export type TemplateCategory = "meeting" | "letter" | "analysis" | "legal" | "citizen" | "creative";
 
 export type TemplateField = {
   name: string;
@@ -343,6 +344,83 @@ export const TEMPLATES: Template[] = [
       { name: "objectives", labelTh: "วัตถุประสงค์ และ KPI", labelEn: "Objectives & KPIs", type: "textarea", required: true },
       { name: "budget_total", labelTh: "วงเงินที่ขอ (บาท) และการจำแนกหมวด", labelEn: "Budget breakdown", type: "textarea", required: true },
       { name: "target_group", labelTh: "กลุ่มเป้าหมาย/พื้นที่", labelEn: "Target/area", type: "text" },
+    ],
+  },
+  {
+    id: "presentation-outline",
+    icon: Presentation,
+    titleTh: "วาง Outline พรีเซนต์เทชัน",
+    titleEn: "Presentation Outline",
+    descTh: "วางโครงสไลด์สำหรับนำเสนอผู้บริหาร พร้อม speaker note",
+    descEn: "Slide-by-slide outline with speaker notes",
+    category: "creative",
+    systemPromptTh: "คุณเป็นที่ปรึกษานำเสนอผู้บริหาร วางโครงสไลด์ทีละหน้า ระบุ: หัวข้อสไลด์, bullet หลัก 3-5 ข้อ, ภาพประกอบที่ควรใช้, และ speaker note สั้น ๆ เน้นเรื่องที่ผู้บริหารต้องตัดสินใจ ปิดท้ายด้วยสไลด์ Next Steps",
+    fields: [
+      { name: "topic", labelTh: "หัวข้อนำเสนอ", labelEn: "Topic", type: "text", required: true },
+      { name: "audience", labelTh: "ผู้ฟัง", labelEn: "Audience", type: "text", placeholderTh: "เช่น คณะผู้บริหาร, สภามหาวิทยาลัย" },
+      { name: "minutes", labelTh: "ความยาว (นาที)", labelEn: "Length (min)", type: "text" },
+      { name: "key_points", labelTh: "สาระสำคัญที่ต้องการสื่อ", labelEn: "Key points", type: "textarea", required: true },
+    ],
+  },
+  {
+    id: "poster-brief",
+    icon: ImageIcon,
+    titleTh: "Brief โปสเตอร์/Infographic",
+    titleEn: "Poster / Infographic Brief",
+    descTh: "ออกแบบ brief สำหรับโปสเตอร์/Infographic ให้นักออกแบบ",
+    descEn: "Design brief for poster/infographic",
+    category: "creative",
+    systemPromptTh: "คุณเป็น Creative Director ออกแบบ brief สำหรับโปสเตอร์/Infographic ระบุ: เป้าหมายการสื่อสาร, กลุ่มเป้าหมาย, key message 1 ประโยค, ขนาด/สัดส่วน, โทนสี (พร้อม hex), ลำดับชั้นข้อมูล (visual hierarchy), copy บนชิ้นงาน (พาดหัว/รอง/CTA), และโทนภาพประกอบ",
+    fields: [
+      { name: "purpose", labelTh: "วัตถุประสงค์ของชิ้นงาน", labelEn: "Purpose", type: "textarea", required: true },
+      { name: "audience", labelTh: "กลุ่มเป้าหมาย", labelEn: "Audience", type: "text", required: true },
+      { name: "size", labelTh: "ขนาด/สัดส่วน (เช่น A3, IG 1:1)", labelEn: "Size", type: "text" },
+      { name: "must_include", labelTh: "ข้อมูล/ตราที่ต้องมี", labelEn: "Must include", type: "textarea" },
+    ],
+  },
+  {
+    id: "video-script",
+    icon: Film,
+    titleTh: "สคริปต์วิดีโอประชาสัมพันธ์",
+    titleEn: "Video Script",
+    descTh: "สคริปต์วิดีโอ 30s / 60s / 3min แยกคอลัมน์ Visual/VO/On-screen",
+    descEn: "Video script with Scene/Visual/VO/On-screen columns",
+    category: "creative",
+    systemPromptTh: "คุณเป็น Video Scriptwriter เขียนสคริปต์ที่มี hook ใน 3 วินาทีแรก แยกตารางคอลัมน์: Scene | Visual | Voice-over (TH) | On-screen text | Duration (sec) ปิดท้ายด้วย CTA และคำแนะนำเพลงประกอบ",
+    fields: [
+      { name: "topic", labelTh: "หัวข้อ/เป้าหมายของวิดีโอ", labelEn: "Topic", type: "textarea", required: true },
+      { name: "length", labelTh: "ความยาว (30s/60s/3min)", labelEn: "Length", type: "text", required: true },
+      { name: "platform", labelTh: "ช่องทาง (FB/IG Reels/TikTok/YouTube)", labelEn: "Platform", type: "text" },
+      { name: "key_message", labelTh: "ข้อความหลักที่ต้องการสื่อ", labelEn: "Key message", type: "textarea" },
+    ],
+  },
+  {
+    id: "social-caption",
+    icon: Hash,
+    titleTh: "แคปชั่นโซเชียลมีเดีย",
+    titleEn: "Social Media Caption",
+    descTh: "แคปชั่น FB/IG/X พร้อม hashtag เหมาะกับแต่ละแพลตฟอร์ม",
+    descEn: "FB/IG/X captions with hashtags",
+    category: "creative",
+    systemPromptTh: "คุณเป็น Social Media Manager เขียนแคปชั่น 3 เวอร์ชัน: Facebook (เล่าเรื่อง 80-120 คำ), Instagram (กระชับ + emoji + 8-12 hashtag), X/Twitter (≤ 220 ตัวอักษร) ทุกเวอร์ชันมี hook ที่ชัดและ CTA",
+    fields: [
+      { name: "topic", labelTh: "เรื่องที่จะโพสต์", labelEn: "Topic", type: "textarea", required: true },
+      { name: "tone", labelTh: "โทน (เป็นทางการ/เป็นกันเอง/ตื่นเต้น)", labelEn: "Tone", type: "text" },
+      { name: "link", labelTh: "ลิงก์ที่จะแนบ (ถ้ามี)", labelEn: "Link", type: "text" },
+    ],
+  },
+  {
+    id: "image-prompt",
+    icon: Sparkles,
+    titleTh: "Prompt สำหรับสร้างภาพ AI",
+    titleEn: "AI Image Prompt Generator",
+    descTh: "แปลโจทย์ภาษาไทยเป็น prompt EN ใช้กับ Midjourney/SD/Lovable image",
+    descEn: "Convert Thai brief to EN image prompt",
+    category: "creative",
+    systemPromptTh: "คุณเป็น Prompt Engineer สำหรับ image AI แปลโจทย์ภาษาไทยเป็น prompt ภาษาอังกฤษ 3 เวอร์ชัน: (1) Realistic photo style (2) Illustration / vector (3) Cinematic poster แต่ละเวอร์ชันระบุ: subject, composition, lighting, color palette, camera/lens (ถ้า realistic), style references, aspect ratio, และ negative prompt ที่ควรหลีกเลี่ยง",
+    fields: [
+      { name: "brief", labelTh: "อยากได้ภาพอะไร (อธิบายเป็นภาษาไทย)", labelEn: "Brief (TH)", type: "textarea", required: true },
+      { name: "usage", labelTh: "ใช้ที่ไหน (เช่น โปสเตอร์ A3, IG square)", labelEn: "Usage", type: "text" },
     ],
   },
 ];
