@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   LayoutDashboard, Sparkles, LibraryBig, History, Bot, Plug,
   ShieldCheck, Settings, BarChart3, PieChart, Building2, Bell, BookText, MessageSquare,
-  LayoutTemplate, Telescope,
+  LayoutTemplate, Telescope, ListTodo,
 } from "lucide-react";
 
 import {
@@ -19,6 +19,7 @@ import { checkIsAdmin } from "@/lib/ai.functions";
 
 const ITEMS: { to: string; key: MessageKey; icon: typeof LayoutDashboard }[] = [
   { to: "/", key: "nav_dashboard", icon: LayoutDashboard },
+  { to: "/tasks", key: "nav_tasks", icon: ListTodo },
   { to: "/run", key: "nav_run", icon: Sparkles },
   { to: "/chat", key: "nav_chat", icon: MessageSquare },
   { to: "/research", key: "nav_research", icon: Telescope },
