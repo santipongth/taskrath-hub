@@ -63,13 +63,14 @@ export const upsertProject = createServerFn({ method: "POST" })
       if (error) throw new Error(error.message);
       return { id: row.id as string };
     } else {
-      const patch: Record<string, unknown> = { name: data.name };
-      if (data.context !== undefined) patch.context = data.context;
-      if (data.color !== undefined) patch.color = data.color;
-      if (data.archived !== undefined) patch.archived = data.archived;
       const { error } = await supabase
         .from("user_projects")
-        .update(patch)
+        .update({
+          name: data.name,
+          context: data.context ?? null,
+          color: data.color ?? null,
+          archived: data.archived ?? false,
+        })
         .eq("id", data.id)
         .eq("user_id", userId);
       if (error) throw new Error(error.message);
