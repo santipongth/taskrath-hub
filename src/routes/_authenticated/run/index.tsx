@@ -94,6 +94,8 @@ function RunPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const baseRef = useRef("");
 
+  const selectedSkill = useMemo(() => skills.find((s) => s.id === personalSkillId) ?? null, [skills, personalSkillId]);
+
   // Prefill from /tasks "ทำเลย"
   useEffect(() => {
     try {
