@@ -50,8 +50,9 @@ function renderAssistantText(
   citations: ChatCitation[] | undefined,
   onOpen: (citation: ChatCitation, index: number) => void,
   lang: string,
+  showInline: boolean,
 ): ReactNode[] {
-  if (!citations || citations.length === 0) return [text];
+  if (!showInline || !citations || citations.length === 0) return [text];
   const re = /\[(\d{1,2})\]/g;
   const out: ReactNode[] = [];
   let last = 0;
