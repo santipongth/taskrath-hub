@@ -315,6 +315,7 @@ export function NotebookChat({
 
   const hasSources = sourceCount > 0;
   const suggestions = lang === "th" ? SUGGESTIONS_TH : SUGGESTIONS_EN;
+  const smartPacks = packsForSources(sources, lang);
   const viewerSource =
     viewer && sources.find((s) => s.id === viewer.citation.source_id);
   const showPanel = citationStyle === "with_panel";
