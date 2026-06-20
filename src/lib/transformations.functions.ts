@@ -179,21 +179,32 @@ export const applyTransformation = createServerFn({ method: "POST" })
       .single();
     if (srcErr || !src) throw new Error("Source not found");
 
-    const body = [
-      src.title ? `# ${src.title}` : null,
-      src.url ? `URL: ${src.url}` : null,
-      src.content_md ?? "",
-    ]
-      .filter(Boolean)
-      .join("\n\n")
+    // Build numbered chunks so the AI can inline-cite [1]..[N] back to a chunk.
+    const fullText = sourceFullText(src.title, src.url, src.content_md ?? null);
+    const chunks = chunkText(fullText);
+    if (chunks.length === 0) throw new Error("แหล่งนี้ไม่มีเนื้อหาให้ประมวลผล");
+
+    const numbered = chunks
+      .map((c, i) => `[${i + 1}]\n${c}`)
+      .join("\n\n---\n\n")
       .slice(0, 60_000);
 
-    if (!body.trim()) throw new Error("แหล่งนี้ไม่มีเนื้อหาให้ประมวลผล");
-
     const system =
-      "คุณเป็นผู้ช่วย AI สำหรับเจ้าหน้าที่หน่วยงานไทย ตอบเป็นภาษาไทยกระชับ ตรงประเด็น และยึดข้อมูลจากเนื้อหาที่ให้เท่านั้น";
-    const userPrompt = `${tf.prompt}\n\n---\n${body}`;
+      "คุณเป็นผู้ช่วย AI สำหรับเจ้าหน้าที่หน่วยงานไทย ตอบเป็นภาษาไทยกระชับ ตรงประเด็น " +
+      "ยึดข้อมูลจาก <แหล่ง> ที่ให้เท่านั้น ห้ามแต่งเติม " +
+      "เมื่ออ้างอิงข้อเท็จจริง ให้ใส่ [หมายเลข] ท้ายประโยคหรือวลี ตรงกับเลข chunk ใน <แหล่ง> " +
+      "(เช่น [1], [2]) เพื่อให้ผู้อ่านคลิกตรวจสอบได้";
+    const userPrompt = `${tf.prompt}\n\n<แหล่ง>\n${numbered}\n</แหล่ง>`;
     const { text } = await callAI(system, userPrompt);
+
+    // Extract chunk indices actually cited in the answer.
+    const citedIdx = new Set<number>();
+    const re = /\[(\d{1,3})\]/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(text))) {
+      const n = parseInt(m[1], 10);
+      if (n >= 1 && n <= chunks.length) citedIdx.add(n - 1);
+    }
 
     let noteId: string | null = null;
     if (data.save_as_note) {
@@ -206,7 +217,14 @@ export const applyTransformation = createServerFn({ method: "POST" })
           title: `${tf.name} · ${src.title}`.slice(0, 200),
           content_md: text,
           origin: "transformation",
-          metadata: { transformation_id: tf.id, transformation_name: tf.name } as never,
+          metadata: {
+            transformation_id: tf.id,
+            transformation_name: tf.name,
+            source_id: src.id,
+            has_citations: citedIdx.size > 0,
+            chunk_count: chunks.length,
+            cited_chunks: Array.from(citedIdx).sort((a, b) => a - b),
+          } as never,
         })
         .select("id")
         .single();
