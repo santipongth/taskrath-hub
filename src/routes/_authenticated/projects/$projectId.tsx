@@ -98,9 +98,13 @@ function ProjectHubPage() {
   const [srcUrl, setSrcUrl] = useState("");
   const [srcText, setSrcText] = useState("");
 
+  const embedSrcFn = useServerFn(embedSource);
+  const reindexFn = useServerFn(reindexProject);
+  const askFn = useServerFn(askProject);
+
   const addSource = useMutation({
-    mutationFn: () =>
-      upsertSource({
+    mutationFn: async () => {
+      const r = await upsertSource({
         data: {
           project_id: projectId,
           kind: srcKind,
@@ -108,11 +112,41 @@ function ProjectHubPage() {
           url: srcKind === "url" ? srcUrl.trim() : null,
           content_md: srcKind === "text" ? srcText : null,
         },
-      }),
+      });
+      // Best-effort: embed text sources for semantic Ask. URL sources have no body yet.
+      if (srcKind === "text" && srcText.trim()) {
+        try { await embedSrcFn({ data: { source_id: r.id } }); } catch { /* ignore */ }
+      }
+      return r;
+    },
     onSuccess: async () => {
       toast.success(lang === "th" ? "เพิ่มแหล่งแล้ว" : "Source added");
       setOpenSrc(false); setSrcTitle(""); setSrcUrl(""); setSrcText("");
       await qc.invalidateQueries({ queryKey: ["project-sources", projectId] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
+  });
+
+  const reindexMut = useMutation({
+    mutationFn: () => reindexFn({ data: { project_id: projectId } }),
+    onSuccess: (r) =>
+      toast.success(
+        lang === "th"
+          ? `Re-index แล้ว: ${r.sources} แหล่ง / ${r.chunks} ชิ้น`
+          : `Re-indexed: ${r.sources} sources / ${r.chunks} chunks`,
+      ),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
+  });
+
+  // Ask state
+  const [question, setQuestion] = useState("");
+  const [answer, setAnswer] = useState<string | null>(null);
+  const [citations, setCitations] = useState<AskCitation[]>([]);
+  const askMut = useMutation({
+    mutationFn: () => askFn({ data: { project_id: projectId, question: question.trim() } }),
+    onSuccess: (r) => {
+      setAnswer(r.answer);
+      setCitations(r.citations);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
   });
