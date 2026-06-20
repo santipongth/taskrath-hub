@@ -98,16 +98,45 @@ function ProjectHubPage() {
 
   // Add source dialog
   const [openSrc, setOpenSrc] = useState(false);
-  const [srcKind, setSrcKind] = useState<"url" | "text">("url");
+  const [srcKind, setSrcKind] = useState<"url" | "text" | "file">("url");
   const [srcTitle, setSrcTitle] = useState("");
   const [srcUrl, setSrcUrl] = useState("");
   const [srcText, setSrcText] = useState("");
+  const [srcFile, setSrcFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const embedSrcFn = useServerFn(embedSource);
   const reindexFn = useServerFn(reindexProject);
+  const uploadFileFn = useServerFn(uploadSourceFile);
+
+  const fileToBase64 = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => {
+        const r = fr.result as string;
+        resolve(r.split(",")[1] ?? "");
+      };
+      fr.onerror = () => reject(fr.error ?? new Error("Read failed"));
+      fr.readAsDataURL(file);
+    });
 
   const addSource = useMutation({
     mutationFn: async () => {
+      if (srcKind === "file") {
+        if (!srcFile) throw new Error("กรุณาเลือกไฟล์");
+        const base64 = await fileToBase64(srcFile);
+        const r = await uploadFileFn({
+          data: {
+            project_id: projectId,
+            filename: srcFile.name,
+            mime: srcFile.type || "application/octet-stream",
+            base64,
+            title: srcTitle.trim() || undefined,
+          },
+        });
+        try { await embedSrcFn({ data: { source_id: r.id } }); } catch { /* ignore */ }
+        return r;
+      }
       const r = await upsertSource({
         data: {
           project_id: projectId,
@@ -117,7 +146,6 @@ function ProjectHubPage() {
           content_md: srcKind === "text" ? srcText : null,
         },
       });
-      // Best-effort: embed text sources for semantic Ask. URL sources have no body yet.
       if (srcKind === "text" && srcText.trim()) {
         try { await embedSrcFn({ data: { source_id: r.id } }); } catch { /* ignore */ }
       }
@@ -125,7 +153,7 @@ function ProjectHubPage() {
     },
     onSuccess: async () => {
       toast.success(lang === "th" ? "เพิ่มแหล่งแล้ว" : "Source added");
-      setOpenSrc(false); setSrcTitle(""); setSrcUrl(""); setSrcText("");
+      setOpenSrc(false); setSrcTitle(""); setSrcUrl(""); setSrcText(""); setSrcFile(null);
       await qc.invalidateQueries({ queryKey: ["project-sources", projectId] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
