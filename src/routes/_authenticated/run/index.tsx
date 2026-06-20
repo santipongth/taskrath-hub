@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { runFreeform, ocrAttachments, compareFreeform, listMyDeptModels } from "@/lib/ai.functions";
-import { listMySkills } from "@/lib/user-skills.functions";
+import { listMySkills, seedDefaultSkills } from "@/lib/user-skills.functions";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -56,6 +56,7 @@ function RunPage() {
   const compare = useServerFn(compareFreeform);
   const fetchModels = useServerFn(listMyDeptModels);
   const fetchSkills = useServerFn(listMySkills);
+  const seedSkills = useServerFn(seedDefaultSkills);
 
   const { data: modelsData } = useQuery({
     queryKey: ["my-dept-models"],
@@ -63,11 +64,21 @@ function RunPage() {
     staleTime: 5 * 60 * 1000,
   });
   const models = modelsData?.models ?? [];
-  const { data: skillsData } = useQuery({
+  const { data: skillsData, refetch: refetchSkills } = useQuery({
     queryKey: ["user-skills"],
     queryFn: () => fetchSkills(),
   });
   const skills = skillsData?.skills ?? [];
+
+  // Auto-seed curated default skills on first visit if the user has none.
+  const seededRef = useRef(false);
+  useEffect(() => {
+    if (seededRef.current) return;
+    if (!skillsData) return;
+    if (skillsData.skills.length > 0) return;
+    seededRef.current = true;
+    seedSkills().then(() => refetchSkills()).catch(() => {});
+  }, [skillsData, seedSkills, refetchSkills]);
 
   const [prompt, setPrompt] = useState("");
   const [output, setOutput] = useState("");
