@@ -458,7 +458,7 @@ function SourceRow({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <span className="line-clamp-1 text-xs font-medium">{src.title}</span>
-            {src.url && (
+            {src.url && /^https?:\/\//i.test(src.url) && (
               <a href={src.url} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-primary">
                 <ExternalLink className="h-3 w-3" />
               </a>
