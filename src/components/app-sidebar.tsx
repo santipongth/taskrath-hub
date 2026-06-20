@@ -46,16 +46,23 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border">
-      <SidebarHeader className="px-3 py-5">
+      <SidebarHeader className={`px-3 ${collapsed ? "py-4" : "py-8"}`}>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Link to="/" className="flex items-center justify-center">
-                <img src={logo.url} alt="RathCoWork" className="h-11 w-11 object-contain" />
+              <Link
+                to="/"
+                className="flex items-center justify-center rounded-lg border border-transparent p-2 transition-colors hover:border-accent hover:bg-accent/10 focus-visible:border-accent focus-visible:bg-accent/10 focus-visible:outline-none cursor-pointer"
+              >
+                <img
+                  src={logo.url}
+                  alt={t("appName")}
+                  className={`object-contain transition-all ${collapsed ? "h-10 w-10" : "h-32 w-32"}`}
+                />
               </Link>
             </TooltipTrigger>
             <TooltipContent side="right">
-              <p>RathCoWork</p>
+              <p>{t("appName")}</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
