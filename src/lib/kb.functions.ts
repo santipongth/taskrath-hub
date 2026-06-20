@@ -259,8 +259,9 @@ export async function retrieveKbContext(
   opts: { topK?: number; threshold?: number } = {},
 ): Promise<{ block: string; citations: Citation[] } | null> {
   try {
-    // Check global toggle
-    const { data: setting } = await supabase
+    // Check global toggle (admin-only table; use service client)
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: setting } = await supabaseAdmin
       .from("app_settings")
       .select("value")
       .eq("key", "kb")
