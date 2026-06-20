@@ -6,7 +6,7 @@ import { callAI } from "@/lib/ai.functions";
 const TTS_MODEL = "openai/gpt-4o-mini-tts";
 const VOICES = ["alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse", "marin", "cedar"] as const;
 
-async function ttsToMp3(text: string, voice: string): Promise<string> {
+async function ttsToMp3(text: string, voice: string, speed: number): Promise<string> {
   const key = process.env.LOVABLE_API_KEY;
   if (!key) throw new Error("AI service not configured");
   const res = await fetch("https://ai.gateway.lovable.dev/v1/audio/speech", {
@@ -16,6 +16,7 @@ async function ttsToMp3(text: string, voice: string): Promise<string> {
       model: TTS_MODEL,
       input: text,
       voice,
+      speed,
       response_format: "mp3",
     }),
   });
