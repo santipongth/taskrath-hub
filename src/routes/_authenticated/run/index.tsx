@@ -94,6 +94,8 @@ function RunPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const baseRef = useRef("");
 
+  const selectedSkill = useMemo(() => skills.find((s) => s.id === personalSkillId) ?? null, [skills, personalSkillId]);
+
   // Prefill from /tasks "ทำเลย"
   useEffect(() => {
     try {
@@ -344,6 +346,19 @@ function RunPage() {
                   ))}
                 </SelectContent>
               </Select>
+              {selectedSkill && (
+                <div className="ml-2 hidden md:flex max-w-xs flex-col rounded-md border border-border bg-muted/40 px-3 py-2 text-xs">
+                  <span className="font-medium text-foreground">{selectedSkill.name}</span>
+                  {selectedSkill.description && (
+                    <span className="mt-0.5 text-muted-foreground">{selectedSkill.description}</span>
+                  )}
+                  {selectedSkill.example_output && (
+                    <span className="mt-1 truncate text-[11px] text-muted-foreground/80">
+                      ตัวอย่าง: {selectedSkill.example_output.slice(0, 80)}…
+                    </span>
+                  )}
+                </div>
+              )}
             </>
           )}
           <div className="ml-auto">

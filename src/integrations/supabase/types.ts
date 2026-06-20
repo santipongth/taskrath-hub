@@ -882,6 +882,8 @@ export type Database = {
         Row: {
           created_at: string
           default_model_selector: string | null
+          description: string | null
+          example_output: string | null
           icon: string | null
           id: string
           name: string
@@ -893,6 +895,8 @@ export type Database = {
         Insert: {
           created_at?: string
           default_model_selector?: string | null
+          description?: string | null
+          example_output?: string | null
           icon?: string | null
           id?: string
           name: string
@@ -904,6 +908,8 @@ export type Database = {
         Update: {
           created_at?: string
           default_model_selector?: string | null
+          description?: string | null
+          example_output?: string | null
           icon?: string | null
           id?: string
           name?: string
