@@ -12,6 +12,9 @@ import {
   SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import {
+  Tooltip, TooltipContent, TooltipTrigger, TooltipProvider,
+} from "@/components/ui/tooltip";
 import { useI18n } from "@/lib/i18n";
 import logo from "@/assets/rathcowork-logo.png.asset.json";
 import type { MessageKey } from "@/lib/messages";
