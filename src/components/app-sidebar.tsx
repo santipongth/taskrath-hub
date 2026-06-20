@@ -12,6 +12,9 @@ import {
   SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import {
+  Tooltip, TooltipContent, TooltipTrigger, TooltipProvider,
+} from "@/components/ui/tooltip";
 import { useI18n } from "@/lib/i18n";
 import logo from "@/assets/rathcowork-logo.png.asset.json";
 import type { MessageKey } from "@/lib/messages";
@@ -44,9 +47,18 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon" className="border-r border-border">
       <SidebarHeader className="px-3 py-5">
-        <Link to="/" className="flex items-center justify-center">
-          <img src={logo.url} alt="RathCoWork" className="h-11 w-11 object-contain" />
-        </Link>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link to="/" className="flex items-center justify-center">
+                <img src={logo.url} alt="RathCoWork" className="h-11 w-11 object-contain" />
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <p>RathCoWork</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
