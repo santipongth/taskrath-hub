@@ -5,14 +5,18 @@ import { useState } from "react";
 import { toast } from "sonner";
 import {
   ArrowLeft, FolderKanban, Link as LinkIcon, FileText, StickyNote,
-  Telescope, Sparkles, Plus, Trash2, ExternalLink, BookOpen,
+  Telescope, Sparkles, Plus, Trash2, ExternalLink, BookOpen, Wand2, Settings2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenuLabel, DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -24,6 +28,10 @@ import {
   listProjectNotes, upsertProjectNote, deleteProjectNote,
   type ProjectSource, type ProjectNote,
 } from "@/lib/project-sources.functions";
+import {
+  listMyTransformations, upsertTransformation, deleteTransformation, applyTransformation,
+  type Transformation,
+} from "@/lib/transformations.functions";
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId")({
   head: () => ({ meta: [{ title: "Notebook · RathCoWork" }] }),
@@ -43,6 +51,10 @@ function ProjectHubPage() {
   const removeSource = useServerFn(deleteProjectSource);
   const upsertNote = useServerFn(upsertProjectNote);
   const removeNote = useServerFn(deleteProjectNote);
+  const listTfs = useServerFn(listMyTransformations);
+  const upsertTf = useServerFn(upsertTransformation);
+  const removeTf = useServerFn(deleteTransformation);
+  const applyTf = useServerFn(applyTransformation);
 
   const { data: projData } = useQuery({
     queryKey: ["my-projects"],
@@ -58,9 +70,24 @@ function ProjectHubPage() {
     queryKey: ["project-notes", projectId],
     queryFn: () => listNotes({ data: { projectId } }),
   });
+  const { data: tfData } = useQuery({
+    queryKey: ["my-transformations"],
+    queryFn: () => listTfs(),
+  });
 
   const sources = srcData?.sources ?? [];
   const notes = noteData?.notes ?? [];
+  const transformations = tfData?.transformations ?? [];
+
+  const applyTfMut = useMutation({
+    mutationFn: (vars: { transformation_id: string; source_id: string }) =>
+      applyTf({ data: { ...vars, save_as_note: true } }),
+    onSuccess: async () => {
+      toast.success(lang === "th" ? "บันทึกผลเป็นโน้ตแล้ว" : "Saved as note");
+      await qc.invalidateQueries({ queryKey: ["project-notes", projectId] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
+  });
 
   // Add source dialog
   const [openSrc, setOpenSrc] = useState(false);
@@ -170,6 +197,13 @@ function ProjectHubPage() {
           <Button size="sm" variant="secondary" onClick={sendToResearch}>
             <Telescope className="mr-1.5 h-3.5 w-3.5" />{lang === "th" ? "ทำวิจัย" : "Research"}
           </Button>
+          <ManageTransformationsDialog
+            transformations={transformations}
+            upsert={(v) => upsertTf({ data: v })}
+            remove={(id) => removeTf({ data: { id } })}
+            onChanged={() => qc.invalidateQueries({ queryKey: ["my-transformations"] })}
+            lang={lang}
+          />
         </div>
       </div>
 
@@ -235,7 +269,17 @@ function ProjectHubPage() {
             </div>
           ) : (
             <ul className="space-y-2">
-              {sources.map((s) => <SourceRow key={s.id} src={s} onDelete={() => deleteSrc.mutate(s.id)} lang={lang} />)}
+              {sources.map((s) => (
+                <SourceRow
+                  key={s.id}
+                  src={s}
+                  onDelete={() => deleteSrc.mutate(s.id)}
+                  lang={lang}
+                  transformations={transformations}
+                  onApply={(tfId) => applyTfMut.mutate({ transformation_id: tfId, source_id: s.id })}
+                  applyPending={applyTfMut.isPending}
+                />
+              ))}
             </ul>
           )}
         </section>
@@ -285,7 +329,16 @@ function ProjectHubPage() {
   );
 }
 
-function SourceRow({ src, onDelete, lang }: { src: ProjectSource; onDelete: () => void; lang: string }) {
+function SourceRow({
+  src, onDelete, lang, transformations, onApply, applyPending,
+}: {
+  src: ProjectSource;
+  onDelete: () => void;
+  lang: string;
+  transformations: Transformation[];
+  onApply: (transformationId: string) => void;
+  applyPending: boolean;
+}) {
   const Icon = src.kind === "url" ? LinkIcon : src.kind === "research" ? Telescope : FileText;
   return (
     <li className="group rounded border border-border bg-background p-2.5">
@@ -304,23 +357,57 @@ function SourceRow({ src, onDelete, lang }: { src: ProjectSource; onDelete: () =
             <p className="mt-1 line-clamp-2 text-[11px] text-muted-foreground">{src.content_md.slice(0, 240)}</p>
           )}
         </div>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <button className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive" aria-label="delete">
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>{lang === "th" ? "ลบแหล่งนี้?" : "Delete this source?"}</AlertDialogTitle>
-              <AlertDialogDescription>{src.title}</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>{lang === "th" ? "ยกเลิก" : "Cancel"}</AlertDialogCancel>
-              <AlertDialogAction onClick={onDelete}>{lang === "th" ? "ลบ" : "Delete"}</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <div className="flex items-center gap-1">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="text-muted-foreground hover:text-primary disabled:opacity-50"
+                aria-label="apply transformation"
+                disabled={applyPending}
+                title={lang === "th" ? "ใช้ Transformation" : "Apply transformation"}
+              >
+                <Wand2 className="h-3.5 w-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuLabel className="text-[11px]">
+                {lang === "th" ? "เลือก Transformation" : "Choose transformation"}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {transformations.length === 0 ? (
+                <div className="px-2 py-3 text-[11px] text-muted-foreground">
+                  {lang === "th" ? "ยังไม่มี Transformation" : "No transformations"}
+                </div>
+              ) : (
+                transformations.map((t) => (
+                  <DropdownMenuItem key={t.id} onClick={() => onApply(t.id)} className="flex flex-col items-start gap-0.5">
+                    <span className="text-xs font-medium">{t.name}</span>
+                    {t.description && (
+                      <span className="line-clamp-1 text-[10px] text-muted-foreground">{t.description}</span>
+                    )}
+                  </DropdownMenuItem>
+                ))
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <button className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive" aria-label="delete">
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{lang === "th" ? "ลบแหล่งนี้?" : "Delete this source?"}</AlertDialogTitle>
+                <AlertDialogDescription>{src.title}</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{lang === "th" ? "ยกเลิก" : "Cancel"}</AlertDialogCancel>
+                <AlertDialogAction onClick={onDelete}>{lang === "th" ? "ลบ" : "Delete"}</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </div>
     </li>
   );
@@ -359,5 +446,128 @@ function NoteRow({ note, onDelete, lang }: { note: ProjectNote; onDelete: () => 
         </AlertDialog>
       </div>
     </li>
+  );
+}
+
+function ManageTransformationsDialog({
+  transformations, upsert, remove, onChanged, lang,
+}: {
+  transformations: Transformation[];
+  upsert: (v: { id?: string; name: string; description?: string | null; prompt: string }) => Promise<{ id: string }>;
+  remove: (id: string) => Promise<{ ok: boolean }>;
+  onChanged: () => void;
+  lang: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Transformation | null>(null);
+  const [name, setName] = useState("");
+  const [desc, setDesc] = useState("");
+  const [prompt, setPrompt] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const resetForm = () => {
+    setEditing(null); setName(""); setDesc(""); setPrompt("");
+  };
+  const loadInto = (t: Transformation) => {
+    setEditing(t); setName(t.name); setDesc(t.description ?? ""); setPrompt(t.prompt);
+  };
+
+  const save = async () => {
+    if (!name.trim() || !prompt.trim()) return;
+    setBusy(true);
+    try {
+      await upsert({ id: editing?.id, name: name.trim(), description: desc.trim() || null, prompt: prompt.trim() });
+      toast.success(lang === "th" ? "บันทึกแล้ว" : "Saved");
+      resetForm();
+      onChanged();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const del = async (id: string) => {
+    setBusy(true);
+    try {
+      await remove(id);
+      if (editing?.id === id) resetForm();
+      onChanged();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline">
+          <Settings2 className="mr-1.5 h-3.5 w-3.5" />
+          {lang === "th" ? "Transformations" : "Transformations"}
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>{lang === "th" ? "จัดการ Transformations" : "Manage transformations"}</DialogTitle>
+          <DialogDescription>
+            {lang === "th"
+              ? "Transformation คือคำสั่ง AI สำเร็จรูป (เช่น สรุป / สกัดประเด็น / แปล) ที่ใช้ซ้ำกับแหล่งใดก็ได้"
+              : "Reusable AI prompts you can apply to any source."}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <div className="text-xs font-medium text-muted-foreground">
+              {lang === "th" ? `รายการ (${transformations.length})` : `List (${transformations.length})`}
+            </div>
+            <ul className="max-h-80 space-y-1 overflow-y-auto">
+              {transformations.map((t) => (
+                <li
+                  key={t.id}
+                  className={`group flex items-start gap-2 rounded border p-2 text-xs ${editing?.id === t.id ? "border-primary bg-primary/5" : "border-border"}`}
+                >
+                  <button className="min-w-0 flex-1 text-left" onClick={() => loadInto(t)}>
+                    <div className="font-medium">{t.name}</div>
+                    {t.description && <div className="line-clamp-1 text-[10px] text-muted-foreground">{t.description}</div>}
+                  </button>
+                  <button
+                    className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
+                    onClick={() => del(t.id)}
+                    disabled={busy}
+                    aria-label="delete"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <Button size="sm" variant="ghost" onClick={resetForm} className="w-full">
+              <Plus className="mr-1 h-3.5 w-3.5" />{lang === "th" ? "สร้างใหม่" : "New"}
+            </Button>
+          </div>
+          <div className="space-y-2">
+            <div className="text-xs font-medium text-muted-foreground">
+              {editing ? (lang === "th" ? "แก้ไข" : "Edit") : (lang === "th" ? "สร้างใหม่" : "Create")}
+            </div>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={lang === "th" ? "ชื่อ เช่น สรุปเป็น Bullet" : "Name"} />
+            <Input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder={lang === "th" ? "คำอธิบายสั้น ๆ (ไม่บังคับ)" : "Short description"} />
+            <Textarea
+              rows={8}
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder={lang === "th" ? "คำสั่ง AI เช่น 'จงสรุปเนื้อหาด้านล่างเป็น bullet…'" : "Prompt instructions"}
+            />
+            <div className="flex justify-end gap-2">
+              {editing && <Button size="sm" variant="ghost" onClick={resetForm}>{lang === "th" ? "ยกเลิก" : "Cancel"}</Button>}
+              <Button size="sm" onClick={save} disabled={busy || !name.trim() || !prompt.trim()}>
+                {busy ? "…" : editing ? (lang === "th" ? "อัปเดต" : "Update") : (lang === "th" ? "เพิ่ม" : "Add")}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
