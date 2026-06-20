@@ -110,9 +110,18 @@ export const uploadSourceFile = createServerFn({ method: "POST" })
       if (kind === "pdf") {
         extracted = await gatewayChat(
           "google/gemini-2.5-flash",
-          "You are a precise document text extractor. Output only the readable text from the document, preserving paragraph breaks and headings. Do not add commentary.",
+          "You are a precise document text extractor with built-in OCR. " +
+            "Output ONLY the readable text from the document. " +
+            "For text-based PDFs: extract verbatim, preserving paragraphs, headings, lists, and table structure (use simple pipe-separated rows for tables). " +
+            "For SCANNED or IMAGE-based pages: perform OCR carefully and output the recognized text — handle Thai and English script equally. " +
+            "Do not summarize, translate, or add commentary. Use blank lines between paragraphs.",
           [
-            { type: "text", text: "Extract all readable text from this PDF (preserve structure)." },
+            {
+              type: "text",
+              text:
+                "Extract every readable line from this PDF. If pages are scanned images, perform OCR. " +
+                "Keep the original language (Thai/English). Preserve reading order and structure.",
+            },
             {
               type: "file",
               file: {
@@ -125,9 +134,11 @@ export const uploadSourceFile = createServerFn({ method: "POST" })
       } else if (kind === "audio") {
         extracted = await gatewayChat(
           "google/gemini-2.5-flash",
-          "You are an accurate transcription engine. Output only the verbatim transcript in the original language (Thai or English). No commentary.",
+          "You are an accurate transcription engine. Output ONLY the verbatim transcript in the original language (Thai or English). " +
+            "Split into one sentence per line. Insert a blank line between distinct speakers or topics. " +
+            "Do not add labels, timestamps, or commentary.",
           [
-            { type: "text", text: "Transcribe this audio verbatim." },
+            { type: "text", text: "Transcribe this audio verbatim, one sentence per line." },
             { type: "input_audio", input_audio: { data: data.base64, format: audioFormat(data.mime, data.filename) } },
           ],
         );
