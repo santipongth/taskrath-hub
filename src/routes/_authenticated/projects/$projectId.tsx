@@ -38,7 +38,14 @@ import { uploadSourceFile } from "@/lib/source-files.functions";
 import { NotebookChat } from "@/components/notebook/notebook-chat";
 import { AudioBrief } from "@/components/notebook/audio-brief";
 import { MarkdownEditor } from "@/components/notebook/markdown-editor";
-import { Loader2, RefreshCw } from "lucide-react";
+import { NoteCitations } from "@/components/notebook/note-citations";
+import { Loader2, RefreshCw, Eye } from "lucide-react";
+import {
+  Dialog as ViewDialog,
+  DialogContent as ViewDialogContent,
+  DialogHeader as ViewDialogHeader,
+  DialogTitle as ViewDialogTitle,
+} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId")({
   head: () => ({ meta: [{ title: "Notebook · RathCoWork" }] }),
