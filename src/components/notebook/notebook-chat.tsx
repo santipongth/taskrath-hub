@@ -358,37 +358,87 @@ export function NotebookChat({
       >
         {messages.length === 0 ? (
           <div className="space-y-3">
+            {/* Step-by-step guide */}
             <div className="rounded-lg border border-dashed bg-muted/20 p-4">
               <div className="mb-2 flex items-center gap-1.5 text-xs font-medium">
                 <Sparkles className="h-3.5 w-3.5 text-primary" />
-                {lang === "th" ? "เริ่มต้นง่ายๆ" : "Quick start"}
+                {lang === "th" ? "ใช้งานใน 3 ขั้นตอน" : "How to use in 3 steps"}
               </div>
-              {hasSources ? (
-                <p className="text-[11px] text-muted-foreground">
+              <ol className="space-y-1.5 text-[11px] text-muted-foreground">
+                <li className="flex gap-2">
+                  <span className="mt-px inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary/15 font-mono text-[10px] font-semibold text-primary">1</span>
+                  <span>
+                    {lang === "th"
+                      ? <>เพิ่ม <b>แหล่งข้อมูล</b> ในการ์ดด้านล่าง — รองรับ <b>ลิงก์เว็บ, PDF (มี OCR), เสียง (mp3/m4a/webm), ข้อความ</b></>
+                      : <>Add <b>sources</b> below — supports <b>web links, PDFs (with OCR), audio (mp3/m4a/webm), text</b></>}
+                  </span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="mt-px inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary/15 font-mono text-[10px] font-semibold text-primary">2</span>
+                  <span>
+                    {lang === "th"
+                      ? "ระบบจะ สกัดข้อความ + แบ่งประโยค + ทำ embedding อัตโนมัติ (ใช้เวลาสั้นๆ)"
+                      : "The system extracts text, splits sentences, and embeds automatically (takes a moment)"}
+                  </span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="mt-px inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary/15 font-mono text-[10px] font-semibold text-primary">3</span>
+                  <span>
+                    {lang === "th"
+                      ? <>ถามคำถาม — AI จะตอบพร้อม <b>[อ้างอิง]</b> ที่คลิกดูข้อความต้นทางได้</>
+                      : <>Ask — AI replies with clickable <b>[citations]</b> linking to the source text</>}
+                  </span>
+                </li>
+              </ol>
+              {!hasSources && (
+                <p className="mt-2 flex items-start gap-1.5 rounded border border-amber-500/30 bg-amber-500/5 p-2 text-[11px] text-amber-700 dark:text-amber-400">
+                  <Info className="mt-0.5 h-3 w-3 shrink-0" />
                   {lang === "th"
-                    ? `มีแหล่งข้อมูล ${sourceCount} รายการพร้อมใช้งาน เลือกคำถามด่วน หรือพิมพ์เอง — เลข [1][2] ในคำตอบคลิกได้`
-                    : `${sourceCount} source(s) ready. Pick a quick question or type your own — [1][2] in answers are clickable.`}
-                </p>
-              ) : (
-                <p className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
-                  <Info className="mt-0.5 h-3 w-3 shrink-0 text-amber-500" />
-                  {lang === "th"
-                    ? "ยังไม่มีแหล่งข้อมูล — เพิ่มลิงก์ / อัปโหลด PDF / วางข้อความ ในการ์ด ‘แหล่งข้อมูล’ ด้านล่างก่อน แล้วค่อยถามครับ"
-                    : "No sources yet — add a URL / PDF / text in the ‘Sources’ card below, then come back to ask."}
+                    ? "ยังไม่มีแหล่งข้อมูล — เลื่อนลงไปการ์ด ‘แหล่งข้อมูล’ เพื่อเริ่มต้น"
+                    : "No sources yet — scroll to the ‘Sources’ card to begin."}
                 </p>
               )}
             </div>
+
             {hasSources && (
-              <div className="flex flex-wrap gap-1.5">
-                {suggestions.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => sendText(s)}
-                    className="rounded-full border bg-background px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
-                  >
-                    {s}
-                  </button>
-                ))}
+              <div className="space-y-2.5">
+                {smartPacks.length > 0 ? (
+                  smartPacks.map((pack) => (
+                    <div key={pack.label}>
+                      <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                        {pack.label}
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {pack.items.map((s) => (
+                          <button
+                            key={s}
+                            onClick={() => sendText(s)}
+                            className="rounded-full border bg-background px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+                          >
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div>
+                    <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                      {lang === "th" ? "คำถามแนะนำ" : "Suggested"}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {suggestions.map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => sendText(s)}
+                          className="rounded-full border bg-background px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
