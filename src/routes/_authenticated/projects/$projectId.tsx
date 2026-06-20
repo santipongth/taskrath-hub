@@ -5,14 +5,18 @@ import { useState } from "react";
 import { toast } from "sonner";
 import {
   ArrowLeft, FolderKanban, Link as LinkIcon, FileText, StickyNote,
-  Telescope, Sparkles, Plus, Trash2, ExternalLink, BookOpen,
+  Telescope, Sparkles, Plus, Trash2, ExternalLink, BookOpen, Wand2, Settings2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenuLabel, DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -24,6 +28,10 @@ import {
   listProjectNotes, upsertProjectNote, deleteProjectNote,
   type ProjectSource, type ProjectNote,
 } from "@/lib/project-sources.functions";
+import {
+  listMyTransformations, upsertTransformation, deleteTransformation, applyTransformation,
+  type Transformation,
+} from "@/lib/transformations.functions";
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId")({
   head: () => ({ meta: [{ title: "Notebook · RathCoWork" }] }),
