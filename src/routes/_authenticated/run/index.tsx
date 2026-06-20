@@ -252,10 +252,9 @@ function RunPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-12">
-      {/* Hero: centered logo + description */}
+      {/* Hero: centered logo */}
       <div className="mb-6 flex flex-col items-center gap-3 text-center">
         <img src={logo.url} alt="RathCoWork" className="h-20 w-auto object-contain" />
-        <p className="max-w-xl text-sm text-muted-foreground">{t("freeformDesc")}</p>
       </div>
 
       {/* Grok-style pill composer */}
@@ -376,7 +375,11 @@ function RunPage() {
 
           <div className="flex items-center gap-1.5">
             <Select value={providerSelector} onValueChange={setProviderSelector}>
-              <SelectTrigger className="h-8 w-auto min-w-[140px] gap-1 border-0 bg-transparent px-2 text-xs shadow-none hover:bg-muted focus:ring-0">
+              <SelectTrigger
+                className="h-8 w-auto min-w-[160px] gap-2 rounded-full border border-border bg-muted/40 px-3 text-xs font-medium shadow-none hover:bg-muted focus:ring-1 focus:ring-primary/40 data-[state=open]:border-primary/50 data-[state=open]:bg-muted"
+                aria-label={lang === "th" ? "เลือกโมเดล" : "Select model"}
+              >
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)]" aria-hidden />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent align="end">
