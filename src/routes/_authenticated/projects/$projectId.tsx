@@ -454,7 +454,16 @@ function ProjectHubPage() {
             </div>
           ) : (
             <ul className="space-y-2">
-              {notes.map((n) => <NoteRow key={n.id} note={n} onDelete={() => deleteNoteMut.mutate(n.id)} lang={lang} />)}
+              {notes.map((n) => (
+                <NoteRow
+                  key={n.id}
+                  note={n}
+                  onDelete={() => deleteNoteMut.mutate(n.id)}
+                  lang={lang}
+                  projectId={projectId}
+                  source={sources.find((s) => s.id === n.source_id) ?? null}
+                />
+              ))}
             </ul>
           )}
         </section>
