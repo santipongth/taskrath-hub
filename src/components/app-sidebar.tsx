@@ -47,9 +47,18 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon" className="border-r border-border">
       <SidebarHeader className="px-3 py-5">
-        <Link to="/" className="flex items-center justify-center">
-          <img src={logo.url} alt="RathCoWork" className="h-11 w-11 object-contain" />
-        </Link>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link to="/" className="flex items-center justify-center">
+                <img src={logo.url} alt="RathCoWork" className="h-11 w-11 object-contain" />
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <p>RathCoWork</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
