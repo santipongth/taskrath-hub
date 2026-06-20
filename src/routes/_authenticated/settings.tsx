@@ -128,6 +128,40 @@ function SettingsPage() {
         </div>
       </div>
 
+      <div className="mt-4 space-y-3 rounded-lg border border-border bg-card p-5">
+        <div className="flex items-center gap-2">
+          <Quote className="h-4 w-4 text-primary" />
+          <h2 className="text-sm font-semibold">
+            {lang === "th" ? "การแสดงอ้างอิงใน Notebook" : "Notebook citation display"}
+          </h2>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {lang === "th"
+            ? "เลือกว่าจะให้คำตอบของ AI แสดง [อ้างอิง] เป็นตัวเลขในเนื้อหาอย่างเดียว หรือเพิ่มแถบ ‘แหล่งที่อ้างอิง’ ด้านล่างคำตอบด้วย"
+            : "Choose whether AI answers show only inline [citation] markers or also include a ‘Cited sources’ panel below the answer."}
+        </p>
+        <div className="flex items-start justify-between gap-4 rounded-md border bg-background p-3">
+          <div className="min-w-0">
+            <div className="text-xs font-medium">
+              {lang === "th" ? "แสดงแถบ ‘แหล่งที่อ้างอิง’" : "Show ‘Cited sources’ panel"}
+            </div>
+            <div className="mt-0.5 text-[11px] text-muted-foreground">
+              {citationStyle === "with_panel"
+                ? lang === "th"
+                  ? "เปิด — เห็น [1][2] ในข้อความ + แถบรายชื่อแหล่งด้านล่าง"
+                  : "On — inline [1][2] plus a list of cited sources below."
+                : lang === "th"
+                  ? "ปิด — เห็นเฉพาะ [1][2] inline แบบกะทัดรัด"
+                  : "Off — compact inline [1][2] only."}
+            </div>
+          </div>
+          <Switch
+            checked={citationStyle === "with_panel"}
+            onCheckedChange={(b) => setCitStyle(b ? "with_panel" : "inline_only")}
+          />
+        </div>
+      </div>
+
       <div className="mt-4">
         <UserMemoryCard lang={lang} />
       </div>
