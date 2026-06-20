@@ -103,7 +103,6 @@ function ProjectHubPage() {
 
   const embedSrcFn = useServerFn(embedSource);
   const reindexFn = useServerFn(reindexProject);
-  const askFn = useServerFn(askProject);
 
   const addSource = useMutation({
     mutationFn: async () => {
@@ -141,19 +140,6 @@ function ProjectHubPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
   });
 
-  // Ask state
-  const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState<string | null>(null);
-  const [citations, setCitations] = useState<AskCitation[]>([]);
-  const askMut = useMutation({
-    mutationFn: () => askFn({ data: { project_id: projectId, question: question.trim() } }),
-    onSuccess: (r) => {
-      setAnswer(r.answer);
-      setCitations(r.citations);
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
-  });
-
   const deleteSrc = useMutation({
     mutationFn: (id: string) => removeSource({ data: { id } }),
     onSuccess: async () => {
@@ -161,6 +147,7 @@ function ProjectHubPage() {
       await qc.invalidateQueries({ queryKey: ["project-sources", projectId] });
     },
   });
+
 
   // Add note dialog
   const [openNote, setOpenNote] = useState(false);
