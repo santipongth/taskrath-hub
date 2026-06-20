@@ -37,7 +37,7 @@ export const embedSource = createServerFn({ method: "POST" })
       .single();
     if (error || !src) throw new Error("Source not found");
 
-    const text = [src.title, src.url, src.content_md ?? ""].filter(Boolean).join("\n\n");
+    const text = sourceFullText(src.title, src.url, src.content_md ?? null);
     const chunks = chunkText(text);
     if (chunks.length === 0) return { chunks: 0 };
 
@@ -83,7 +83,7 @@ export const reindexProject = createServerFn({ method: "POST" })
         .eq("id", s.id)
         .single();
       if (!src) continue;
-      const text = [src.title, src.url, src.content_md ?? ""].filter(Boolean).join("\n\n");
+      const text = sourceFullText(src.title, src.url, src.content_md ?? null);
       const chunks = chunkText(text);
       if (chunks.length === 0) continue;
       await supabase.from("source_embeddings").delete().eq("source_id", src.id).eq("user_id", userId);
