@@ -774,6 +774,54 @@ export type Database = {
           },
         ]
       }
+      source_embeddings: {
+        Row: {
+          chunk_index: number
+          content: string
+          created_at: string
+          embedding: string
+          id: string
+          project_id: string
+          source_id: string
+          user_id: string
+        }
+        Insert: {
+          chunk_index: number
+          content: string
+          created_at?: string
+          embedding: string
+          id?: string
+          project_id: string
+          source_id: string
+          user_id: string
+        }
+        Update: {
+          chunk_index?: number
+          content?: string
+          created_at?: string
+          embedding?: string
+          id?: string
+          project_id?: string
+          source_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "source_embeddings_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "user_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "source_embeddings_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "project_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_events: {
         Row: {
           created_at: string
@@ -1109,6 +1157,22 @@ export type Database = {
           similarity: number
           source: string
           title: string
+        }[]
+      }
+      match_source_chunks: {
+        Args: {
+          match_count?: number
+          p_project_id: string
+          query_embedding: string
+          similarity_threshold?: number
+        }
+        Returns: {
+          chunk_index: number
+          content: string
+          similarity: number
+          source_id: string
+          title: string
+          url: string
         }[]
       }
       verify_signed_document: {
