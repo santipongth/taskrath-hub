@@ -55,7 +55,7 @@ export const Route = createFileRoute("/_authenticated/projects/$projectId")({
 function ProjectHubPage() {
   const { projectId } = Route.useParams();
   const { lang } = useI18n();
-  const navigate = useNavigate();
+  
   const qc = useQueryClient();
 
   const listProjects = useServerFn(listMyProjects);
