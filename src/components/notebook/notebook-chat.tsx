@@ -144,6 +144,7 @@ export function NotebookChat({
   } | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [citationStyle] = useCitationStyle();
+  const [showInline] = useShowInlineCitations();
 
   const askFn = useServerFn(askProjectChat);
   const scrollerRef = useRef<HTMLDivElement>(null);
