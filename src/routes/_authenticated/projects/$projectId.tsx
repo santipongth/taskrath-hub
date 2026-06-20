@@ -34,6 +34,7 @@ import {
   type Transformation,
 } from "@/lib/transformations.functions";
 import { embedSource, reindexProject } from "@/lib/source-embeddings.functions";
+import { uploadSourceFile } from "@/lib/source-files.functions";
 import { NotebookChat } from "@/components/notebook/notebook-chat";
 import { AudioBrief } from "@/components/notebook/audio-brief";
 import { MarkdownEditor } from "@/components/notebook/markdown-editor";
