@@ -243,6 +243,62 @@ function ProjectHubPage() {
         </div>
       </div>
 
+      {/* Ask across sources */}
+      <section className="mb-6 rounded-lg border border-border bg-card p-4">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+            <Search className="h-4 w-4 text-primary" />
+            {lang === "th" ? "ถามแหล่งข้อมูล (Semantic Ask)" : "Ask your sources"}
+          </h2>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => reindexMut.mutate()}
+            disabled={reindexMut.isPending || sources.length === 0}
+            title={lang === "th" ? "ประมวลผลทุก source ใหม่" : "Re-embed all sources"}
+          >
+            {reindexMut.isPending ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-1 h-3.5 w-3.5" />}
+            {lang === "th" ? "Re-index" : "Re-index"}
+          </Button>
+        </div>
+        <div className="flex gap-2">
+          <Input
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && question.trim().length >= 3 && !askMut.isPending) askMut.mutate();
+            }}
+            placeholder={lang === "th" ? "พิมพ์คำถามเกี่ยวกับเนื้อหาที่อยู่ใน Notebook นี้…" : "Ask anything about this notebook…"}
+            className="flex-1"
+          />
+          <Button onClick={() => askMut.mutate()} disabled={askMut.isPending || question.trim().length < 3}>
+            {askMut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : (lang === "th" ? "ถาม" : "Ask")}
+          </Button>
+        </div>
+        {answer && (
+          <div className="mt-3 space-y-2">
+            <div className="whitespace-pre-wrap rounded border bg-background p-3 text-sm leading-relaxed">{answer}</div>
+            {citations.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {citations.map((c, i) => (
+                  <a
+                    key={c.source_id}
+                    href={c.url ?? "#"}
+                    target={c.url ? "_blank" : undefined}
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 rounded-full border bg-muted/40 px-2 py-0.5 text-[10px] text-muted-foreground hover:bg-muted"
+                    title={`${Math.round(c.similarity * 100)}% match`}
+                  >
+                    <span className="font-mono">[{i + 1}]</span>
+                    <span className="line-clamp-1 max-w-[200px]">{c.title}</span>
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Sources */}
         <section className="rounded-lg border border-border bg-card p-4">
