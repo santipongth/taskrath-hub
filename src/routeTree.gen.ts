@@ -23,10 +23,12 @@ import { Route as AuthenticatedAgentsRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedTasksIndexRouteImport } from './routes/_authenticated/tasks/index'
 import { Route as AuthenticatedRunIndexRouteImport } from './routes/_authenticated/run/index'
 import { Route as AuthenticatedResearchIndexRouteImport } from './routes/_authenticated/research/index'
+import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authenticated/projects/index'
 import { Route as AuthenticatedHistoryIndexRouteImport } from './routes/_authenticated/history/index'
 import { Route as AuthenticatedChatIndexRouteImport } from './routes/_authenticated/chat/index'
 import { Route as AuthenticatedAgentsIndexRouteImport } from './routes/_authenticated/agents.index'
 import { Route as AuthenticatedRunTemplateIdRouteImport } from './routes/_authenticated/run/$templateId'
+import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects/$projectId'
 import { Route as AuthenticatedHistoryRunIdRouteImport } from './routes/_authenticated/history/$runId'
 import { Route as AuthenticatedChatThreadIdRouteImport } from './routes/_authenticated/chat/$threadId'
 import { Route as AuthenticatedAgentsManageRouteImport } from './routes/_authenticated/agents.manage'
@@ -112,6 +114,12 @@ const AuthenticatedResearchIndexRoute =
     path: '/research/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedProjectsIndexRoute =
+  AuthenticatedProjectsIndexRouteImport.update({
+    id: '/projects/',
+    path: '/projects/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedHistoryIndexRoute =
   AuthenticatedHistoryIndexRouteImport.update({
     id: '/history/',
@@ -133,6 +141,12 @@ const AuthenticatedRunTemplateIdRoute =
   AuthenticatedRunTemplateIdRouteImport.update({
     id: '/run/$templateId',
     path: '/run/$templateId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedProjectsProjectIdRoute =
+  AuthenticatedProjectsProjectIdRouteImport.update({
+    id: '/projects/$projectId',
+    path: '/projects/$projectId',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedHistoryRunIdRoute =
@@ -232,10 +246,12 @@ export interface FileRoutesByFullPath {
   '/agents/manage': typeof AuthenticatedAgentsManageRouteWithChildren
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/history/$runId': typeof AuthenticatedHistoryRunIdRoute
+  '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/run/$templateId': typeof AuthenticatedRunTemplateIdRoute
   '/agents/': typeof AuthenticatedAgentsIndexRoute
   '/chat/': typeof AuthenticatedChatIndexRoute
   '/history/': typeof AuthenticatedHistoryIndexRoute
+  '/projects/': typeof AuthenticatedProjectsIndexRoute
   '/research/': typeof AuthenticatedResearchIndexRoute
   '/run/': typeof AuthenticatedRunIndexRoute
   '/tasks/': typeof AuthenticatedTasksIndexRoute
@@ -263,10 +279,12 @@ export interface FileRoutesByTo {
   '/agents/manage': typeof AuthenticatedAgentsManageRouteWithChildren
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/history/$runId': typeof AuthenticatedHistoryRunIdRoute
+  '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/run/$templateId': typeof AuthenticatedRunTemplateIdRoute
   '/agents': typeof AuthenticatedAgentsIndexRoute
   '/chat': typeof AuthenticatedChatIndexRoute
   '/history': typeof AuthenticatedHistoryIndexRoute
+  '/projects': typeof AuthenticatedProjectsIndexRoute
   '/research': typeof AuthenticatedResearchIndexRoute
   '/run': typeof AuthenticatedRunIndexRoute
   '/tasks': typeof AuthenticatedTasksIndexRoute
@@ -297,10 +315,12 @@ export interface FileRoutesById {
   '/_authenticated/agents/manage': typeof AuthenticatedAgentsManageRouteWithChildren
   '/_authenticated/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/_authenticated/history/$runId': typeof AuthenticatedHistoryRunIdRoute
+  '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/_authenticated/run/$templateId': typeof AuthenticatedRunTemplateIdRoute
   '/_authenticated/agents/': typeof AuthenticatedAgentsIndexRoute
   '/_authenticated/chat/': typeof AuthenticatedChatIndexRoute
   '/_authenticated/history/': typeof AuthenticatedHistoryIndexRoute
+  '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
   '/_authenticated/research/': typeof AuthenticatedResearchIndexRoute
   '/_authenticated/run/': typeof AuthenticatedRunIndexRoute
   '/_authenticated/tasks/': typeof AuthenticatedTasksIndexRoute
@@ -331,10 +351,12 @@ export interface FileRouteTypes {
     | '/agents/manage'
     | '/chat/$threadId'
     | '/history/$runId'
+    | '/projects/$projectId'
     | '/run/$templateId'
     | '/agents/'
     | '/chat/'
     | '/history/'
+    | '/projects/'
     | '/research/'
     | '/run/'
     | '/tasks/'
@@ -362,10 +384,12 @@ export interface FileRouteTypes {
     | '/agents/manage'
     | '/chat/$threadId'
     | '/history/$runId'
+    | '/projects/$projectId'
     | '/run/$templateId'
     | '/agents'
     | '/chat'
     | '/history'
+    | '/projects'
     | '/research'
     | '/run'
     | '/tasks'
@@ -395,10 +419,12 @@ export interface FileRouteTypes {
     | '/_authenticated/agents/manage'
     | '/_authenticated/chat/$threadId'
     | '/_authenticated/history/$runId'
+    | '/_authenticated/projects/$projectId'
     | '/_authenticated/run/$templateId'
     | '/_authenticated/agents/'
     | '/_authenticated/chat/'
     | '/_authenticated/history/'
+    | '/_authenticated/projects/'
     | '/_authenticated/research/'
     | '/_authenticated/run/'
     | '/_authenticated/tasks/'
@@ -518,6 +544,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedResearchIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/projects/': {
+      id: '/_authenticated/projects/'
+      path: '/projects'
+      fullPath: '/projects/'
+      preLoaderRoute: typeof AuthenticatedProjectsIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/history/': {
       id: '/_authenticated/history/'
       path: '/history'
@@ -544,6 +577,13 @@ declare module '@tanstack/react-router' {
       path: '/run/$templateId'
       fullPath: '/run/$templateId'
       preLoaderRoute: typeof AuthenticatedRunTemplateIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/projects/$projectId': {
+      id: '/_authenticated/projects/$projectId'
+      path: '/projects/$projectId'
+      fullPath: '/projects/$projectId'
+      preLoaderRoute: typeof AuthenticatedProjectsProjectIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/history/$runId': {
@@ -685,9 +725,11 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminUsageRoute: typeof AuthenticatedAdminUsageRoute
   AuthenticatedChatThreadIdRoute: typeof AuthenticatedChatThreadIdRoute
   AuthenticatedHistoryRunIdRoute: typeof AuthenticatedHistoryRunIdRoute
+  AuthenticatedProjectsProjectIdRoute: typeof AuthenticatedProjectsProjectIdRoute
   AuthenticatedRunTemplateIdRoute: typeof AuthenticatedRunTemplateIdRoute
   AuthenticatedChatIndexRoute: typeof AuthenticatedChatIndexRoute
   AuthenticatedHistoryIndexRoute: typeof AuthenticatedHistoryIndexRoute
+  AuthenticatedProjectsIndexRoute: typeof AuthenticatedProjectsIndexRoute
   AuthenticatedResearchIndexRoute: typeof AuthenticatedResearchIndexRoute
   AuthenticatedRunIndexRoute: typeof AuthenticatedRunIndexRoute
   AuthenticatedTasksIndexRoute: typeof AuthenticatedTasksIndexRoute
@@ -708,9 +750,11 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminUsageRoute: AuthenticatedAdminUsageRoute,
   AuthenticatedChatThreadIdRoute: AuthenticatedChatThreadIdRoute,
   AuthenticatedHistoryRunIdRoute: AuthenticatedHistoryRunIdRoute,
+  AuthenticatedProjectsProjectIdRoute: AuthenticatedProjectsProjectIdRoute,
   AuthenticatedRunTemplateIdRoute: AuthenticatedRunTemplateIdRoute,
   AuthenticatedChatIndexRoute: AuthenticatedChatIndexRoute,
   AuthenticatedHistoryIndexRoute: AuthenticatedHistoryIndexRoute,
+  AuthenticatedProjectsIndexRoute: AuthenticatedProjectsIndexRoute,
   AuthenticatedResearchIndexRoute: AuthenticatedResearchIndexRoute,
   AuthenticatedRunIndexRoute: AuthenticatedRunIndexRoute,
   AuthenticatedTasksIndexRoute: AuthenticatedTasksIndexRoute,

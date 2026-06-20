@@ -1,20 +1,26 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
 import {
   prepareResearchSources,
   synthesizeResearchReport,
   type ResearchSource,
   type ResearchDoc,
 } from "@/lib/research.functions";
+import { listMyProjects } from "@/lib/user-projects.functions";
+import { upsertProjectSource } from "@/lib/project-sources.functions";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
   Telescope, Copy, ExternalLink, FileText, Paperclip, X,
   Image as ImageIcon, FileType2, Link as LinkIcon,
-  Loader2, CheckCircle2, Circle, AlertCircle,
+  Loader2, CheckCircle2, Circle, AlertCircle, Save,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -59,6 +65,8 @@ function ResearchPage() {
   const { lang } = useI18n();
   const prepare = useServerFn(prepareResearchSources);
   const synthesize = useServerFn(synthesizeResearchReport);
+  const listProjects = useServerFn(listMyProjects);
+  const saveSource = useServerFn(upsertProjectSource);
 
   const [question, setQuestion] = useState("");
   const [urlsText, setUrlsText] = useState("");
@@ -72,12 +80,21 @@ function ResearchPage() {
   const [elapsedMs, setElapsedMs] = useState(0);
   const startedAtRef = useRef<number>(0);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [saveProjectId, setSaveProjectId] = useState<string>("");
 
-  // Prefill from /tasks "ทำเลย"
+  const { data: projData } = useQuery({
+    queryKey: ["my-projects"],
+    queryFn: () => listProjects(),
+  });
+  const projects = useMemo(() => projData?.projects.filter((p) => !p.archived) ?? [], [projData]);
+
+  // Prefill from /tasks "ทำเลย" or notebook hub
   useEffect(() => {
     try {
       const p = sessionStorage.getItem("research:prefill");
       if (p) { setQuestion(p); sessionStorage.removeItem("research:prefill"); }
+      const u = sessionStorage.getItem("research:urls");
+      if (u) { setUrlsText(u); sessionStorage.removeItem("research:urls"); }
     } catch { /* ignore */ }
   }, []);
 
@@ -92,6 +109,25 @@ function ResearchPage() {
     const id = window.setInterval(() => setElapsedMs(Date.now() - startedAtRef.current), 250);
     return () => window.clearInterval(id);
   }, [loading]);
+
+  const onSaveToProject = async () => {
+    if (!saveProjectId) { toast.error(lang === "th" ? "เลือก Notebook ก่อน" : "Select notebook"); return; }
+    try {
+      await saveSource({
+        data: {
+          project_id: saveProjectId,
+          kind: "research",
+          title: question.trim().slice(0, 180) || "Research report",
+          content_md: report,
+          metadata: { sources: sources.map((s) => ({ n: s.n, title: s.title, url: s.url })) },
+        },
+      });
+      toast.success(lang === "th" ? "บันทึกใน Notebook แล้ว" : "Saved to notebook");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Error");
+    }
+  };
+
 
   const onPickFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -362,9 +398,26 @@ function ResearchPage() {
 
       {report && (
         <div className="mt-6 rounded-lg border border-border bg-card p-5">
-          <div className="mb-3 flex items-center justify-between">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-semibold">{lang === "th" ? "รายงาน" : "Report"}</h2>
-            <div className="flex items-center gap-1">
+            <div className="flex flex-wrap items-center gap-1">
+              {projects.length > 0 && (
+                <>
+                  <Select value={saveProjectId} onValueChange={setSaveProjectId}>
+                    <SelectTrigger className="h-8 w-44 text-xs">
+                      <SelectValue placeholder={lang === "th" ? "เลือก Notebook…" : "Select notebook…"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projects.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button variant="secondary" size="sm" onClick={onSaveToProject} disabled={!saveProjectId}>
+                    <Save className="mr-1.5 h-3.5 w-3.5" />{lang === "th" ? "บันทึกใน Notebook" : "Save to notebook"}
+                  </Button>
+                </>
+              )}
               <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(report); toast.success(lang === "th" ? "คัดลอกแล้ว" : "Copied"); }}>
                 <Copy className="mr-1.5 h-3.5 w-3.5" />{lang === "th" ? "คัดลอก" : "Copy"}
               </Button>
