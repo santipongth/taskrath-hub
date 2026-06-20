@@ -216,26 +216,9 @@ function ProjectHubPage() {
   });
 
   // Quick actions — prefill /run and /research
-  const sendToRun = () => {
-    try {
-      const ctx = sources
-        .map((s) => `### ${s.title}\n${s.url ? `URL: ${s.url}\n` : ""}${s.content_md ?? ""}`)
-        .join("\n\n---\n\n");
-      sessionStorage.setItem(
-        "run:prefill",
-        JSON.stringify({ prompt: ctx, projectId }),
-      );
-    } catch { /* ignore */ }
-    navigate({ to: "/run" });
-  };
+  const isSafeHttp = (u?: string | null) =>
+    !!u && /^https?:\/\//i.test(u);
 
-  const sendToResearch = () => {
-    const urls = sources.filter((s) => s.kind === "url" && s.url).map((s) => s.url).join(" ");
-    try {
-      if (urls) sessionStorage.setItem("research:urls", urls);
-    } catch { /* ignore */ }
-    navigate({ to: "/research" });
-  };
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-8">
