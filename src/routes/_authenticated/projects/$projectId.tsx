@@ -448,3 +448,126 @@ function NoteRow({ note, onDelete, lang }: { note: ProjectNote; onDelete: () => 
     </li>
   );
 }
+
+function ManageTransformationsDialog({
+  transformations, upsert, remove, onChanged, lang,
+}: {
+  transformations: Transformation[];
+  upsert: (v: { id?: string; name: string; description?: string | null; prompt: string }) => Promise<{ id: string }>;
+  remove: (id: string) => Promise<{ ok: boolean }>;
+  onChanged: () => void;
+  lang: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Transformation | null>(null);
+  const [name, setName] = useState("");
+  const [desc, setDesc] = useState("");
+  const [prompt, setPrompt] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const resetForm = () => {
+    setEditing(null); setName(""); setDesc(""); setPrompt("");
+  };
+  const loadInto = (t: Transformation) => {
+    setEditing(t); setName(t.name); setDesc(t.description ?? ""); setPrompt(t.prompt);
+  };
+
+  const save = async () => {
+    if (!name.trim() || !prompt.trim()) return;
+    setBusy(true);
+    try {
+      await upsert({ id: editing?.id, name: name.trim(), description: desc.trim() || null, prompt: prompt.trim() });
+      toast.success(lang === "th" ? "บันทึกแล้ว" : "Saved");
+      resetForm();
+      onChanged();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const del = async (id: string) => {
+    setBusy(true);
+    try {
+      await remove(id);
+      if (editing?.id === id) resetForm();
+      onChanged();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline">
+          <Settings2 className="mr-1.5 h-3.5 w-3.5" />
+          {lang === "th" ? "Transformations" : "Transformations"}
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>{lang === "th" ? "จัดการ Transformations" : "Manage transformations"}</DialogTitle>
+          <DialogDescription>
+            {lang === "th"
+              ? "Transformation คือคำสั่ง AI สำเร็จรูป (เช่น สรุป / สกัดประเด็น / แปล) ที่ใช้ซ้ำกับแหล่งใดก็ได้"
+              : "Reusable AI prompts you can apply to any source."}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <div className="text-xs font-medium text-muted-foreground">
+              {lang === "th" ? `รายการ (${transformations.length})` : `List (${transformations.length})`}
+            </div>
+            <ul className="max-h-80 space-y-1 overflow-y-auto">
+              {transformations.map((t) => (
+                <li
+                  key={t.id}
+                  className={`group flex items-start gap-2 rounded border p-2 text-xs ${editing?.id === t.id ? "border-primary bg-primary/5" : "border-border"}`}
+                >
+                  <button className="min-w-0 flex-1 text-left" onClick={() => loadInto(t)}>
+                    <div className="font-medium">{t.name}</div>
+                    {t.description && <div className="line-clamp-1 text-[10px] text-muted-foreground">{t.description}</div>}
+                  </button>
+                  <button
+                    className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
+                    onClick={() => del(t.id)}
+                    disabled={busy}
+                    aria-label="delete"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <Button size="sm" variant="ghost" onClick={resetForm} className="w-full">
+              <Plus className="mr-1 h-3.5 w-3.5" />{lang === "th" ? "สร้างใหม่" : "New"}
+            </Button>
+          </div>
+          <div className="space-y-2">
+            <div className="text-xs font-medium text-muted-foreground">
+              {editing ? (lang === "th" ? "แก้ไข" : "Edit") : (lang === "th" ? "สร้างใหม่" : "Create")}
+            </div>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={lang === "th" ? "ชื่อ เช่น สรุปเป็น Bullet" : "Name"} />
+            <Input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder={lang === "th" ? "คำอธิบายสั้น ๆ (ไม่บังคับ)" : "Short description"} />
+            <Textarea
+              rows={8}
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder={lang === "th" ? "คำสั่ง AI เช่น 'จงสรุปเนื้อหาด้านล่างเป็น bullet…'" : "Prompt instructions"}
+            />
+            <div className="flex justify-end gap-2">
+              {editing && <Button size="sm" variant="ghost" onClick={resetForm}>{lang === "th" ? "ยกเลิก" : "Cancel"}</Button>}
+              <Button size="sm" onClick={save} disabled={busy || !name.trim() || !prompt.trim()}>
+                {busy ? "…" : editing ? (lang === "th" ? "อัปเดต" : "Update") : (lang === "th" ? "เพิ่ม" : "Add")}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
