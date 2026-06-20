@@ -11,6 +11,8 @@ import {
   ExternalLink,
   Info,
   Quote,
+  Copy,
+  Check,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -26,6 +28,7 @@ import {
 } from "@/lib/notebook-chat.functions";
 import { SourceViewer } from "@/components/notebook/source-viewer";
 import type { ProjectSource } from "@/lib/project-sources.functions";
+import { useCitationStyle } from "@/lib/citation-prefs";
 
 type Message = ChatTurn & { citations?: ChatCitation[]; id: string };
 
@@ -42,10 +45,6 @@ const SUGGESTIONS_EN = [
   "What are the risks or caveats?",
 ];
 
-/**
- * Splits assistant text on [N] markers and renders each as an inline clickable
- * citation chip with a hover-preview of the cited snippet.
- */
 function renderAssistantText(
   text: string,
   citations: ChatCitation[] | undefined,
@@ -81,9 +80,7 @@ function renderAssistantText(
               <span className="rounded bg-primary/15 px-1 py-0.5 font-mono text-[10px] text-primary">
                 [{n}]
               </span>
-              <span className="line-clamp-1 flex-1 text-[11px] font-medium">
-                {c.title}
-              </span>
+              <span className="line-clamp-1 flex-1 text-[11px] font-medium">{c.title}</span>
               <span className="font-mono text-[10px] text-muted-foreground">
                 {Math.round(c.similarity * 100)}%
               </span>
@@ -110,6 +107,23 @@ function renderAssistantText(
   return out;
 }
 
+function buildCopyText(
+  answer: string,
+  citations: ChatCitation[] | undefined,
+  projectId: string,
+  origin: string,
+  lang: string,
+): string {
+  if (!citations || citations.length === 0) return answer;
+  const head = lang === "th" ? "แหล่งอ้างอิง" : "Sources";
+  const lines = citations.map((c, i) => {
+    const link =
+      c.url ?? `${origin}/projects/${projectId}#source-${c.source_id}`;
+    return `[${i + 1}] ${c.title} — ${link}`;
+  });
+  return `${answer}\n\n${head}:\n${lines.join("\n")}`;
+}
+
 export function NotebookChat({
   projectId,
   lang,
@@ -127,6 +141,8 @@ export function NotebookChat({
     citation: ChatCitation;
     index: number;
   } | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [citationStyle] = useCitationStyle();
 
   const askFn = useServerFn(askProjectChat);
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -171,10 +187,25 @@ export function NotebookChat({
   const openCitation = (c: ChatCitation, index: number) =>
     setViewer({ citation: c, index });
 
+  const copyAnswer = async (m: Message) => {
+    const origin =
+      typeof window !== "undefined" ? window.location.origin : "";
+    const text = buildCopyText(m.content, m.citations, projectId, origin, lang);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedId(m.id);
+      toast.success(lang === "th" ? "คัดลอกพร้อมอ้างอิงแล้ว" : "Copied with citations");
+      setTimeout(() => setCopiedId(null), 1600);
+    } catch {
+      toast.error(lang === "th" ? "คัดลอกไม่สำเร็จ" : "Copy failed");
+    }
+  };
+
   const hasSources = sourceCount > 0;
   const suggestions = lang === "th" ? SUGGESTIONS_TH : SUGGESTIONS_EN;
   const viewerSource =
     viewer && sources.find((s) => s.id === viewer.citation.source_id);
+  const showPanel = citationStyle === "with_panel";
 
   return (
     <section className="flex h-full flex-col rounded-lg border border-border bg-card">
@@ -261,7 +292,41 @@ export function NotebookChat({
                   <div className="whitespace-pre-wrap text-sm leading-relaxed">
                     {renderAssistantText(m.content, m.citations, openCitation, lang)}
                   </div>
-                  {m.citations && m.citations.length > 0 && (
+
+                  {/* Toolbar */}
+                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                    <button
+                      type="button"
+                      onClick={() => copyAnswer(m)}
+                      className="inline-flex items-center gap-1 rounded border bg-background px-1.5 py-0.5 hover:border-primary hover:text-foreground"
+                      title={
+                        lang === "th"
+                          ? "คัดลอกคำตอบพร้อม citations"
+                          : "Copy answer with citations"
+                      }
+                    >
+                      {copiedId === m.id ? (
+                        <>
+                          <Check className="h-3 w-3 text-emerald-600" />
+                          {lang === "th" ? "คัดลอกแล้ว" : "Copied"}
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-3 w-3" />
+                          {lang === "th" ? "คัดลอก + อ้างอิง" : "Copy + citations"}
+                        </>
+                      )}
+                    </button>
+                    {m.citations && m.citations.length > 0 && (
+                      <span>
+                        {lang === "th"
+                          ? `อ้างอิง ${m.citations.length} แหล่ง`
+                          : `${m.citations.length} source(s) cited`}
+                      </span>
+                    )}
+                  </div>
+
+                  {showPanel && m.citations && m.citations.length > 0 && (
                     <div className="space-y-1.5 rounded-md border border-border/60 bg-muted/20 p-2">
                       <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                         {lang === "th" ? "แหล่งที่อ้างอิง" : "Cited sources"}
@@ -363,8 +428,8 @@ export function NotebookChat({
         </div>
         <p className="mt-1.5 text-[10px] text-muted-foreground">
           {lang === "th"
-            ? "เคล็ดลับ: คลิกเลข [1] [2] ในคำตอบเพื่อดูข้อความต้นทางที่ AI ใช้อ้างอิง"
-            : "Tip: click [1] [2] in answers to see the exact text the AI cited."}
+            ? "เคล็ดลับ: คลิกเลข [1] [2] เพื่อดูข้อความต้นทาง — ปรับรูปแบบ citation ได้ที่ ตั้งค่า"
+            : "Tip: click [1] [2] to see source text — change citation layout in Settings."}
         </p>
       </div>
 
