@@ -45,6 +45,116 @@ const SUGGESTIONS_EN = [
   "What are the risks or caveats?",
 ];
 
+// Document-type-aware suggestion packs (Thai-first)
+const SUGGESTION_PACKS: Record<
+  string,
+  { th: { label: string; items: string[] }; en: { label: string; items: string[] } }
+> = {
+  pdf: {
+    th: {
+      label: "📄 จากเอกสาร PDF",
+      items: [
+        "สรุปสารบัญและประเด็นหลักของเอกสาร",
+        "ข้อกำหนด/เงื่อนไขสำคัญที่ต้องระวังมีอะไรบ้าง?",
+        "อ้างหน้า/หัวข้อใดบ้างที่ระบุวันที่หรือกำหนดเวลา?",
+        "ตารางหรือตัวเลขสำคัญในเอกสารคืออะไร?",
+      ],
+    },
+    en: {
+      label: "📄 From PDF",
+      items: [
+        "Summarize the table of contents and key points",
+        "What are the critical terms/conditions to watch?",
+        "Which sections mention dates or deadlines?",
+        "What are the important tables or figures?",
+      ],
+    },
+  },
+  audio: {
+    th: {
+      label: "🎙️ จากเสียง/บันทึกประชุม",
+      items: [
+        "สรุปประเด็นการประชุมและมติที่ออกมา",
+        "ใครรับผิดชอบงานอะไร พร้อมกำหนดส่ง",
+        "ข้อขัดแย้งหรือคำถามที่ยังไม่ได้คำตอบมีอะไรบ้าง?",
+        "Action items ที่ต้องทำต่อทั้งหมด",
+      ],
+    },
+    en: {
+      label: "🎙️ From audio/meeting",
+      items: [
+        "Summarize the meeting and decisions",
+        "Who owns what, with due dates",
+        "What conflicts or open questions remain?",
+        "List all action items",
+      ],
+    },
+  },
+  url: {
+    th: {
+      label: "🔗 จากเว็บ/บทความ",
+      items: [
+        "ใจความหลักของบทความนี้คืออะไร?",
+        "ผู้เขียนเสนอข้อสรุปอะไรและมีหลักฐานสนับสนุนอะไร?",
+        "มีตัวเลขหรือสถิติสำคัญที่ควรจดจำหรือไม่?",
+        "เปรียบเทียบมุมมองในบทความกับแนวปฏิบัติของไทย",
+      ],
+    },
+    en: {
+      label: "🔗 From web/article",
+      items: [
+        "What is the main thesis of this article?",
+        "What conclusions and supporting evidence?",
+        "Any key statistics worth remembering?",
+        "Compare its view with common Thai practice",
+      ],
+    },
+  },
+  research: {
+    th: {
+      label: "🔭 จากผลค้นคว้า",
+      items: [
+        "สังเคราะห์ผลการค้นคว้าเป็น 5 ข้อหลัก",
+        "ข้อมูลส่วนใดน่าเชื่อถือที่สุด เพราะอะไร?",
+        "ยังขาดข้อมูลด้านใดที่ควรค้นเพิ่ม?",
+        "เสนอคำถามวิจัยต่อไปได้ไหม?",
+      ],
+    },
+    en: {
+      label: "🔭 From research",
+      items: [
+        "Synthesize the findings into 5 key points",
+        "Which sources are most credible and why?",
+        "What information gaps remain?",
+        "Suggest next research questions",
+      ],
+    },
+  },
+};
+
+type Pack = (typeof SUGGESTION_PACKS)[string];
+
+function packsForSources(sources: ProjectSource[], lang: string): Array<Pack[keyof Pack]> {
+  const kinds = new Set<string>();
+  for (const s of sources) {
+    if (s.kind === "url") kinds.add("url");
+    else if (s.kind === "research") kinds.add("research");
+    else if (s.kind === "file") {
+      const meta = (s.metadata ?? {}) as { source_kind?: string };
+      if (meta.source_kind === "audio") kinds.add("audio");
+      else kinds.add("pdf"); // pdf or text file → treat as document
+    } else if (s.kind === "text") {
+      kinds.add("pdf");
+    }
+  }
+  const out: Array<Pack[keyof Pack]> = [];
+  for (const k of kinds) {
+    const p = SUGGESTION_PACKS[k];
+    if (p) out.push(lang === "th" ? p.th : p.en);
+  }
+  return out;
+}
+
 function renderAssistantText(
   text: string,
   citations: ChatCitation[] | undefined,
