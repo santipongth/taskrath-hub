@@ -346,7 +346,13 @@ function ProjectHubPage() {
                 </DialogHeader>
                 <div className="space-y-3">
                   <Input value={noteTitle} onChange={(e) => setNoteTitle(e.target.value)} placeholder={lang === "th" ? "ชื่อโน้ต" : "Title"} />
-                  <Textarea rows={10} value={noteContent} onChange={(e) => setNoteContent(e.target.value)} placeholder="markdown…" />
+                  <MarkdownEditor
+                    value={noteContent}
+                    onChange={setNoteContent}
+                    rows={12}
+                    placeholder={lang === "th" ? "พิมพ์โน้ต… กด '/' เพื่อเปิดเมนูคำสั่ง" : "Type your note… press '/' for commands"}
+                  />
+
                 </div>
                 <DialogFooter>
                   <Button variant="ghost" onClick={() => setOpenNote(false)}>{lang === "th" ? "ยกเลิก" : "Cancel"}</Button>
