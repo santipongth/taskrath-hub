@@ -216,8 +216,6 @@ function ProjectHubPage() {
   });
 
   // Quick actions — prefill /run and /research
-  const isSafeHttp = (u?: string | null) =>
-    !!u && /^https?:\/\//i.test(u);
 
 
   return (
