@@ -10,7 +10,7 @@ import { Upload, X, PenLine, Quote } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { UserMemoryCard } from "@/components/user-memory-card";
 import { UserSkillsCard } from "@/components/user-skills-card";
-import { useCitationStyle } from "@/lib/citation-prefs";
+import { useCitationStyle, useShowInlineCitations } from "@/lib/citation-prefs";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({ meta: [{ title: "ตั้งค่า · RathCoWork" }] }),

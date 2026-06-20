@@ -28,7 +28,7 @@ import {
 } from "@/lib/notebook-chat.functions";
 import { SourceViewer } from "@/components/notebook/source-viewer";
 import type { ProjectSource } from "@/lib/project-sources.functions";
-import { useCitationStyle } from "@/lib/citation-prefs";
+import { useCitationStyle, useShowInlineCitations } from "@/lib/citation-prefs";
 
 type Message = ChatTurn & { citations?: ChatCitation[]; id: string };
 
