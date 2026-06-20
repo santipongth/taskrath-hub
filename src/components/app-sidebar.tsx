@@ -43,12 +43,9 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border">
-      <SidebarHeader className="px-3 py-4">
-        <Link to="/" className="flex items-center gap-2">
-          <img src={logo.url} alt="RathCoWork" className="h-8 w-8 object-contain" />
-          {!collapsed && (
-            <span className="text-sm font-semibold text-foreground">RathCoWork</span>
-          )}
+      <SidebarHeader className="px-3 py-5">
+        <Link to="/" className="flex items-center justify-center">
+          <img src={logo.url} alt="RathCoWork" className="h-11 w-11 object-contain" />
         </Link>
       </SidebarHeader>
       <SidebarContent>
