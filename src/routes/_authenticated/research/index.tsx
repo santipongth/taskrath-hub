@@ -398,9 +398,26 @@ function ResearchPage() {
 
       {report && (
         <div className="mt-6 rounded-lg border border-border bg-card p-5">
-          <div className="mb-3 flex items-center justify-between">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-semibold">{lang === "th" ? "รายงาน" : "Report"}</h2>
-            <div className="flex items-center gap-1">
+            <div className="flex flex-wrap items-center gap-1">
+              {projects.length > 0 && (
+                <>
+                  <Select value={saveProjectId} onValueChange={setSaveProjectId}>
+                    <SelectTrigger className="h-8 w-44 text-xs">
+                      <SelectValue placeholder={lang === "th" ? "เลือก Notebook…" : "Select notebook…"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projects.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button variant="secondary" size="sm" onClick={onSaveToProject} disabled={!saveProjectId}>
+                    <Save className="mr-1.5 h-3.5 w-3.5" />{lang === "th" ? "บันทึกใน Notebook" : "Save to notebook"}
+                  </Button>
+                </>
+              )}
               <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(report); toast.success(lang === "th" ? "คัดลอกแล้ว" : "Copied"); }}>
                 <Copy className="mr-1.5 h-3.5 w-3.5" />{lang === "th" ? "คัดลอก" : "Copy"}
               </Button>
