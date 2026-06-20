@@ -51,6 +51,10 @@ function ProjectHubPage() {
   const removeSource = useServerFn(deleteProjectSource);
   const upsertNote = useServerFn(upsertProjectNote);
   const removeNote = useServerFn(deleteProjectNote);
+  const listTfs = useServerFn(listMyTransformations);
+  const upsertTf = useServerFn(upsertTransformation);
+  const removeTf = useServerFn(deleteTransformation);
+  const applyTf = useServerFn(applyTransformation);
 
   const { data: projData } = useQuery({
     queryKey: ["my-projects"],
@@ -66,9 +70,24 @@ function ProjectHubPage() {
     queryKey: ["project-notes", projectId],
     queryFn: () => listNotes({ data: { projectId } }),
   });
+  const { data: tfData } = useQuery({
+    queryKey: ["my-transformations"],
+    queryFn: () => listTfs(),
+  });
 
   const sources = srcData?.sources ?? [];
   const notes = noteData?.notes ?? [];
+  const transformations = tfData?.transformations ?? [];
+
+  const applyTfMut = useMutation({
+    mutationFn: (vars: { transformation_id: string; source_id: string }) =>
+      applyTf({ data: { ...vars, save_as_note: true } }),
+    onSuccess: async () => {
+      toast.success(lang === "th" ? "บันทึกผลเป็นโน้ตแล้ว" : "Saved as note");
+      await qc.invalidateQueries({ queryKey: ["project-notes", projectId] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
+  });
 
   // Add source dialog
   const [openSrc, setOpenSrc] = useState(false);
