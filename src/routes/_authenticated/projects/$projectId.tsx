@@ -1,11 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   ArrowLeft, FolderKanban, Link as LinkIcon, FileText, StickyNote,
   Telescope, Sparkles, Plus, Trash2, ExternalLink, BookOpen, Wand2, Settings2,
+  Upload, FileUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
