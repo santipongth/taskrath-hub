@@ -429,9 +429,13 @@ export function NotebookChat({
           </Button>
         </div>
         <p className="mt-1.5 text-[10px] text-muted-foreground">
-          {lang === "th"
-            ? "เคล็ดลับ: คลิกเลข [1] [2] เพื่อดูข้อความต้นทาง — ปรับรูปแบบ citation ได้ที่ ตั้งค่า"
-            : "Tip: click [1] [2] to see source text — change citation layout in Settings."}
+          {showInline
+            ? lang === "th"
+              ? "เคล็ดลับ: คลิกเลข [1] [2] เพื่อดูข้อความต้นทาง — ปรับรูปแบบ citation ได้ที่ ตั้งค่า"
+              : "Tip: click [1] [2] to see source text — change citation layout in Settings."
+            : lang === "th"
+              ? "อ้างอิง inline ซ่อนอยู่ — เปิดได้ที่ ตั้งค่า"
+              : "Inline citations are hidden — turn on in Settings."}
         </p>
       </div>
 
