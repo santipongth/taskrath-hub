@@ -22,11 +22,14 @@ async function embedOne(text: string): Promise<number[]> {
 }
 
 export type ChatTurn = { role: "user" | "assistant"; content: string };
+export type ChatSnippet = { chunk_index: number; content: string; similarity: number };
 export type ChatCitation = {
   source_id: string;
   title: string;
   url: string | null;
-  similarity: number;
+  kind: string | null;
+  similarity: number; // best
+  snippets: ChatSnippet[];
 };
 
 export const askProjectChat = createServerFn({ method: "POST" })
@@ -53,7 +56,6 @@ export const askProjectChat = createServerFn({ method: "POST" })
     const last = data.messages[data.messages.length - 1];
     if (last.role !== "user") throw new Error("last message must be from user");
 
-    // Use last 2 user turns combined as the retrieval query for better recall
     const recentUserTurns = data.messages
       .filter((m) => m.role === "user")
       .slice(-2)
@@ -79,19 +81,49 @@ export const askProjectChat = createServerFn({ method: "POST" })
     };
     const rows = (matches ?? []) as Match[];
 
+    // Group snippets by source
     const bySource = new Map<string, ChatCitation>();
     rows.forEach((r) => {
+      const snippet: ChatSnippet = {
+        chunk_index: r.chunk_index,
+        content: r.content,
+        similarity: r.similarity,
+      };
       const ex = bySource.get(r.source_id);
-      if (!ex || r.similarity > ex.similarity) {
+      if (!ex) {
         bySource.set(r.source_id, {
           source_id: r.source_id,
           title: r.title,
           url: r.url,
+          kind: null,
           similarity: r.similarity,
+          snippets: [snippet],
         });
+      } else {
+        ex.snippets.push(snippet);
+        if (r.similarity > ex.similarity) ex.similarity = r.similarity;
       }
     });
-    const citations = Array.from(bySource.values()).sort((a, b) => b.similarity - a.similarity);
+
+    // Fetch kind metadata for the cited sources
+    const ids = Array.from(bySource.keys());
+    if (ids.length > 0) {
+      const { data: srcRows } = await supabase
+        .from("project_sources")
+        .select("id, kind")
+        .in("id", ids);
+      (srcRows ?? []).forEach((s: { id: string; kind: string }) => {
+        const c = bySource.get(s.id);
+        if (c) c.kind = s.kind;
+      });
+    }
+
+    const citations = Array.from(bySource.values())
+      .map((c) => ({
+        ...c,
+        snippets: c.snippets.sort((a, b) => b.similarity - a.similarity),
+      }))
+      .sort((a, b) => b.similarity - a.similarity);
 
     const sourceIndex = new Map<string, number>();
     citations.forEach((c, i) => sourceIndex.set(c.source_id, i + 1));
@@ -110,7 +142,8 @@ export const askProjectChat = createServerFn({ method: "POST" })
     const system =
       "คุณเป็นผู้ช่วย AI สำหรับเจ้าหน้าที่หน่วยงานไทย ตอบเป็นภาษาไทยที่กระชับ ตรงประเด็น " +
       "ใช้เฉพาะข้อมูลจาก <แหล่ง> ที่ให้เท่านั้นเป็นข้อเท็จจริง หากไม่พบให้บอกตรง ๆ ห้ามแต่งเติม " +
-      "เมื่ออ้างอิงข้อมูลให้ใส่ [หมายเลข] ท้ายประโยค ตามที่ระบุในแหล่ง " +
+      "เมื่ออ้างอิงข้อมูลให้ใส่ [หมายเลข] ท้ายประโยคหรือวลี ตามที่ระบุในแหล่ง (เช่น [1], [2]) " +
+      "ใส่ [หมายเลข] ทุกครั้งที่อ้างข้อเท็จจริงจากแหล่ง เพื่อให้ผู้อ่านคลิกตรวจสอบได้ " +
       "อ่านประวัติบทสนทนาก่อนหน้าเพื่อความต่อเนื่อง";
 
     const userPrompt =
