@@ -5,7 +5,7 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   ArrowLeft, FolderKanban, Link as LinkIcon, FileText, StickyNote,
-  Telescope, Plus, Trash2, ExternalLink, BookOpen, Wand2,
+  Telescope, Plus, Trash2, ExternalLink, BookOpen, Wand2, Settings2,
   Upload, FileUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
