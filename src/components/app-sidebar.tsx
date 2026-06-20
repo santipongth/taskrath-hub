@@ -46,7 +46,7 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border">
-      <SidebarHeader className={`px-2 ${collapsed ? "py-1" : "py-1"}`}>
+      <SidebarHeader className={`px-2 py-0 gap-0`}>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>

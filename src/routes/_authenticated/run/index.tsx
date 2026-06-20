@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { runFreeform, ocrAttachments, compareFreeform, listMyDeptModels } from "@/lib/ai.functions";
+import { runFreeform, ocrAttachments, listMyDeptModels } from "@/lib/ai.functions";
 import { listMySkills, seedDefaultSkills } from "@/lib/user-skills.functions";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
@@ -10,10 +10,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
-  DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem,
-  DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent, DropdownMenuPortal,
+  DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger,
+  DropdownMenuSubContent, DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
-import { Copy, Paperclip, X, FileText, Image as ImageIcon, FileType2, AlertTriangle, GitCompare, UserCog, Plus, ArrowUp } from "lucide-react";
+import { Copy, Paperclip, X, FileText, Image as ImageIcon, FileType2, AlertTriangle, UserCog, Plus, ArrowUp } from "lucide-react";
 import { toast } from "sonner";
 import { VoiceInputButton } from "@/components/voice-input-button";
 import logo from "@/assets/rathcowork-icon.png.asset.json";
@@ -32,10 +32,6 @@ type Attachment = {
   pages?: number;
   textLen?: number;
 };
-
-type CompareItem =
-  | { selector: string; ok: true; output: string; usage: { promptTokens: number; completionTokens: number; costUsd: number }; provider: { id: string; kind: string }; latency_ms: number }
-  | { selector: string; ok: false; error: string; latency_ms: number };
 
 const MAX_FILES = 8;
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
@@ -59,7 +55,6 @@ function RunPage() {
   const { t, lang } = useI18n();
   const run = useServerFn(runFreeform);
   const ocr = useServerFn(ocrAttachments);
-  const compare = useServerFn(compareFreeform);
   const fetchModels = useServerFn(listMyDeptModels);
   const fetchSkills = useServerFn(listMySkills);
   const seedSkills = useServerFn(seedDefaultSkills);
@@ -94,9 +89,6 @@ function RunPage() {
   const [confirmedWarnings, setConfirmedWarnings] = useState(false);
   const [providerSelector, setProviderSelector] = useState<string>(DEFAULT_MODEL_KEY);
   const [personalSkillId, setPersonalSkillId] = useState<string>("__none__");
-  const [compareMode, setCompareMode] = useState(false);
-  const [compareIds, setCompareIds] = useState<string[]>([]);
-  const [compareResults, setCompareResults] = useState<CompareItem[] | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const baseRef = useRef("");
 
@@ -186,30 +178,7 @@ function RunPage() {
     return null;
   };
 
-  const toggleCompareId = (id: string) => {
-    setCompareIds((prev) => {
-      if (prev.includes(id)) return prev.filter((x) => x !== id);
-      if (prev.length >= 4) { toast.error(lang === "th" ? "เลือกได้สูงสุด 4 โมเดล" : "Max 4 models"); return prev; }
-      return [...prev, id];
-    });
-  };
-
-  const onCompare = async () => {
-    if (!prompt.trim()) { toast.error(lang === "th" ? "กรอกคำสั่งก่อน" : "Enter a prompt"); return; }
-    if (compareIds.length < 2) { toast.error(lang === "th" ? "เลือกอย่างน้อย 2 โมเดล" : "Pick at least 2 models"); return; }
-    setLoading(true); setCompareResults(null); setOutput("");
-    try {
-      const res = await compare({ data: { prompt: prompt.trim(), selectors: compareIds.map((id) => `provider:${id}`) } });
-      setCompareResults(res.results as CompareItem[]);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const onRun = async () => {
-    if (compareMode) { void onCompare(); return; }
     if (!prompt.trim() && attachments.length === 0) return;
     if (warnings.length > 0 && !confirmedWarnings) {
       toast.warning(lang === "th" ? "พบคำเตือน — กด Run อีกครั้งเพื่อดำเนินการต่อ" : "Warnings — click Run again to continue");
@@ -249,7 +218,7 @@ function RunPage() {
       }
     }
 
-    setLoading(true); setOutput(""); setCompareResults(null);
+    setLoading(true); setOutput("");
     try {
       const selector = providerSelector !== DEFAULT_MODEL_KEY ? `provider:${providerSelector}` : null;
       const res = await run({
@@ -280,13 +249,12 @@ function RunPage() {
   const iconFor = (k: Attachment["kind"]) =>
     k === "image" ? <ImageIcon className="h-3.5 w-3.5" /> : k === "pdf" ? <FileType2 className="h-3.5 w-3.5" /> : <FileText className="h-3.5 w-3.5" />;
   const fmtSize = (b: number) => (b < 1024 ? `${b}B` : b < 1024 * 1024 ? `${(b / 1024).toFixed(0)}KB` : `${(b / 1024 / 1024).toFixed(1)}MB`);
-  const nameOf = (id: string) => models.find((m) => m.id === id)?.name ?? id.slice(0, 8);
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-12">
-      {/* Hero: centered logo + title */}
+      {/* Hero: centered logo + description */}
       <div className="mb-6 flex flex-col items-center gap-3 text-center">
-        <img src={logo.url} alt="RathCoWork" className="h-12 w-auto object-contain" />
+        <img src={logo.url} alt="RathCoWork" className="h-20 w-auto object-contain" />
         <p className="max-w-xl text-sm text-muted-foreground">{t("freeformDesc")}</p>
       </div>
 
@@ -294,7 +262,7 @@ function RunPage() {
       <div
         className="rounded-3xl border border-border bg-card px-4 pt-3 pb-2 shadow-sm transition-colors focus-within:border-primary/40"
         onDragOver={(e) => { e.preventDefault(); }}
-        onDrop={(e) => { e.preventDefault(); if (!compareMode) onFilesPicked(e.dataTransfer.files); }}
+        onDrop={(e) => { e.preventDefault(); onFilesPicked(e.dataTransfer.files); }}
       >
         <Textarea
           value={prompt}
@@ -303,14 +271,14 @@ function RunPage() {
           rows={2}
           className="min-h-[44px] resize-none border-0 bg-transparent px-1 py-1 text-base shadow-none focus-visible:ring-0"
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey && !compareMode) {
+            if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
               onRun();
             }
           }}
         />
 
-        {!compareMode && attachments.length > 0 && (
+        {attachments.length > 0 && (
           <div className="mt-1 mb-1 flex flex-wrap gap-2">
             {attachments.map((a, i) => (
               <div key={i} className="flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 text-xs">
@@ -324,28 +292,6 @@ function RunPage() {
                 </button>
               </div>
             ))}
-          </div>
-        )}
-
-        {compareMode && (
-          <div className="mt-1 mb-1 flex flex-wrap gap-1.5">
-            {models.length === 0 && (
-              <span className="text-xs text-muted-foreground">
-                {lang === "th" ? "ยังไม่มีโมเดลของหน่วยงาน — แจ้งผู้ดูแลเพิ่ม provider" : "No dept models — ask admin"}
-              </span>
-            )}
-            {models.map((m) => {
-              const active = compareIds.includes(m.id);
-              return (
-                <button
-                  key={m.id}
-                  onClick={() => toggleCompareId(m.id)}
-                  className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${active ? "border-primary bg-primary/10 text-foreground" : "border-border bg-background text-muted-foreground hover:text-foreground"}`}
-                >
-                  {m.name}
-                </button>
-              );
-            })}
           </div>
         )}
 
@@ -377,20 +323,12 @@ function RunPage() {
               <DropdownMenuContent align="start" className="w-60">
                 <DropdownMenuItem
                   onSelect={(e) => { e.preventDefault(); fileInputRef.current?.click(); }}
-                  disabled={compareMode}
                 >
                   <Paperclip className="mr-2 h-4 w-4" />
                   {lang === "th" ? "แนบไฟล์" : "Attach file"}
                 </DropdownMenuItem>
-                <DropdownMenuCheckboxItem
-                  checked={compareMode}
-                  onCheckedChange={(v) => { setCompareMode(Boolean(v)); setCompareResults(null); }}
-                >
-                  <GitCompare className="mr-2 h-4 w-4" />
-                  {lang === "th" ? "โหมดเทียบโมเดล" : "Compare models"}
-                </DropdownMenuCheckboxItem>
 
-                {skills.length > 0 && !compareMode && (
+                {skills.length > 0 && (
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuLabel className="flex items-center gap-2 text-xs">
@@ -420,8 +358,8 @@ function RunPage() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Active-state pills */}
-            {!compareMode && selectedSkill && (
+            {/* Active-state pill */}
+            {selectedSkill && (
               <span className="ml-1 inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs text-foreground">
                 <UserCog className="h-3 w-3" />
                 {selectedSkill.name}
@@ -434,32 +372,24 @@ function RunPage() {
                 </button>
               </span>
             )}
-            {compareMode && (
-              <span className="ml-1 inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2.5 py-1 text-xs text-foreground">
-                <GitCompare className="h-3 w-3" />
-                {lang === "th" ? `เทียบ ${compareIds.length}/4` : `Compare ${compareIds.length}/4`}
-              </span>
-            )}
           </div>
 
           <div className="flex items-center gap-1.5">
-            {!compareMode && (
-              <Select value={providerSelector} onValueChange={setProviderSelector}>
-                <SelectTrigger className="h-8 w-auto min-w-[140px] gap-1 border-0 bg-transparent px-2 text-xs shadow-none hover:bg-muted focus:ring-0">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent align="end">
-                  <SelectItem value={DEFAULT_MODEL_KEY}>{lang === "th" ? "ค่าเริ่มต้น (Gemini)" : "Default (Gemini)"}</SelectItem>
-                  {models.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
+            <Select value={providerSelector} onValueChange={setProviderSelector}>
+              <SelectTrigger className="h-8 w-auto min-w-[140px] gap-1 border-0 bg-transparent px-2 text-xs shadow-none hover:bg-muted focus:ring-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="end">
+                <SelectItem value={DEFAULT_MODEL_KEY}>{lang === "th" ? "ค่าเริ่มต้น (Gemini)" : "Default (Gemini)"}</SelectItem>
+                {models.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <VoiceInputButton onTranscript={onVoice} />
             <Button
               onClick={onRun}
-              disabled={loading || ocrLoading || (!prompt.trim() && attachments.length === 0) || (compareMode && compareIds.length < 2)}
+              disabled={loading || ocrLoading || (!prompt.trim() && attachments.length === 0)}
               size="icon"
               className="h-9 w-9 rounded-full"
               aria-label={t("run")}
@@ -475,7 +405,7 @@ function RunPage() {
       </div>
 
       {/* Warnings (below composer) */}
-      {!compareMode && warnings.length > 0 && (
+      {warnings.length > 0 && (
         <div className="mt-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200">
           <div className="mb-1 flex items-center gap-1.5 font-medium">
             <AlertTriangle className="h-3.5 w-3.5" />
@@ -487,7 +417,7 @@ function RunPage() {
         </div>
       )}
 
-      {!compareMode && ocrWarnings.length > 0 && (
+      {ocrWarnings.length > 0 && (
         <div className="mt-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200">
           <div className="mb-1 flex items-center gap-1.5 font-medium">
             <AlertTriangle className="h-3.5 w-3.5" />
@@ -496,41 +426,6 @@ function RunPage() {
           <ul className="ml-5 list-disc space-y-0.5">
             {ocrWarnings.map((w, i) => <li key={i}>{w}</li>)}
           </ul>
-        </div>
-      )}
-
-      {compareMode && (
-        <p className="mt-2 text-center text-xs text-muted-foreground">
-          {lang === "th"
-            ? `เลือก 2–4 โมเดลจากแถบด้านบน — เลือกแล้ว ${compareIds.length}`
-            : `Pick 2–4 models above — ${compareIds.length} selected`}
-        </p>
-      )}
-
-      {compareResults && (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          {compareResults.map((r, i) => (
-            <div key={i} className="rounded-lg border border-border bg-card p-4">
-              <div className="mb-2 flex items-center justify-between text-xs">
-                <div className="font-medium text-foreground">{nameOf(r.selector.replace(/^provider:/, ""))}</div>
-                <div className="text-muted-foreground">{r.latency_ms}ms</div>
-              </div>
-              {r.ok ? (
-                <>
-                  <pre className="max-h-[420px] overflow-auto whitespace-pre-wrap text-sm text-foreground">{r.output}</pre>
-                  <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
-                    <span>tok: {r.usage.promptTokens}+{r.usage.completionTokens}</span>
-                    <span>${r.usage.costUsd.toFixed(5)}</span>
-                    <Button variant="ghost" size="sm" className="h-6 px-2 text-[11px]" onClick={() => { navigator.clipboard.writeText(r.output); toast.success(t("copied")); }}>
-                      <Copy className="mr-1 h-3 w-3" />{t("copy")}
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <div className="text-sm text-destructive">{r.error}</div>
-              )}
-            </div>
-          ))}
         </div>
       )}
 
