@@ -182,7 +182,7 @@ export function SourceViewer({
             </span>
             <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
             <span className="line-clamp-1">{title}</span>
-            {url && (
+            {url && /^https?:\/\//i.test(url) && (
               <a
                 href={url}
                 target="_blank"
