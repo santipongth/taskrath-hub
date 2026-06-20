@@ -22,6 +22,7 @@ function SettingsPage() {
   const { userId, email } = Route.useRouteContext();
   const navigate = useNavigate();
   const [citationStyle, setCitStyle] = useCitationStyle();
+  const [showInline, setShowInline] = useShowInlineCitations();
   const [displayName, setDisplayName] = useState("");
   const [department, setDepartment] = useState("");
   const [signerPosition, setSignerPosition] = useState("");
