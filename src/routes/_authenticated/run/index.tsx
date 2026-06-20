@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem,
   DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent, DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
-import { Sparkles, Copy, Paperclip, X, FileText, Image as ImageIcon, FileType2, AlertTriangle, GitCompare, UserCog, Plus, ArrowUp } from "lucide-react";
+import { Copy, Paperclip, X, FileText, Image as ImageIcon, FileType2, AlertTriangle, GitCompare, UserCog, Plus, ArrowUp } from "lucide-react";
 import { toast } from "sonner";
 import { VoiceInputButton } from "@/components/voice-input-button";
 import logo from "@/assets/rathcowork-icon.png.asset.json";
@@ -287,9 +287,6 @@ function RunPage() {
       {/* Hero: centered logo + title */}
       <div className="mb-6 flex flex-col items-center gap-3 text-center">
         <img src={logo.url} alt="RathCoWork" className="h-12 w-auto object-contain" />
-        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-foreground">
-          <Sparkles className="h-5 w-5 text-primary" />{t("freeformTitle")}
-        </h1>
         <p className="max-w-xl text-sm text-muted-foreground">{t("freeformDesc")}</p>
       </div>
 
