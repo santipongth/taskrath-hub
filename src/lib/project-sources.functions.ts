@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Json } from "@/integrations/supabase/types";
 
 export type ProjectSource = {
   id: string;
@@ -10,7 +11,7 @@ export type ProjectSource = {
   url: string | null;
   file_path: string | null;
   content_md: string | null;
-  metadata: Record<string, unknown>;
+  metadata: Json;
   created_at: string;
   updated_at: string;
 };
@@ -22,7 +23,7 @@ export type ProjectNote = {
   title: string;
   content_md: string;
   origin: "manual" | "ai" | "transformation";
-  metadata: Record<string, unknown>;
+  metadata: Json;
   created_at: string;
   updated_at: string;
 };
