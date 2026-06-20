@@ -264,7 +264,7 @@ function ProjectHubPage() {
       </div>
 
       <div className="mb-6 grid gap-4 lg:grid-cols-2">
-        <NotebookChat projectId={projectId} lang={lang} />
+        <NotebookChat projectId={projectId} lang={lang} sourceCount={sources.length} />
         <AudioBrief projectId={projectId} lang={lang} disabled={sources.length === 0 && notes.length === 0} />
       </div>
 
