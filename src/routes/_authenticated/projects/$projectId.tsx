@@ -253,21 +253,6 @@ function ProjectHubPage() {
             <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{project.context}</p>
           )}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" variant="secondary" onClick={sendToRun} disabled={sources.length === 0}>
-            <Sparkles className="mr-1.5 h-3.5 w-3.5" />{lang === "th" ? "ใช้กับ AI" : "Use with AI"}
-          </Button>
-          <Button size="sm" variant="secondary" onClick={sendToResearch}>
-            <Telescope className="mr-1.5 h-3.5 w-3.5" />{lang === "th" ? "ทำวิจัย" : "Research"}
-          </Button>
-          <ManageTransformationsDialog
-            transformations={transformations}
-            upsert={(v) => upsertTf({ data: v })}
-            remove={(id) => removeTf({ data: { id } })}
-            onChanged={() => qc.invalidateQueries({ queryKey: ["my-transformations"] })}
-            lang={lang}
-          />
-        </div>
       </div>
 
       <div className="mb-6 grid gap-4 lg:grid-cols-2">
