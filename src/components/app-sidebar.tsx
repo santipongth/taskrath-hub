@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   LayoutDashboard, Sparkles, LibraryBig, History, Bot, Plug,
   ShieldCheck, Settings, BarChart3, PieChart, Building2, Bell, BookText, MessageSquare,
-  LayoutTemplate, Telescope,
+  LayoutTemplate, Telescope, FolderKanban,
 } from "lucide-react";
 
 import {
@@ -17,11 +17,12 @@ import logo from "@/assets/rathcowork-logo.png.asset.json";
 import type { MessageKey } from "@/lib/messages";
 import { checkIsAdmin } from "@/lib/ai.functions";
 
-const ITEMS: { to: string; key: MessageKey; icon: typeof LayoutDashboard }[] = [
+const ITEMS: { to: string; key: MessageKey; icon: typeof LayoutDashboard; labelTh?: string; labelEn?: string }[] = [
   { to: "/", key: "nav_dashboard", icon: LayoutDashboard },
   { to: "/run", key: "nav_run", icon: Sparkles },
   { to: "/chat", key: "nav_chat", icon: MessageSquare },
   { to: "/research", key: "nav_research", icon: Telescope },
+  { to: "/projects", key: "nav_run", icon: FolderKanban, labelTh: "Notebooks", labelEn: "Notebooks" },
   { to: "/templates", key: "nav_templates", icon: LibraryBig },
   { to: "/history", key: "nav_history", icon: History },
   { to: "/settings", key: "nav_settings", icon: Settings },
@@ -56,12 +57,13 @@ export function AppSidebar() {
             <SidebarMenu>
               {ITEMS.map((item) => {
                 const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
+                const label = item.labelTh && item.labelEn ? (lang === "th" ? item.labelTh : item.labelEn) : t(item.key);
                 return (
                   <SidebarMenuItem key={item.to}>
-                    <SidebarMenuButton asChild isActive={active} tooltip={t(item.key)}>
+                    <SidebarMenuButton asChild isActive={active} tooltip={label}>
                       <Link to={item.to} className="flex items-center gap-2">
                         <item.icon className="h-4 w-4" />
-                        {!collapsed && <span className="truncate">{t(item.key)}</span>}
+                        {!collapsed && <span className="truncate">{label}</span>}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
