@@ -329,7 +329,16 @@ function ProjectHubPage() {
   );
 }
 
-function SourceRow({ src, onDelete, lang }: { src: ProjectSource; onDelete: () => void; lang: string }) {
+function SourceRow({
+  src, onDelete, lang, transformations, onApply, applyPending,
+}: {
+  src: ProjectSource;
+  onDelete: () => void;
+  lang: string;
+  transformations: Transformation[];
+  onApply: (transformationId: string) => void;
+  applyPending: boolean;
+}) {
   const Icon = src.kind === "url" ? LinkIcon : src.kind === "research" ? Telescope : FileText;
   return (
     <li className="group rounded border border-border bg-background p-2.5">
@@ -348,23 +357,57 @@ function SourceRow({ src, onDelete, lang }: { src: ProjectSource; onDelete: () =
             <p className="mt-1 line-clamp-2 text-[11px] text-muted-foreground">{src.content_md.slice(0, 240)}</p>
           )}
         </div>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <button className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive" aria-label="delete">
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>{lang === "th" ? "ลบแหล่งนี้?" : "Delete this source?"}</AlertDialogTitle>
-              <AlertDialogDescription>{src.title}</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>{lang === "th" ? "ยกเลิก" : "Cancel"}</AlertDialogCancel>
-              <AlertDialogAction onClick={onDelete}>{lang === "th" ? "ลบ" : "Delete"}</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <div className="flex items-center gap-1">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="text-muted-foreground hover:text-primary disabled:opacity-50"
+                aria-label="apply transformation"
+                disabled={applyPending}
+                title={lang === "th" ? "ใช้ Transformation" : "Apply transformation"}
+              >
+                <Wand2 className="h-3.5 w-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuLabel className="text-[11px]">
+                {lang === "th" ? "เลือก Transformation" : "Choose transformation"}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {transformations.length === 0 ? (
+                <div className="px-2 py-3 text-[11px] text-muted-foreground">
+                  {lang === "th" ? "ยังไม่มี Transformation" : "No transformations"}
+                </div>
+              ) : (
+                transformations.map((t) => (
+                  <DropdownMenuItem key={t.id} onClick={() => onApply(t.id)} className="flex flex-col items-start gap-0.5">
+                    <span className="text-xs font-medium">{t.name}</span>
+                    {t.description && (
+                      <span className="line-clamp-1 text-[10px] text-muted-foreground">{t.description}</span>
+                    )}
+                  </DropdownMenuItem>
+                ))
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <button className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive" aria-label="delete">
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{lang === "th" ? "ลบแหล่งนี้?" : "Delete this source?"}</AlertDialogTitle>
+                <AlertDialogDescription>{src.title}</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{lang === "th" ? "ยกเลิก" : "Cancel"}</AlertDialogCancel>
+                <AlertDialogAction onClick={onDelete}>{lang === "th" ? "ลบ" : "Delete"}</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </div>
     </li>
   );
