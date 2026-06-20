@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { I18nProvider } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "@/components/ui/sonner";
+import logoAsset from "@/assets/rathcowork-logo.png.asset.json";
 
 function NotFoundComponent() {
   return (
