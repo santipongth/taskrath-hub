@@ -16,7 +16,7 @@ import {
   Tooltip, TooltipContent, TooltipTrigger, TooltipProvider,
 } from "@/components/ui/tooltip";
 import { useI18n } from "@/lib/i18n";
-import logo from "@/assets/rathcowork-logo.png.asset.json";
+import logo from "@/assets/rathcowork-icon.png.asset.json";
 import type { MessageKey } from "@/lib/messages";
 import { checkIsAdmin } from "@/lib/ai.functions";
 
@@ -46,18 +46,18 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border">
-      <SidebarHeader className={`px-3 ${collapsed ? "py-4" : "py-8"}`}>
+      <SidebarHeader className={`px-2 ${collapsed ? "py-3" : "py-5"}`}>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
               <Link
                 to="/"
-                className="flex items-center justify-center rounded-lg border border-transparent p-2 transition-colors hover:border-accent hover:bg-accent/10 focus-visible:border-accent focus-visible:bg-accent/10 focus-visible:outline-none cursor-pointer"
+                className="flex w-full items-center justify-center rounded-lg border border-transparent transition-colors hover:border-accent hover:bg-accent/10 focus-visible:border-accent focus-visible:bg-accent/10 focus-visible:outline-none cursor-pointer"
               >
                 <img
                   src={logo.url}
                   alt={t("appName")}
-                  className={`object-contain transition-all ${collapsed ? "h-10 w-10" : "h-32 w-32"}`}
+                  className={`object-contain transition-all ${collapsed ? "h-9 w-auto" : "h-16 w-auto max-w-full"}`}
                 />
               </Link>
             </TooltipTrigger>
