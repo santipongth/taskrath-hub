@@ -18,6 +18,9 @@ type Source = {
   content_md: string | null;
 };
 
+const CONTEXT_BEFORE = 180;
+const CONTEXT_AFTER = 220;
+
 const escapeHtml = (s: string) =>
   s.replace(/[&<>"']/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!),
@@ -25,41 +28,58 @@ const escapeHtml = (s: string) =>
 const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /**
- * Try to find the chunk inside the content text using progressively shorter
- * windows. Returns the [startIndex, endIndex] in the ORIGINAL (un-escaped) text,
- * or null if not found via substring.
+ * Locate a chunk inside the source text. Strategy (most → least precise):
+ *  1. Substring of the full chunk
+ *  2. Substring of the first / last 200 chars
+ *  3. Whitespace-tolerant regex on the first 120 chars
+ *  4. Deterministic window from chunk_index (CHUNK_CHARS minus prefix)
+ *
+ * Returns [start, end] in the original text, plus how confident the match is.
  */
-function locateChunk(content: string, chunkText: string): [number, number] | null {
+function locateChunk(
+  content: string,
+  chunkText: string,
+  chunkIndex: number,
+  prefixLen: number,
+): { start: number; end: number; precise: boolean } {
   const norm = (s: string) => s.replace(/\s+/g, " ").trim();
   const haystack = content;
 
-  // 1) full chunk content
   const full = chunkText.trim();
   if (full.length > 0) {
     const idx = haystack.indexOf(full);
-    if (idx >= 0) return [idx, idx + full.length];
+    if (idx >= 0) return { start: idx, end: idx + full.length, precise: true };
   }
-  // 2) first 200 chars
   const head = full.slice(0, 200).trim();
   if (head.length >= 30) {
     const idx = haystack.indexOf(head);
-    if (idx >= 0) return [idx, idx + head.length];
+    if (idx >= 0) return { start: idx, end: idx + head.length, precise: true };
   }
-  // 3) last 200 chars
   const tail = full.slice(-200).trim();
   if (tail.length >= 30) {
     const idx = haystack.indexOf(tail);
-    if (idx >= 0) return [idx, idx + tail.length];
+    if (idx >= 0) return { start: idx, end: idx + tail.length, precise: true };
   }
-  // 4) normalized first 120
   const n = norm(full).slice(0, 120);
   if (n.length >= 30) {
     const re = new RegExp(escapeRegex(n).replace(/\\ /g, "\\s+"), "i");
     const m = re.exec(haystack);
-    if (m) return [m.index, m.index + m[0].length];
+    if (m) return { start: m.index, end: m.index + m[0].length, precise: true };
   }
-  return null;
+
+  // Fallback: deterministic chunk-index window
+  const fullStart = chunkIndex * (CHUNK_CHARS - CHUNK_OVERLAP);
+  const fullEnd = fullStart + CHUNK_CHARS;
+  const start = Math.max(0, fullStart - prefixLen);
+  const end = Math.max(start + 200, Math.min(haystack.length, fullEnd - prefixLen));
+  return { start: Math.min(start, haystack.length), end: Math.min(end, haystack.length), precise: false };
 }
+
+type Located = ChatSnippet & {
+  range: { start: number; end: number; precise: boolean };
+  before: string;
+  after: string;
+};
 
 export function SourceViewer({
   open,
@@ -92,49 +112,40 @@ export function SourceViewer({
     }
   }, [open]);
 
-  // Build highlighted HTML with both substring and chunk-index based ranges,
-  // then escape per segment so spans never break.
+  const prefixLen = source
+    ? (source.title ? source.title.length + 2 : 0) +
+      (source.url ? source.url.length + 2 : 0)
+    : 0;
+
+  // Resolve each snippet to a precise range + surrounding context
+  const located: Located[] = useMemo(() => {
+    if (!source?.content_md) return [];
+    const text = source.content_md;
+    return snippets.map((s) => {
+      const range = locateChunk(text, s.content, s.chunk_index, prefixLen);
+      const before = text.slice(Math.max(0, range.start - CONTEXT_BEFORE), range.start);
+      const after = text.slice(range.end, Math.min(text.length, range.end + CONTEXT_AFTER));
+      return { ...s, range, before, after };
+    });
+  }, [source, snippets, prefixLen]);
+
+  // Build highlighted full-text HTML with merged ranges
   const highlightedHtml = useMemo(() => {
     if (!source?.content_md) return null;
     const text = source.content_md;
+    if (located.length === 0) return escapeHtml(text);
 
-    // Prefix from sourceFullText() before content_md begins (title \n\n url \n\n)
-    const prefixLen =
-      (source.title ? source.title.length : 0) +
-      (source.title ? 2 : 0) +
-      (source.url ? source.url.length + 2 : 0);
+    type R = { start: number; end: number; idx: number };
+    const ranges: R[] = located
+      .map((l, i) => ({ start: l.range.start, end: l.range.end, idx: i }))
+      .filter((r) => r.end > r.start && r.start < text.length)
+      .sort((a, b) => a.start - b.start);
 
-    type Range = { start: number; end: number; idx: number };
-    const ranges: Range[] = [];
-
-    snippets.forEach((s, i) => {
-      const loc = locateChunk(text, s.content);
-      if (loc) {
-        ranges.push({ start: loc[0], end: loc[1], idx: i });
-        return;
-      }
-      // Position-based fallback using chunk_index
-      const fullStart = s.chunk_index * (CHUNK_CHARS - CHUNK_OVERLAP);
-      const fullEnd = fullStart + CHUNK_CHARS;
-      const start = Math.max(0, fullStart - prefixLen);
-      const end = Math.max(start + 200, Math.min(text.length, fullEnd - prefixLen));
-      if (start < text.length && end > start) {
-        ranges.push({ start, end: Math.min(end, text.length), idx: i });
-      }
-    });
-
-    if (ranges.length === 0) return escapeHtml(text);
-
-    // Merge overlapping ranges (keep lowest idx)
-    ranges.sort((a, b) => a.start - b.start);
-    const merged: Range[] = [];
+    const merged: R[] = [];
     for (const r of ranges) {
       const last = merged[merged.length - 1];
-      if (last && r.start <= last.end) {
-        last.end = Math.max(last.end, r.end);
-      } else {
-        merged.push({ ...r });
-      }
+      if (last && r.start <= last.end) last.end = Math.max(last.end, r.end);
+      else merged.push({ ...r });
     }
 
     let html = "";
@@ -147,7 +158,7 @@ export function SourceViewer({
     }
     if (cursor < text.length) html += escapeHtml(text.slice(cursor));
     return html;
-  }, [source, snippets]);
+  }, [source, located]);
 
   const Icon =
     source?.kind === "url"
@@ -185,8 +196,8 @@ export function SourceViewer({
           </DialogTitle>
           <DialogDescription>
             {lang === "th"
-              ? `อ้างอิง ${snippets.length} ส่วนจากแหล่งนี้ — ข้อความที่ AI ใช้ตอบจะถูกไฮไลต์สีเหลือง`
-              : `${snippets.length} cited excerpt(s) — text used by the AI is highlighted in yellow`}
+              ? `อ้างอิง ${snippets.length} ส่วน — ข้อความที่ AI ใช้ถูกไฮไลต์สีเหลือง พร้อมบริบทก่อน-หลัง`
+              : `${snippets.length} cited excerpt(s) — yellow highlights with surrounding context`}
           </DialogDescription>
         </DialogHeader>
 
@@ -197,7 +208,7 @@ export function SourceViewer({
                 ? "ข้อความที่อ้างอิง (เรียงตามที่ตรงคำตอบมากที่สุด)"
                 : "Referenced excerpts (ranked by answer relevance)"}
             </div>
-            {snippets.map((s, i) => (
+            {(located.length > 0 ? located : snippets.map((s) => ({ ...s, range: null as null | { precise: boolean }, before: "", after: "" }))).map((s, i) => (
               <div
                 key={`${s.chunk_index}-${i}`}
                 ref={i === 0 ? firstSnipRef : undefined}
@@ -219,8 +230,37 @@ export function SourceViewer({
                       </span>
                     </>
                   )}
+                  {s.range && !s.range.precise && (
+                    <>
+                      <span>•</span>
+                      <span className="rounded bg-amber-500/15 px-1 py-0 font-mono text-amber-700 dark:text-amber-400">
+                        {lang === "th" ? "ตำแหน่งโดยประมาณ" : "approx. position"}
+                      </span>
+                    </>
+                  )}
                 </div>
-                <div className="whitespace-pre-wrap">{s.content}</div>
+                {/* Context window: before (muted) → snippet (highlighted) → after (muted) */}
+                {s.before || s.after ? (
+                  <div className="whitespace-pre-wrap leading-relaxed">
+                    {s.before && (
+                      <span className="text-muted-foreground/80">
+                        {s.before.length === CONTEXT_BEFORE ? "…" : ""}
+                        {s.before}
+                      </span>
+                    )}
+                    <mark className="rounded bg-amber-200/70 px-0.5 text-foreground dark:bg-amber-400/30">
+                      {s.content}
+                    </mark>
+                    {s.after && (
+                      <span className="text-muted-foreground/80">
+                        {s.after}
+                        {s.after.length === CONTEXT_AFTER ? "…" : ""}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="whitespace-pre-wrap">{s.content}</div>
+                )}
               </div>
             ))}
           </div>
