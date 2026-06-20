@@ -1,11 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   ArrowLeft, FolderKanban, Link as LinkIcon, FileText, StickyNote,
   Telescope, Sparkles, Plus, Trash2, ExternalLink, BookOpen, Wand2, Settings2,
+  Upload, FileUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +34,7 @@ import {
   type Transformation,
 } from "@/lib/transformations.functions";
 import { embedSource, reindexProject } from "@/lib/source-embeddings.functions";
+import { uploadSourceFile } from "@/lib/source-files.functions";
 import { NotebookChat } from "@/components/notebook/notebook-chat";
 import { AudioBrief } from "@/components/notebook/audio-brief";
 import { MarkdownEditor } from "@/components/notebook/markdown-editor";
@@ -96,16 +98,45 @@ function ProjectHubPage() {
 
   // Add source dialog
   const [openSrc, setOpenSrc] = useState(false);
-  const [srcKind, setSrcKind] = useState<"url" | "text">("url");
+  const [srcKind, setSrcKind] = useState<"url" | "text" | "file">("url");
   const [srcTitle, setSrcTitle] = useState("");
   const [srcUrl, setSrcUrl] = useState("");
   const [srcText, setSrcText] = useState("");
+  const [srcFile, setSrcFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const embedSrcFn = useServerFn(embedSource);
   const reindexFn = useServerFn(reindexProject);
+  const uploadFileFn = useServerFn(uploadSourceFile);
+
+  const fileToBase64 = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => {
+        const r = fr.result as string;
+        resolve(r.split(",")[1] ?? "");
+      };
+      fr.onerror = () => reject(fr.error ?? new Error("Read failed"));
+      fr.readAsDataURL(file);
+    });
 
   const addSource = useMutation({
     mutationFn: async () => {
+      if (srcKind === "file") {
+        if (!srcFile) throw new Error("กรุณาเลือกไฟล์");
+        const base64 = await fileToBase64(srcFile);
+        const r = await uploadFileFn({
+          data: {
+            project_id: projectId,
+            filename: srcFile.name,
+            mime: srcFile.type || "application/octet-stream",
+            base64,
+            title: srcTitle.trim() || undefined,
+          },
+        });
+        try { await embedSrcFn({ data: { source_id: r.id } }); } catch { /* ignore */ }
+        return r;
+      }
       const r = await upsertSource({
         data: {
           project_id: projectId,
@@ -115,7 +146,6 @@ function ProjectHubPage() {
           content_md: srcKind === "text" ? srcText : null,
         },
       });
-      // Best-effort: embed text sources for semantic Ask. URL sources have no body yet.
       if (srcKind === "text" && srcText.trim()) {
         try { await embedSrcFn({ data: { source_id: r.id } }); } catch { /* ignore */ }
       }
@@ -123,7 +153,7 @@ function ProjectHubPage() {
     },
     onSuccess: async () => {
       toast.success(lang === "th" ? "เพิ่มแหล่งแล้ว" : "Source added");
-      setOpenSrc(false); setSrcTitle(""); setSrcUrl(""); setSrcText("");
+      setOpenSrc(false); setSrcTitle(""); setSrcUrl(""); setSrcText(""); setSrcFile(null);
       await qc.invalidateQueries({ queryKey: ["project-sources", projectId] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
@@ -234,7 +264,7 @@ function ProjectHubPage() {
       </div>
 
       <div className="mb-6 grid gap-4 lg:grid-cols-2">
-        <NotebookChat projectId={projectId} lang={lang} />
+        <NotebookChat projectId={projectId} lang={lang} sourceCount={sources.length} />
         <AudioBrief projectId={projectId} lang={lang} disabled={sources.length === 0 && notes.length === 0} />
       </div>
 
@@ -269,12 +299,15 @@ function ProjectHubPage() {
                   <DialogTitle>{lang === "th" ? "เพิ่มแหล่งข้อมูล" : "Add source"}</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-3">
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button size="sm" variant={srcKind === "url" ? "default" : "outline"} onClick={() => setSrcKind("url")}>
                       <LinkIcon className="mr-1 h-3.5 w-3.5" />URL
                     </Button>
                     <Button size="sm" variant={srcKind === "text" ? "default" : "outline"} onClick={() => setSrcKind("text")}>
                       <FileText className="mr-1 h-3.5 w-3.5" />{lang === "th" ? "ข้อความ" : "Text"}
+                    </Button>
+                    <Button size="sm" variant={srcKind === "file" ? "default" : "outline"} onClick={() => setSrcKind("file")}>
+                      <FileUp className="mr-1 h-3.5 w-3.5" />{lang === "th" ? "อัปโหลดไฟล์" : "Upload file"}
                     </Button>
                   </div>
                   <Input
@@ -288,19 +321,62 @@ function ProjectHubPage() {
                       onChange={(e) => setSrcUrl(e.target.value)}
                       placeholder="https://…"
                     />
-                  ) : (
+                  ) : srcKind === "text" ? (
                     <Textarea
                       rows={8}
                       value={srcText}
                       onChange={(e) => setSrcText(e.target.value)}
                       placeholder={lang === "th" ? "วางข้อความที่ต้องการเก็บเป็นแหล่ง…" : "Paste text…"}
                     />
+                  ) : (
+                    <div className="space-y-2">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-muted/30 px-4 py-6 text-center hover:border-primary hover:bg-primary/5"
+                      >
+                        <Upload className="h-5 w-5 text-muted-foreground" />
+                        <div className="text-xs font-medium">
+                          {srcFile ? srcFile.name : lang === "th" ? "คลิกเพื่อเลือกไฟล์" : "Click to choose a file"}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {lang === "th"
+                            ? "PDF, เสียง (mp3/wav/m4a/webm), ข้อความ • สูงสุด 15 MB"
+                            : "PDF, audio (mp3/wav/m4a/webm), text • up to 15 MB"}
+                        </div>
+                      </button>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".pdf,application/pdf,audio/*,.txt,.md,.csv,.json,text/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0] ?? null;
+                          setSrcFile(f);
+                          if (f && !srcTitle) setSrcTitle(f.name.replace(/\.[^.]+$/, ""));
+                        }}
+                      />
+                      {srcFile && (
+                        <div className="text-[11px] text-muted-foreground">
+                          {(srcFile.size / 1024 / 1024).toFixed(2)} MB •{" "}
+                          {lang === "th"
+                            ? "ระบบจะสกัดข้อความและสร้าง embeddings อัตโนมัติ (อาจใช้เวลา 10–30 วินาที)"
+                            : "We'll extract text and build embeddings (10–30s)"}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
                 <DialogFooter>
                   <Button variant="ghost" onClick={() => setOpenSrc(false)}>{lang === "th" ? "ยกเลิก" : "Cancel"}</Button>
-                  <Button onClick={() => addSource.mutate()} disabled={addSource.isPending || (srcKind === "url" ? !srcUrl.trim() : !srcText.trim())}>
-                    {addSource.isPending ? "…" : lang === "th" ? "บันทึก" : "Save"}
+                  <Button
+                    onClick={() => addSource.mutate()}
+                    disabled={
+                      addSource.isPending ||
+                      (srcKind === "url" ? !srcUrl.trim() : srcKind === "text" ? !srcText.trim() : !srcFile)
+                    }
+                  >
+                    {addSource.isPending ? (lang === "th" ? "กำลังประมวลผล…" : "Processing…") : lang === "th" ? "บันทึก" : "Save"}
                   </Button>
                 </DialogFooter>
               </DialogContent>
