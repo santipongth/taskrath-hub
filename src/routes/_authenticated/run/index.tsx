@@ -252,10 +252,9 @@ function RunPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-12">
-      {/* Hero: centered logo + description */}
+      {/* Hero: centered logo */}
       <div className="mb-6 flex flex-col items-center gap-3 text-center">
         <img src={logo.url} alt="RathCoWork" className="h-20 w-auto object-contain" />
-        <p className="max-w-xl text-sm text-muted-foreground">{t("freeformDesc")}</p>
       </div>
 
       {/* Grok-style pill composer */}
