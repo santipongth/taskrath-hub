@@ -8,9 +8,15 @@ import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sparkles, Copy, Paperclip, X, FileText, Image as ImageIcon, FileType2, AlertTriangle, GitCompare, Cpu, UserCog } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
+  DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem,
+  DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent, DropdownMenuPortal,
+} from "@/components/ui/dropdown-menu";
+import { Sparkles, Copy, Paperclip, X, FileText, Image as ImageIcon, FileType2, AlertTriangle, GitCompare, UserCog, Plus, ArrowUp } from "lucide-react";
 import { toast } from "sonner";
 import { VoiceInputButton } from "@/components/voice-input-button";
+import logo from "@/assets/rathcowork-icon.png.asset.json";
 
 export const Route = createFileRoute("/_authenticated/run/")({
   head: () => ({ meta: [{ title: "สั่งงาน AI · RathCoWork" }] }),
@@ -277,113 +283,38 @@ function RunPage() {
   const nameOf = (id: string) => models.find((m) => m.id === id)?.name ?? id.slice(0, 8);
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-8">
-      <div className="mb-6">
-        <h1 className="flex items-center gap-2 text-xl font-semibold text-foreground">
+    <div className="mx-auto max-w-3xl px-6 py-12">
+      {/* Hero: centered logo + title */}
+      <div className="mb-6 flex flex-col items-center gap-3 text-center">
+        <img src={logo.url} alt="RathCoWork" className="h-12 w-auto object-contain" />
+        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-foreground">
           <Sparkles className="h-5 w-5 text-primary" />{t("freeformTitle")}
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t("freeformDesc")}</p>
+        <p className="max-w-xl text-sm text-muted-foreground">{t("freeformDesc")}</p>
       </div>
 
+      {/* Grok-style pill composer */}
       <div
-        className="rounded-lg border border-border bg-card p-5"
+        className="rounded-3xl border border-border bg-card px-4 pt-3 pb-2 shadow-sm transition-colors focus-within:border-primary/40"
         onDragOver={(e) => { e.preventDefault(); }}
         onDrop={(e) => { e.preventDefault(); if (!compareMode) onFilesPicked(e.dataTransfer.files); }}
       >
-        {/* Model + compare controls */}
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Cpu className="h-3.5 w-3.5" />
-            {lang === "th" ? "โมเดล" : "Model"}
-          </div>
-          {compareMode ? (
-            <div className="flex flex-wrap gap-1.5">
-              {models.length === 0 && (
-                <span className="text-xs text-muted-foreground">
-                  {lang === "th" ? "ยังไม่มีโมเดลของหน่วยงาน — แจ้งผู้ดูแลเพิ่ม provider" : "No dept models — ask admin"}
-                </span>
-              )}
-              {models.map((m) => {
-                const active = compareIds.includes(m.id);
-                return (
-                  <button
-                    key={m.id}
-                    onClick={() => toggleCompareId(m.id)}
-                    className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${active ? "border-primary bg-primary/10 text-foreground" : "border-border bg-background text-muted-foreground hover:text-foreground"}`}
-                  >
-                    {m.name}
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <Select value={providerSelector} onValueChange={setProviderSelector}>
-              <SelectTrigger className="h-8 w-auto min-w-[180px] text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={DEFAULT_MODEL_KEY}>{lang === "th" ? "ค่าเริ่มต้น (Gemini)" : "Default (Gemini)"}</SelectItem>
-                {models.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>{m.name} <span className="text-muted-foreground">· {m.model_id}</span></SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-          {!compareMode && skills.length > 0 && (
-            <>
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground ml-2">
-                <UserCog className="h-3.5 w-3.5" />
-                Skill
-              </div>
-              <Select value={personalSkillId} onValueChange={setPersonalSkillId}>
-                <SelectTrigger className="h-8 w-auto min-w-[160px] text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">— ไม่ใช้ Skill —</SelectItem>
-                  {skills.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {selectedSkill && (
-                <div className="ml-2 hidden md:flex max-w-xs flex-col rounded-md border border-border bg-muted/40 px-3 py-2 text-xs">
-                  <span className="font-medium text-foreground">{selectedSkill.name}</span>
-                  {selectedSkill.description && (
-                    <span className="mt-0.5 text-muted-foreground">{selectedSkill.description}</span>
-                  )}
-                  {selectedSkill.example_output && (
-                    <span className="mt-1 truncate text-[11px] text-muted-foreground/80">
-                      ตัวอย่าง: {selectedSkill.example_output.slice(0, 80)}…
-                    </span>
-                  )}
-                </div>
-              )}
-            </>
-          )}
-          <div className="ml-auto">
-            <Button
-              variant={compareMode ? "default" : "outline"}
-              size="sm"
-              onClick={() => { setCompareMode((v) => !v); setCompareResults(null); }}
-              disabled={loading || ocrLoading}
-            >
-              <GitCompare className="mr-1.5 h-3.5 w-3.5" />
-              {lang === "th" ? "เทียบโมเดล" : "Compare"}
-            </Button>
-          </div>
-        </div>
-
         <Textarea
           value={prompt}
           onChange={(e) => { baseRef.current = e.target.value; setPrompt(e.target.value); }}
-          placeholder={t("freeformPlaceholder")}
-          rows={6}
-          className="resize-none border-border shadow-none focus-visible:ring-1"
+          placeholder={lang === "th" ? "วันนี้ให้ช่วยอะไรดี?" : "How can I help you today?"}
+          rows={2}
+          className="min-h-[44px] resize-none border-0 bg-transparent px-1 py-1 text-base shadow-none focus-visible:ring-0"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey && !compareMode) {
+              e.preventDefault();
+              onRun();
+            }
+          }}
         />
 
         {!compareMode && attachments.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-1 mb-1 flex flex-wrap gap-2">
             {attachments.map((a, i) => (
               <div key={i} className="flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 text-xs">
                 {iconFor(a.kind)}
@@ -399,27 +330,25 @@ function RunPage() {
           </div>
         )}
 
-        {!compareMode && warnings.length > 0 && (
-          <div className="mt-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200">
-            <div className="mb-1 flex items-center gap-1.5 font-medium">
-              <AlertTriangle className="h-3.5 w-3.5" />
-              {lang === "th" ? "คำเตือนก่อนรัน" : "Pre-run warnings"}
-            </div>
-            <ul className="ml-5 list-disc space-y-0.5">
-              {warnings.map((w, i) => <li key={i}>{w}</li>)}
-            </ul>
-          </div>
-        )}
-
-        {!compareMode && ocrWarnings.length > 0 && (
-          <div className="mt-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200">
-            <div className="mb-1 flex items-center gap-1.5 font-medium">
-              <AlertTriangle className="h-3.5 w-3.5" />
-              {lang === "th" ? "คุณภาพผลลัพธ์ OCR" : "OCR quality"}
-            </div>
-            <ul className="ml-5 list-disc space-y-0.5">
-              {ocrWarnings.map((w, i) => <li key={i}>{w}</li>)}
-            </ul>
+        {compareMode && (
+          <div className="mt-1 mb-1 flex flex-wrap gap-1.5">
+            {models.length === 0 && (
+              <span className="text-xs text-muted-foreground">
+                {lang === "th" ? "ยังไม่มีโมเดลของหน่วยงาน — แจ้งผู้ดูแลเพิ่ม provider" : "No dept models — ask admin"}
+              </span>
+            )}
+            {models.map((m) => {
+              const active = compareIds.includes(m.id);
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => toggleCompareId(m.id)}
+                  className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${active ? "border-primary bg-primary/10 text-foreground" : "border-border bg-background text-muted-foreground hover:text-foreground"}`}
+                >
+                  {m.name}
+                </button>
+              );
+            })}
           </div>
         )}
 
@@ -432,41 +361,154 @@ function RunPage() {
           onChange={(e) => onFilesPicked(e.target.files)}
         />
 
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            {!compareMode && (
-              <>
-                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={loading || ocrLoading}>
-                  <Paperclip className="mr-1.5 h-3.5 w-3.5" />
-                  {lang === "th" ? "แนบไฟล์" : "Attach"}
+        {/* Bottom action row: + (left)  /  model + voice + send (right) */}
+        <div className="mt-1 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+                  disabled={loading || ocrLoading}
+                  aria-label={lang === "th" ? "ตัวเลือก" : "Options"}
+                >
+                  <Plus className="h-5 w-5" />
                 </Button>
-                <p className="hidden text-xs text-muted-foreground sm:block">
-                  {lang === "th" ? "รูปภาพ · PDF · ข้อความ (≤10MB) · OCR อัตโนมัติ" : "Images · PDF · text · auto OCR"}
-                </p>
-              </>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-60">
+                <DropdownMenuItem
+                  onSelect={(e) => { e.preventDefault(); fileInputRef.current?.click(); }}
+                  disabled={compareMode}
+                >
+                  <Paperclip className="mr-2 h-4 w-4" />
+                  {lang === "th" ? "แนบไฟล์" : "Attach file"}
+                </DropdownMenuItem>
+                <DropdownMenuCheckboxItem
+                  checked={compareMode}
+                  onCheckedChange={(v) => { setCompareMode(Boolean(v)); setCompareResults(null); }}
+                >
+                  <GitCompare className="mr-2 h-4 w-4" />
+                  {lang === "th" ? "โหมดเทียบโมเดล" : "Compare models"}
+                </DropdownMenuCheckboxItem>
+
+                {skills.length > 0 && !compareMode && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel className="flex items-center gap-2 text-xs">
+                      <UserCog className="h-3.5 w-3.5" /> Skill
+                    </DropdownMenuLabel>
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>
+                        <span className="truncate">
+                          {selectedSkill ? selectedSkill.name : (lang === "th" ? "— ไม่ใช้ Skill —" : "— No skill —")}
+                        </span>
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuPortal>
+                        <DropdownMenuSubContent className="max-h-72 overflow-y-auto">
+                          <DropdownMenuItem onSelect={() => setPersonalSkillId("__none__")}>
+                            {lang === "th" ? "— ไม่ใช้ Skill —" : "— No skill —"}
+                          </DropdownMenuItem>
+                          {skills.map((s) => (
+                            <DropdownMenuItem key={s.id} onSelect={() => setPersonalSkillId(s.id)}>
+                              {s.name}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuSubContent>
+                      </DropdownMenuPortal>
+                    </DropdownMenuSub>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Active-state pills */}
+            {!compareMode && selectedSkill && (
+              <span className="ml-1 inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs text-foreground">
+                <UserCog className="h-3 w-3" />
+                {selectedSkill.name}
+                <button
+                  onClick={() => setPersonalSkillId("__none__")}
+                  className="ml-0.5 text-muted-foreground hover:text-foreground"
+                  aria-label="clear skill"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
             )}
             {compareMode && (
-              <p className="text-xs text-muted-foreground">
-                {lang === "th"
-                  ? `เลือก 2–4 โมเดลเพื่อรันพร้อมกันและเทียบผล (ข้อความเท่านั้น) — เลือกแล้ว ${compareIds.length}`
-                  : `Pick 2–4 models to run in parallel (text only) — ${compareIds.length} selected`}
-              </p>
+              <span className="ml-1 inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2.5 py-1 text-xs text-foreground">
+                <GitCompare className="h-3 w-3" />
+                {lang === "th" ? `เทียบ ${compareIds.length}/4` : `Compare ${compareIds.length}/4`}
+              </span>
             )}
           </div>
-          <div className="flex items-center gap-2">
+
+          <div className="flex items-center gap-1.5">
+            {!compareMode && (
+              <Select value={providerSelector} onValueChange={setProviderSelector}>
+                <SelectTrigger className="h-8 w-auto min-w-[140px] gap-1 border-0 bg-transparent px-2 text-xs shadow-none hover:bg-muted focus:ring-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent align="end">
+                  <SelectItem value={DEFAULT_MODEL_KEY}>{lang === "th" ? "ค่าเริ่มต้น (Gemini)" : "Default (Gemini)"}</SelectItem>
+                  {models.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             <VoiceInputButton onTranscript={onVoice} />
-            <Button onClick={onRun} disabled={loading || ocrLoading || (!prompt.trim() && attachments.length === 0) || (compareMode && compareIds.length < 2)}>
-              {ocrLoading
-                ? (lang === "th" ? "กำลัง OCR…" : "OCR…")
-                : loading
-                  ? t("running")
-                  : compareMode
-                    ? (lang === "th" ? "เทียบโมเดล" : "Compare")
-                    : (warnings.length > 0 && confirmedWarnings ? (lang === "th" ? "รันต่อไป" : "Run anyway") : t("run"))}
+            <Button
+              onClick={onRun}
+              disabled={loading || ocrLoading || (!prompt.trim() && attachments.length === 0) || (compareMode && compareIds.length < 2)}
+              size="icon"
+              className="h-9 w-9 rounded-full"
+              aria-label={t("run")}
+            >
+              {ocrLoading || loading ? (
+                <span className="h-3 w-3 animate-pulse rounded-sm bg-primary-foreground" />
+              ) : (
+                <ArrowUp className="h-4 w-4" />
+              )}
             </Button>
           </div>
         </div>
       </div>
+
+      {/* Warnings (below composer) */}
+      {!compareMode && warnings.length > 0 && (
+        <div className="mt-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200">
+          <div className="mb-1 flex items-center gap-1.5 font-medium">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            {lang === "th" ? "คำเตือนก่อนรัน" : "Pre-run warnings"}
+          </div>
+          <ul className="ml-5 list-disc space-y-0.5">
+            {warnings.map((w, i) => <li key={i}>{w}</li>)}
+          </ul>
+        </div>
+      )}
+
+      {!compareMode && ocrWarnings.length > 0 && (
+        <div className="mt-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200">
+          <div className="mb-1 flex items-center gap-1.5 font-medium">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            {lang === "th" ? "คุณภาพผลลัพธ์ OCR" : "OCR quality"}
+          </div>
+          <ul className="ml-5 list-disc space-y-0.5">
+            {ocrWarnings.map((w, i) => <li key={i}>{w}</li>)}
+          </ul>
+        </div>
+      )}
+
+      {compareMode && (
+        <p className="mt-2 text-center text-xs text-muted-foreground">
+          {lang === "th"
+            ? `เลือก 2–4 โมเดลจากแถบด้านบน — เลือกแล้ว ${compareIds.length}`
+            : `Pick 2–4 models above — ${compareIds.length} selected`}
+        </p>
+      )}
 
       {compareResults && (
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
