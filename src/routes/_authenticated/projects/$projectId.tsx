@@ -556,38 +556,108 @@ function SourceRow({
   );
 }
 
-function NoteRow({ note, onDelete, lang }: { note: ProjectNote; onDelete: () => void; lang: string }) {
+function NoteRow({
+  note,
+  onDelete,
+  lang,
+  projectId,
+  source,
+}: {
+  note: ProjectNote;
+  onDelete: () => void;
+  lang: string;
+  projectId: string;
+  source: ProjectSource | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const hasCitations = /\[\d{1,3}\]/.test(note.content_md) && !!source;
+
   return (
-    <li className="group rounded border border-border bg-background p-2.5">
+    <li id={`note-${note.id}`} className="group rounded border border-border bg-background p-2.5">
       <div className="flex items-start gap-2">
         <StickyNote className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <span className="line-clamp-1 text-xs font-medium">{note.title}</span>
             {note.origin !== "manual" && (
-              <span className="rounded bg-primary/10 px-1 py-0.5 text-[9px] uppercase tracking-wide text-primary">{note.origin}</span>
+              <span className="rounded bg-primary/10 px-1 py-0.5 text-[9px] uppercase tracking-wide text-primary">
+                {note.origin}
+              </span>
+            )}
+            {hasCitations && (
+              <span className="rounded bg-amber-500/15 px-1 py-0.5 text-[9px] uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                {lang === "th" ? "มีอ้างอิง" : "cited"}
+              </span>
             )}
           </div>
-          <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-[11px] text-muted-foreground">{note.content_md.slice(0, 400)}</p>
+          <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-[11px] text-muted-foreground">
+            {note.content_md.slice(0, 400)}
+          </p>
         </div>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <button className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive" aria-label="delete">
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>{lang === "th" ? "ลบโน้ต?" : "Delete note?"}</AlertDialogTitle>
-              <AlertDialogDescription>{note.title}</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>{lang === "th" ? "ยกเลิก" : "Cancel"}</AlertDialogCancel>
-              <AlertDialogAction onClick={onDelete}>{lang === "th" ? "ลบ" : "Delete"}</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="text-muted-foreground hover:text-primary"
+            title={lang === "th" ? "เปิดดูพร้อมอ้างอิง" : "Open with citations"}
+          >
+            <Eye className="h-3.5 w-3.5" />
+          </button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <button
+                className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
+                aria-label="delete"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  {lang === "th" ? "ลบโน้ต?" : "Delete note?"}
+                </AlertDialogTitle>
+                <AlertDialogDescription>{note.title}</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>
+                  {lang === "th" ? "ยกเลิก" : "Cancel"}
+                </AlertDialogCancel>
+                <AlertDialogAction onClick={onDelete}>
+                  {lang === "th" ? "ลบ" : "Delete"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </div>
+
+      <ViewDialog open={open} onOpenChange={setOpen}>
+        <ViewDialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
+          <ViewDialogHeader>
+            <ViewDialogTitle className="flex items-center gap-2 text-left text-sm">
+              <StickyNote className="h-4 w-4 text-primary" />
+              <span className="line-clamp-1">{note.title}</span>
+              {note.origin !== "manual" && (
+                <span className="rounded bg-primary/10 px-1 py-0.5 text-[9px] uppercase tracking-wide text-primary">
+                  {note.origin}
+                </span>
+              )}
+            </ViewDialogTitle>
+          </ViewDialogHeader>
+          <NoteCitations
+            note={{
+              id: note.id,
+              content_md: note.content_md,
+              source_id: note.source_id,
+              metadata: note.metadata,
+            }}
+            source={source}
+            projectId={projectId}
+            lang={lang}
+          />
+        </ViewDialogContent>
+      </ViewDialog>
     </li>
   );
 }
