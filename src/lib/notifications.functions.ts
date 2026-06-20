@@ -96,8 +96,10 @@ export const sendLineNotification = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    void supabase; void userId;
 
-    const { data: row } = await supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row } = await supabaseAdmin
       .from("app_settings")
       .select("value")
       .eq("key", "notifications")
