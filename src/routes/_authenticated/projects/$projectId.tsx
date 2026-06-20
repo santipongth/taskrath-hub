@@ -269,7 +269,17 @@ function ProjectHubPage() {
             </div>
           ) : (
             <ul className="space-y-2">
-              {sources.map((s) => <SourceRow key={s.id} src={s} onDelete={() => deleteSrc.mutate(s.id)} lang={lang} />)}
+              {sources.map((s) => (
+                <SourceRow
+                  key={s.id}
+                  src={s}
+                  onDelete={() => deleteSrc.mutate(s.id)}
+                  lang={lang}
+                  transformations={transformations}
+                  onApply={(tfId) => applyTfMut.mutate({ transformation_id: tfId, source_id: s.id })}
+                  applyPending={applyTfMut.isPending}
+                />
+              ))}
             </ul>
           )}
         </section>
