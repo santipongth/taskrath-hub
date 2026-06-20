@@ -32,8 +32,11 @@ import {
   listMyTransformations, upsertTransformation, deleteTransformation, applyTransformation,
   type Transformation,
 } from "@/lib/transformations.functions";
-import { embedSource, reindexProject, askProject, type AskCitation } from "@/lib/source-embeddings.functions";
-import { Search, Loader2, RefreshCw } from "lucide-react";
+import { embedSource, reindexProject } from "@/lib/source-embeddings.functions";
+import { NotebookChat } from "@/components/notebook/notebook-chat";
+import { AudioBrief } from "@/components/notebook/audio-brief";
+import { MarkdownEditor } from "@/components/notebook/markdown-editor";
+import { Loader2, RefreshCw } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId")({
   head: () => ({ meta: [{ title: "Notebook · RathCoWork" }] }),
