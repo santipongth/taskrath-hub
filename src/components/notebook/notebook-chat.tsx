@@ -140,7 +140,7 @@ function packsForSources(sources: ProjectSource[], lang: string): Array<Pack[key
     if (s.kind === "url") kinds.add("url");
     else if (s.kind === "research") kinds.add("research");
     else if (s.kind === "file") {
-      const meta = (s.metadata ?? {}) as { source_kind?: string };
+      const meta = (s.metadata ?? {}) as unknown as { source_kind?: string };
       if (meta.source_kind === "audio") kinds.add("audio");
       else kinds.add("pdf"); // pdf or text file → treat as document
     } else if (s.kind === "text") {
