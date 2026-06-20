@@ -1,11 +1,11 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   ArrowLeft, FolderKanban, Link as LinkIcon, FileText, StickyNote,
-  Telescope, Sparkles, Plus, Trash2, ExternalLink, BookOpen, Wand2, Settings2,
+  Telescope, Plus, Trash2, ExternalLink, BookOpen, Wand2, Settings2,
   Upload, FileUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -55,7 +55,7 @@ export const Route = createFileRoute("/_authenticated/projects/$projectId")({
 function ProjectHubPage() {
   const { projectId } = Route.useParams();
   const { lang } = useI18n();
-  const navigate = useNavigate();
+  
   const qc = useQueryClient();
 
   const listProjects = useServerFn(listMyProjects);
@@ -216,26 +216,7 @@ function ProjectHubPage() {
   });
 
   // Quick actions — prefill /run and /research
-  const sendToRun = () => {
-    try {
-      const ctx = sources
-        .map((s) => `### ${s.title}\n${s.url ? `URL: ${s.url}\n` : ""}${s.content_md ?? ""}`)
-        .join("\n\n---\n\n");
-      sessionStorage.setItem(
-        "run:prefill",
-        JSON.stringify({ prompt: ctx, projectId }),
-      );
-    } catch { /* ignore */ }
-    navigate({ to: "/run" });
-  };
 
-  const sendToResearch = () => {
-    const urls = sources.filter((s) => s.kind === "url" && s.url).map((s) => s.url).join(" ");
-    try {
-      if (urls) sessionStorage.setItem("research:urls", urls);
-    } catch { /* ignore */ }
-    navigate({ to: "/research" });
-  };
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-8">
@@ -252,21 +233,6 @@ function ProjectHubPage() {
           {project?.context && (
             <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{project.context}</p>
           )}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" variant="secondary" onClick={sendToRun} disabled={sources.length === 0}>
-            <Sparkles className="mr-1.5 h-3.5 w-3.5" />{lang === "th" ? "ใช้กับ AI" : "Use with AI"}
-          </Button>
-          <Button size="sm" variant="secondary" onClick={sendToResearch}>
-            <Telescope className="mr-1.5 h-3.5 w-3.5" />{lang === "th" ? "ทำวิจัย" : "Research"}
-          </Button>
-          <ManageTransformationsDialog
-            transformations={transformations}
-            upsert={(v) => upsertTf({ data: v })}
-            remove={(id) => removeTf({ data: { id } })}
-            onChanged={() => qc.invalidateQueries({ queryKey: ["my-transformations"] })}
-            lang={lang}
-          />
         </div>
       </div>
 
@@ -490,7 +456,7 @@ function SourceRow({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <span className="line-clamp-1 text-xs font-medium">{src.title}</span>
-            {src.url && (
+            {src.url && /^https?:\/\//i.test(src.url) && (
               <a href={src.url} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-primary">
                 <ExternalLink className="h-3 w-3" />
               </a>
