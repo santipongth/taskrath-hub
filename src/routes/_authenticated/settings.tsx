@@ -10,7 +10,7 @@ import { Upload, X, PenLine, Quote } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { UserMemoryCard } from "@/components/user-memory-card";
 import { UserSkillsCard } from "@/components/user-skills-card";
-import { useCitationStyle } from "@/lib/citation-prefs";
+import { useCitationStyle, useShowInlineCitations } from "@/lib/citation-prefs";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({ meta: [{ title: "ตั้งค่า · RathCoWork" }] }),
@@ -22,6 +22,7 @@ function SettingsPage() {
   const { userId, email } = Route.useRouteContext();
   const navigate = useNavigate();
   const [citationStyle, setCitStyle] = useCitationStyle();
+  const [showInline, setShowInline] = useShowInlineCitations();
   const [displayName, setDisplayName] = useState("");
   const [department, setDepartment] = useState("");
   const [signerPosition, setSignerPosition] = useState("");
@@ -137,28 +138,50 @@ function SettingsPage() {
         </div>
         <p className="text-xs text-muted-foreground">
           {lang === "th"
-            ? "เลือกว่าจะให้คำตอบของ AI แสดง [อ้างอิง] เป็นตัวเลขในเนื้อหาอย่างเดียว หรือเพิ่มแถบ ‘แหล่งที่อ้างอิง’ ด้านล่างคำตอบด้วย"
-            : "Choose whether AI answers show only inline [citation] markers or also include a ‘Cited sources’ panel below the answer."}
+            ? "เลือกว่าจะให้คำตอบของ AI แสดง [อ้างอิง] inline หรือไม่ และจะให้แถบ ‘แหล่งที่อ้างอิง’ ด้านล่างคำตอบแสดงหรือไม่"
+            : "Choose whether AI answers show inline [citation] markers and/or a ‘Cited sources’ panel below the answer."}
         </p>
-        <div className="flex items-start justify-between gap-4 rounded-md border bg-background p-3">
-          <div className="min-w-0">
-            <div className="text-xs font-medium">
-              {lang === "th" ? "แสดงแถบ ‘แหล่งที่อ้างอิง’" : "Show ‘Cited sources’ panel"}
+        <div className="space-y-2">
+          <div className="flex items-start justify-between gap-4 rounded-md border bg-background p-3">
+            <div className="min-w-0">
+              <div className="text-xs font-medium">
+                {lang === "th" ? "แสดง [อ้างอิง] ในเนื้อหา" : "Show inline [citations]"}
+              </div>
+              <div className="mt-0.5 text-[11px] text-muted-foreground">
+                {showInline
+                  ? lang === "th"
+                    ? "เปิด — เห็น [1][2] ในข้อความ คลิกเพื่อดูต้นทาง"
+                    : "On — inline [1][2] markers are shown and clickable."
+                  : lang === "th"
+                    ? "ปิด — ซ่อนเลขอ้างอิงในเนื้อหา แสดงเฉพาะแถบแหล่ง (ถ้าเปิด)"
+                    : "Off — inline markers hidden; only panel shown (if enabled)."}
+              </div>
             </div>
-            <div className="mt-0.5 text-[11px] text-muted-foreground">
-              {citationStyle === "with_panel"
-                ? lang === "th"
-                  ? "เปิด — เห็น [1][2] ในข้อความ + แถบรายชื่อแหล่งด้านล่าง"
-                  : "On — inline [1][2] plus a list of cited sources below."
-                : lang === "th"
-                  ? "ปิด — เห็นเฉพาะ [1][2] inline แบบกะทัดรัด"
-                  : "Off — compact inline [1][2] only."}
-            </div>
+            <Switch
+              checked={showInline}
+              onCheckedChange={(b) => setShowInline(b)}
+            />
           </div>
-          <Switch
-            checked={citationStyle === "with_panel"}
-            onCheckedChange={(b) => setCitStyle(b ? "with_panel" : "inline_only")}
-          />
+          <div className="flex items-start justify-between gap-4 rounded-md border bg-background p-3">
+            <div className="min-w-0">
+              <div className="text-xs font-medium">
+                {lang === "th" ? "แสดงแถบ ‘แหล่งที่อ้างอิง’" : "Show ‘Cited sources’ panel"}
+              </div>
+              <div className="mt-0.5 text-[11px] text-muted-foreground">
+                {citationStyle === "with_panel"
+                  ? lang === "th"
+                    ? "เปิด — เห็นรายชื่อแหล่งด้านล่างคำตอบ พร้อม snippet"
+                    : "On — a list of cited sources appears below each answer."
+                  : lang === "th"
+                    ? "ปิด — ไม่แสดงแถบรายชื่อแหล่งด้านล่าง"
+                    : "Off — no source list panel below answers."}
+              </div>
+            </div>
+            <Switch
+              checked={citationStyle === "with_panel"}
+              onCheckedChange={(b) => setCitStyle(b ? "with_panel" : "inline_only")}
+            />
+          </div>
         </div>
       </div>
 

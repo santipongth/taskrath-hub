@@ -28,7 +28,7 @@ import {
 } from "@/lib/notebook-chat.functions";
 import { SourceViewer } from "@/components/notebook/source-viewer";
 import type { ProjectSource } from "@/lib/project-sources.functions";
-import { useCitationStyle } from "@/lib/citation-prefs";
+import { useCitationStyle, useShowInlineCitations } from "@/lib/citation-prefs";
 
 type Message = ChatTurn & { citations?: ChatCitation[]; id: string };
 
@@ -50,8 +50,9 @@ function renderAssistantText(
   citations: ChatCitation[] | undefined,
   onOpen: (citation: ChatCitation, index: number) => void,
   lang: string,
+  showInline: boolean,
 ): ReactNode[] {
-  if (!citations || citations.length === 0) return [text];
+  if (!showInline || !citations || citations.length === 0) return [text];
   const re = /\[(\d{1,2})\]/g;
   const out: ReactNode[] = [];
   let last = 0;
@@ -143,6 +144,7 @@ export function NotebookChat({
   } | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [citationStyle] = useCitationStyle();
+  const [showInline] = useShowInlineCitations();
 
   const askFn = useServerFn(askProjectChat);
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -290,7 +292,7 @@ export function NotebookChat({
               ) : (
                 <div className="max-w-full space-y-2">
                   <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                    {renderAssistantText(m.content, m.citations, openCitation, lang)}
+                    {renderAssistantText(m.content, m.citations, openCitation, lang, showInline)}
                   </div>
 
                   {/* Toolbar */}
@@ -427,9 +429,13 @@ export function NotebookChat({
           </Button>
         </div>
         <p className="mt-1.5 text-[10px] text-muted-foreground">
-          {lang === "th"
-            ? "เคล็ดลับ: คลิกเลข [1] [2] เพื่อดูข้อความต้นทาง — ปรับรูปแบบ citation ได้ที่ ตั้งค่า"
-            : "Tip: click [1] [2] to see source text — change citation layout in Settings."}
+          {showInline
+            ? lang === "th"
+              ? "เคล็ดลับ: คลิกเลข [1] [2] เพื่อดูข้อความต้นทาง — ปรับรูปแบบ citation ได้ที่ ตั้งค่า"
+              : "Tip: click [1] [2] to see source text — change citation layout in Settings."
+            : lang === "th"
+              ? "อ้างอิง inline ซ่อนอยู่ — เปิดได้ที่ ตั้งค่า"
+              : "Inline citations are hidden — turn on in Settings."}
         </p>
       </div>
 
