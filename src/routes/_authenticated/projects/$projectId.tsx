@@ -484,7 +484,7 @@ function SourceRow({
 }) {
   const Icon = src.kind === "url" ? LinkIcon : src.kind === "research" ? Telescope : FileText;
   return (
-    <li className="group rounded border border-border bg-background p-2.5">
+    <li id={`source-${src.id}`} className="group scroll-mt-20 rounded border border-border bg-background p-2.5 target:ring-2 target:ring-primary">
       <div className="flex items-start gap-2">
         <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         <div className="min-w-0 flex-1">
