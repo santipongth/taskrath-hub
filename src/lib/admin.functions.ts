@@ -103,9 +103,12 @@ const DEFAULT_AGENCY: AgencySettings = {
 
 export const getAgencySettings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<AgencySettings> => {
-    const { supabase } = context;
-    const { data } = await supabase
+  .handler(async (): Promise<AgencySettings> => {
+    // Agency display settings are stored in the admin-only app_settings table.
+    // Use the service client to read so non-admins can still see headers/footers
+    // without exposing the full table to authenticated clients.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await supabaseAdmin
       .from("app_settings")
       .select("value")
       .eq("key", "agency")

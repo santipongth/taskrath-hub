@@ -27,8 +27,10 @@ async function assertAdmin(supabase: any, userId: string) {
 export const getNotificationSettings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<NotificationSettings> => {
-    const { supabase } = context;
-    const { data } = await supabase
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await supabaseAdmin
       .from("app_settings")
       .select("value")
       .eq("key", "notifications")
@@ -94,8 +96,10 @@ export const sendLineNotification = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    void supabase; void userId;
 
-    const { data: row } = await supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row } = await supabaseAdmin
       .from("app_settings")
       .select("value")
       .eq("key", "notifications")
