@@ -38,7 +38,8 @@ export async function notifyEvent(
   text: string,
 ) {
   try {
-    const { data } = await supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await supabaseAdmin
       .from("app_settings")
       .select("value")
       .eq("key", "notifications")
