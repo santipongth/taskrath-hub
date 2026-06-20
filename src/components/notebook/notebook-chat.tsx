@@ -292,7 +292,7 @@ export function NotebookChat({
               ) : (
                 <div className="max-w-full space-y-2">
                   <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                    {renderAssistantText(m.content, m.citations, openCitation, lang)}
+                    {renderAssistantText(m.content, m.citations, openCitation, lang, showInline)}
                   </div>
 
                   {/* Toolbar */}
