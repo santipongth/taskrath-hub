@@ -197,6 +197,13 @@ function ProjectHubPage() {
           <Button size="sm" variant="secondary" onClick={sendToResearch}>
             <Telescope className="mr-1.5 h-3.5 w-3.5" />{lang === "th" ? "ทำวิจัย" : "Research"}
           </Button>
+          <ManageTransformationsDialog
+            transformations={transformations}
+            upsert={(v) => upsertTf({ data: v })}
+            remove={(id) => removeTf({ data: { id } })}
+            onChanged={() => qc.invalidateQueries({ queryKey: ["my-transformations"] })}
+            lang={lang}
+          />
         </div>
       </div>
 
