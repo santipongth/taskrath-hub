@@ -620,6 +620,110 @@ export type Database = {
         }
         Relationships: []
       }
+      project_notes: {
+        Row: {
+          content_md: string
+          created_at: string
+          id: string
+          metadata: Json
+          origin: string
+          project_id: string
+          source_id: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content_md?: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          origin?: string
+          project_id: string
+          source_id?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content_md?: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          origin?: string
+          project_id?: string
+          source_id?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_notes_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "user_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_notes_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "project_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_sources: {
+        Row: {
+          content_md: string | null
+          created_at: string
+          file_path: string | null
+          id: string
+          kind: string
+          metadata: Json
+          project_id: string
+          title: string
+          updated_at: string
+          url: string | null
+          user_id: string
+        }
+        Insert: {
+          content_md?: string | null
+          created_at?: string
+          file_path?: string | null
+          id?: string
+          kind: string
+          metadata?: Json
+          project_id: string
+          title: string
+          updated_at?: string
+          url?: string | null
+          user_id: string
+        }
+        Update: {
+          content_md?: string | null
+          created_at?: string
+          file_path?: string | null
+          id?: string
+          kind?: string
+          metadata?: Json
+          project_id?: string
+          title?: string
+          updated_at?: string
+          url?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_sources_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "user_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       signed_documents: {
         Row: {
           agency_name: string
