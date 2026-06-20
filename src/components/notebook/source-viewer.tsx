@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { ExternalLink, FileText, Link as LinkIcon, Telescope, FileUp } from "lucide-react";
 import type { ChatSnippet } from "@/lib/notebook-chat.functions";
+import { CHUNK_CHARS, CHUNK_OVERLAP } from "@/lib/chunker";
 
 type Source = {
   id: string;
@@ -22,6 +23,43 @@ const escapeHtml = (s: string) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!),
   );
 const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * Try to find the chunk inside the content text using progressively shorter
+ * windows. Returns the [startIndex, endIndex] in the ORIGINAL (un-escaped) text,
+ * or null if not found via substring.
+ */
+function locateChunk(content: string, chunkText: string): [number, number] | null {
+  const norm = (s: string) => s.replace(/\s+/g, " ").trim();
+  const haystack = content;
+
+  // 1) full chunk content
+  const full = chunkText.trim();
+  if (full.length > 0) {
+    const idx = haystack.indexOf(full);
+    if (idx >= 0) return [idx, idx + full.length];
+  }
+  // 2) first 200 chars
+  const head = full.slice(0, 200).trim();
+  if (head.length >= 30) {
+    const idx = haystack.indexOf(head);
+    if (idx >= 0) return [idx, idx + head.length];
+  }
+  // 3) last 200 chars
+  const tail = full.slice(-200).trim();
+  if (tail.length >= 30) {
+    const idx = haystack.indexOf(tail);
+    if (idx >= 0) return [idx, idx + tail.length];
+  }
+  // 4) normalized first 120
+  const n = norm(full).slice(0, 120);
+  if (n.length >= 30) {
+    const re = new RegExp(escapeRegex(n).replace(/\\ /g, "\\s+"), "i");
+    const m = re.exec(haystack);
+    if (m) return [m.index, m.index + m[0].length];
+  }
+  return null;
+}
 
 export function SourceViewer({
   open,
@@ -54,21 +92,61 @@ export function SourceViewer({
     }
   }, [open]);
 
-  const highlighted = useMemo(() => {
+  // Build highlighted HTML with both substring and chunk-index based ranges,
+  // then escape per segment so spans never break.
+  const highlightedHtml = useMemo(() => {
     if (!source?.content_md) return null;
-    let safe = escapeHtml(source.content_md);
+    const text = source.content_md;
+
+    // Prefix from sourceFullText() before content_md begins (title \n\n url \n\n)
+    const prefixLen =
+      (source.title ? source.title.length : 0) +
+      (source.title ? 2 : 0) +
+      (source.url ? source.url.length + 2 : 0);
+
+    type Range = { start: number; end: number; idx: number };
+    const ranges: Range[] = [];
+
     snippets.forEach((s, i) => {
-      // Use first ~140 chars of the chunk as a robust anchor
-      const needleRaw = s.content.trim().slice(0, 140).trim();
-      if (needleRaw.length < 16) return;
-      const needle = escapeHtml(needleRaw);
-      const re = new RegExp(escapeRegex(needle), "i");
-      safe = safe.replace(
-        re,
-        `<mark id="snip-${i}" class="rounded bg-amber-200/70 px-0.5 text-foreground dark:bg-amber-400/30">$&</mark>`,
-      );
+      const loc = locateChunk(text, s.content);
+      if (loc) {
+        ranges.push({ start: loc[0], end: loc[1], idx: i });
+        return;
+      }
+      // Position-based fallback using chunk_index
+      const fullStart = s.chunk_index * (CHUNK_CHARS - CHUNK_OVERLAP);
+      const fullEnd = fullStart + CHUNK_CHARS;
+      const start = Math.max(0, fullStart - prefixLen);
+      const end = Math.max(start + 200, Math.min(text.length, fullEnd - prefixLen));
+      if (start < text.length && end > start) {
+        ranges.push({ start, end: Math.min(end, text.length), idx: i });
+      }
     });
-    return safe;
+
+    if (ranges.length === 0) return escapeHtml(text);
+
+    // Merge overlapping ranges (keep lowest idx)
+    ranges.sort((a, b) => a.start - b.start);
+    const merged: Range[] = [];
+    for (const r of ranges) {
+      const last = merged[merged.length - 1];
+      if (last && r.start <= last.end) {
+        last.end = Math.max(last.end, r.end);
+      } else {
+        merged.push({ ...r });
+      }
+    }
+
+    let html = "";
+    let cursor = 0;
+    for (const r of merged) {
+      if (r.start > cursor) html += escapeHtml(text.slice(cursor, r.start));
+      const seg = text.slice(r.start, r.end);
+      html += `<mark id="snip-${r.idx}" class="rounded bg-amber-200/70 px-0.5 text-foreground dark:bg-amber-400/30">${escapeHtml(seg)}</mark>`;
+      cursor = r.end;
+    }
+    if (cursor < text.length) html += escapeHtml(text.slice(cursor));
+    return html;
   }, [source, snippets]);
 
   const Icon =
@@ -115,7 +193,9 @@ export function SourceViewer({
         <div className="flex-1 space-y-4 overflow-y-auto pr-1">
           <div className="space-y-2">
             <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-              {lang === "th" ? "ข้อความที่อ้างอิง" : "Referenced excerpts"}
+              {lang === "th"
+                ? "ข้อความที่อ้างอิง (เรียงตามที่ตรงคำตอบมากที่สุด)"
+                : "Referenced excerpts (ranked by answer relevance)"}
             </div>
             {snippets.map((s, i) => (
               <div
@@ -123,14 +203,22 @@ export function SourceViewer({
                 ref={i === 0 ? firstSnipRef : undefined}
                 className="rounded-md border-l-4 border-primary bg-primary/5 p-3 text-xs leading-relaxed"
               >
-                <div className="mb-1.5 flex items-center gap-2 text-[10px] text-muted-foreground">
-                  <span className="font-mono">
-                    chunk #{s.chunk_index + 1}
-                  </span>
+                <div className="mb-1.5 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+                  <span className="font-mono">chunk #{s.chunk_index + 1}</span>
                   <span>•</span>
                   <span className="font-mono">
-                    {Math.round(s.similarity * 100)}% {lang === "th" ? "ตรงกัน" : "match"}
+                    {Math.round(s.similarity * 100)}%{" "}
+                    {lang === "th" ? "คล้ายคำถาม" : "vs. question"}
                   </span>
+                  {typeof s.answer_overlap === "number" && (
+                    <>
+                      <span>•</span>
+                      <span className="font-mono">
+                        {Math.round(s.answer_overlap * 100)}%{" "}
+                        {lang === "th" ? "ตรงกับคำตอบ" : "in answer"}
+                      </span>
+                    </>
+                  )}
                 </div>
                 <div className="whitespace-pre-wrap">{s.content}</div>
               </div>
@@ -144,7 +232,7 @@ export function SourceViewer({
               </div>
               <div
                 className="max-w-none whitespace-pre-wrap rounded-md border bg-muted/30 p-3 text-xs leading-relaxed"
-                dangerouslySetInnerHTML={{ __html: highlighted ?? "" }}
+                dangerouslySetInnerHTML={{ __html: highlightedHtml ?? "" }}
               />
             </div>
           ) : (

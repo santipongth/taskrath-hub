@@ -2,23 +2,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { callAI } from "@/lib/ai.functions";
+import { chunkText, sourceFullText } from "@/lib/chunker";
 
 const EMBED_MODEL = "openai/text-embedding-3-small";
 const EMBED_DIMS = 1536;
-const CHUNK_CHARS = 1200;
-const CHUNK_OVERLAP = 150;
-
-function chunkText(text: string, size = CHUNK_CHARS, overlap = CHUNK_OVERLAP): string[] {
-  const clean = text.replace(/\s+\n/g, "\n").trim();
-  if (clean.length <= size) return clean ? [clean] : [];
-  const chunks: string[] = [];
-  let i = 0;
-  while (i < clean.length) {
-    chunks.push(clean.slice(i, i + size));
-    i += size - overlap;
-  }
-  return chunks;
-}
 
 async function embedBatch(inputs: string[]): Promise<number[][]> {
   const key = process.env.LOVABLE_API_KEY;
@@ -50,7 +37,7 @@ export const embedSource = createServerFn({ method: "POST" })
       .single();
     if (error || !src) throw new Error("Source not found");
 
-    const text = [src.title, src.url, src.content_md ?? ""].filter(Boolean).join("\n\n");
+    const text = sourceFullText(src.title, src.url, src.content_md ?? null);
     const chunks = chunkText(text);
     if (chunks.length === 0) return { chunks: 0 };
 
@@ -96,7 +83,7 @@ export const reindexProject = createServerFn({ method: "POST" })
         .eq("id", s.id)
         .single();
       if (!src) continue;
-      const text = [src.title, src.url, src.content_md ?? ""].filter(Boolean).join("\n\n");
+      const text = sourceFullText(src.title, src.url, src.content_md ?? null);
       const chunks = chunkText(text);
       if (chunks.length === 0) continue;
       await supabase.from("source_embeddings").delete().eq("source_id", src.id).eq("user_id", userId);

@@ -22,15 +22,37 @@ async function embedOne(text: string): Promise<number[]> {
 }
 
 export type ChatTurn = { role: "user" | "assistant"; content: string };
-export type ChatSnippet = { chunk_index: number; content: string; similarity: number };
+export type ChatSnippet = {
+  chunk_index: number;
+  content: string;
+  similarity: number;
+  answer_overlap: number;
+};
 export type ChatCitation = {
   source_id: string;
   title: string;
   url: string | null;
   kind: string | null;
-  similarity: number; // best
+  similarity: number;
   snippets: ChatSnippet[];
 };
+
+// Cheap token overlap (Jaccard) used to rank a snippet against the final answer.
+function tokenize(s: string): Set<string> {
+  return new Set(
+    s
+      .toLowerCase()
+      .replace(/[`*_>#~\-=()\[\]{}.,;:!?"'“”‘’]/g, " ")
+      .split(/\s+/u)
+      .filter((w) => w.length >= 2),
+  );
+}
+function jaccard(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 || b.size === 0) return 0;
+  let inter = 0;
+  for (const t of a) if (b.has(t)) inter++;
+  return inter / (a.size + b.size - inter);
+}
 
 export const askProjectChat = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -81,52 +103,57 @@ export const askProjectChat = createServerFn({ method: "POST" })
     };
     const rows = (matches ?? []) as Match[];
 
-    // Group snippets by source
-    const bySource = new Map<string, ChatCitation>();
+    // Group raw snippets by source (we'll re-rank after we have the answer)
+    type RawSnippet = { chunk_index: number; content: string; similarity: number };
+    const rawBySource = new Map<
+      string,
+      { title: string; url: string | null; snippets: RawSnippet[] }
+    >();
     rows.forEach((r) => {
-      const snippet: ChatSnippet = {
+      const entry = rawBySource.get(r.source_id);
+      const snippet: RawSnippet = {
         chunk_index: r.chunk_index,
         content: r.content,
         similarity: r.similarity,
       };
-      const ex = bySource.get(r.source_id);
-      if (!ex) {
-        bySource.set(r.source_id, {
-          source_id: r.source_id,
+      if (entry) {
+        entry.snippets.push(snippet);
+      } else {
+        rawBySource.set(r.source_id, {
           title: r.title,
           url: r.url,
-          kind: null,
-          similarity: r.similarity,
           snippets: [snippet],
         });
-      } else {
-        ex.snippets.push(snippet);
-        if (r.similarity > ex.similarity) ex.similarity = r.similarity;
       }
     });
 
     // Fetch kind metadata for the cited sources
-    const ids = Array.from(bySource.keys());
+    const ids = Array.from(rawBySource.keys());
+    const kindById = new Map<string, string>();
     if (ids.length > 0) {
       const { data: srcRows } = await supabase
         .from("project_sources")
         .select("id, kind")
         .in("id", ids);
-      (srcRows ?? []).forEach((s: { id: string; kind: string }) => {
-        const c = bySource.get(s.id);
-        if (c) c.kind = s.kind;
-      });
+      (srcRows ?? []).forEach((s: { id: string; kind: string }) =>
+        kindById.set(s.id, s.kind),
+      );
     }
 
-    const citations = Array.from(bySource.values())
-      .map((c) => ({
-        ...c,
-        snippets: c.snippets.sort((a, b) => b.similarity - a.similarity),
+    // Build numbered citation list (pre-answer ordering by best chunk similarity)
+    const preCitations = Array.from(rawBySource.entries())
+      .map(([source_id, v]) => ({
+        source_id,
+        title: v.title,
+        url: v.url,
+        kind: kindById.get(source_id) ?? null,
+        similarity: Math.max(...v.snippets.map((s) => s.similarity)),
+        snippets: v.snippets,
       }))
       .sort((a, b) => b.similarity - a.similarity);
 
     const sourceIndex = new Map<string, number>();
-    citations.forEach((c, i) => sourceIndex.set(c.source_id, i + 1));
+    preCitations.forEach((c, i) => sourceIndex.set(c.source_id, i + 1));
 
     const contextBlock = rows.length
       ? rows
@@ -142,15 +169,45 @@ export const askProjectChat = createServerFn({ method: "POST" })
     const system =
       "คุณเป็นผู้ช่วย AI สำหรับเจ้าหน้าที่หน่วยงานไทย ตอบเป็นภาษาไทยที่กระชับ ตรงประเด็น " +
       "ใช้เฉพาะข้อมูลจาก <แหล่ง> ที่ให้เท่านั้นเป็นข้อเท็จจริง หากไม่พบให้บอกตรง ๆ ห้ามแต่งเติม " +
-      "เมื่ออ้างอิงข้อมูลให้ใส่ [หมายเลข] ท้ายประโยคหรือวลี ตามที่ระบุในแหล่ง (เช่น [1], [2]) " +
-      "ใส่ [หมายเลข] ทุกครั้งที่อ้างข้อเท็จจริงจากแหล่ง เพื่อให้ผู้อ่านคลิกตรวจสอบได้ " +
+      "เมื่ออ้างอิงข้อเท็จจริงต้องใส่ [หมายเลข] ท้ายประโยคหรือวลีทุกครั้ง ตามที่ระบุในแหล่ง " +
+      "(เช่น [1], [2]) เพื่อให้ผู้อ่านคลิกตรวจสอบได้ " +
       "อ่านประวัติบทสนทนาก่อนหน้าเพื่อความต่อเนื่อง";
 
     const userPrompt =
       (history ? `<ประวัติบทสนทนา>\n${history}\n</ประวัติบทสนทนา>\n\n` : "") +
       `<แหล่ง>\n${contextBlock}\n</แหล่ง>\n\nคำถามล่าสุด: ${last.content}`;
 
-    const { text } = await callAI(system, userPrompt);
+    const { text: answer } = await callAI(system, userPrompt);
 
-    return { answer: text, citations };
+    // Re-rank snippets against the produced answer so the "most representative"
+    // excerpt for each citation comes first in the UI.
+    const answerTokens = tokenize(answer);
+    const citations: ChatCitation[] = preCitations.map((c) => {
+      const scored: ChatSnippet[] = c.snippets
+        .map((s) => {
+          const overlap = jaccard(answerTokens, tokenize(s.content));
+          return {
+            chunk_index: s.chunk_index,
+            content: s.content,
+            similarity: s.similarity,
+            answer_overlap: overlap,
+          };
+        })
+        .sort(
+          (a, b) =>
+            // 60% answer-overlap, 40% retrieval similarity
+            0.6 * b.answer_overlap + 0.4 * b.similarity -
+            (0.6 * a.answer_overlap + 0.4 * a.similarity),
+        );
+      return {
+        source_id: c.source_id,
+        title: c.title,
+        url: c.url,
+        kind: c.kind,
+        similarity: c.similarity,
+        snippets: scored,
+      };
+    });
+
+    return { answer, citations };
   });
