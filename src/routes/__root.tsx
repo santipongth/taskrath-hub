@@ -11,6 +11,7 @@ import { useEffect } from "react";
 
 import appCss from "../styles.css?url";
 import { I18nProvider } from "@/lib/i18n";
+import { ThemeProvider } from "@/lib/theme";
 import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "@/components/ui/sonner";
 import logoAsset from "@/assets/rathcowork-logo.png.asset.json";
@@ -156,11 +157,13 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
     <QueryClientProvider client={queryClient}>
-      <I18nProvider>
-        <AuthListener />
-        <Outlet />
-        <Toaster position="top-right" />
-      </I18nProvider>
+      <ThemeProvider>
+        <I18nProvider>
+          <AuthListener />
+          <Outlet />
+          <Toaster position="top-right" />
+        </I18nProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
