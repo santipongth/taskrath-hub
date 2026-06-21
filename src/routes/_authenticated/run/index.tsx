@@ -39,6 +39,7 @@ const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const TEXT_EXT = /\.(txt|md|markdown|csv|tsv|json|xml|yaml|yml|log|html?|css|js|ts|tsx|jsx|py|sql)$/i;
 const MAX_PDF_PAGES = 40;
 const DEFAULT_MODEL_KEY = "__default__";
+const MODEL_STORAGE_KEY = "taskrath.run.providerSelector";
 
 const readAsDataUrl = (f: File) => new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = () => rej(r.error); r.readAsDataURL(f); });
 const readAsText = (f: File) => new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = () => rej(r.error); r.readAsText(f); });
@@ -88,7 +89,21 @@ function RunPage() {
   const [ocrLoading, setOcrLoading] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [confirmedWarnings, setConfirmedWarnings] = useState(false);
-  const [providerSelector, setProviderSelector] = useState<string>(DEFAULT_MODEL_KEY);
+  const [providerSelector, setProviderSelectorState] = useState<string>(DEFAULT_MODEL_KEY);
+  const setProviderSelector = (v: string) => {
+    setProviderSelectorState(v);
+    if (typeof window !== "undefined") {
+      try { localStorage.setItem(MODEL_STORAGE_KEY, v); } catch { /* ignore */ }
+    }
+  };
+  // Restore persisted model on mount
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const stored = localStorage.getItem(MODEL_STORAGE_KEY);
+      if (stored) setProviderSelectorState(stored);
+    } catch { /* ignore */ }
+  }, []);
   const [personalSkillId, setPersonalSkillId] = useState<string>("__none__");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const baseRef = useRef("");
