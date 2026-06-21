@@ -398,22 +398,24 @@ function RunPage() {
               return (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Select value={providerSelector} onValueChange={setProviderSelector}>
-                      <SelectTrigger
-                        className="h-8 w-auto min-w-[160px] max-w-[240px] gap-2 rounded-full border border-border bg-muted/40 px-3 text-xs font-medium shadow-none hover:bg-muted focus:ring-1 focus:ring-primary/40 data-[state=open]:border-primary/50 data-[state=open]:bg-muted"
-                        aria-label={lang === "th" ? "เลือกโมเดล AI" : "Select AI model"}
-                      >
-                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)]" aria-hidden />
-                        <span className="truncate">{currentModel}</span>
-                        <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" aria-hidden />
-                      </SelectTrigger>
-                      <SelectContent align="end">
-                        <SelectItem value={DEFAULT_MODEL_KEY}>{lang === "th" ? "ค่าเริ่มต้น (Gemini)" : "Default (Gemini)"}</SelectItem>
-                        {models.map((m) => (
-                          <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <span className="inline-flex">
+                      <Select value={providerSelector} onValueChange={setProviderSelector}>
+                        <SelectTrigger
+                          className="h-8 w-auto min-w-[160px] max-w-[240px] gap-2 rounded-full border border-border bg-muted/40 px-3 text-xs font-medium shadow-none hover:bg-muted focus:ring-1 focus:ring-primary/40 data-[state=open]:border-primary/50 data-[state=open]:bg-muted"
+                          aria-label={lang === "th" ? "เลือกโมเดล AI" : "Select AI model"}
+                        >
+                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)]" aria-hidden />
+                          <span className="truncate">{currentModel}</span>
+                          <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" aria-hidden />
+                        </SelectTrigger>
+                        <SelectContent align="end">
+                          <SelectItem value={DEFAULT_MODEL_KEY}>{lang === "th" ? "ค่าเริ่มต้น (Gemini)" : "Default (Gemini)"}</SelectItem>
+                          {models.map((m) => (
+                            <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </span>
                   </TooltipTrigger>
                   <TooltipContent side="top">
                     {lang === "th" ? `กำลังใช้: ${currentModel} · พร้อมใช้งาน` : `In use: ${currentModel} · Ready`}
