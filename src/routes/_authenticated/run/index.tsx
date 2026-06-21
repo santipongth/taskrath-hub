@@ -7,13 +7,14 @@ import { listMySkills, seedDefaultSkills } from "@/lib/user-skills.functions";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
   DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger,
   DropdownMenuSubContent, DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
-import { Copy, Paperclip, X, FileText, Image as ImageIcon, FileType2, AlertTriangle, UserCog, Plus, ArrowUp } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Copy, Paperclip, X, FileText, Image as ImageIcon, FileType2, AlertTriangle, UserCog, Plus, ArrowUp, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { VoiceInputButton } from "@/components/voice-input-button";
 import logo from "@/assets/rathcowork-icon.png.asset.json";
@@ -38,6 +39,7 @@ const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const TEXT_EXT = /\.(txt|md|markdown|csv|tsv|json|xml|yaml|yml|log|html?|css|js|ts|tsx|jsx|py|sql)$/i;
 const MAX_PDF_PAGES = 40;
 const DEFAULT_MODEL_KEY = "__default__";
+const MODEL_STORAGE_KEY = "taskrath.run.providerSelector";
 
 const readAsDataUrl = (f: File) => new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = () => rej(r.error); r.readAsDataURL(f); });
 const readAsText = (f: File) => new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = () => rej(r.error); r.readAsText(f); });
@@ -87,7 +89,21 @@ function RunPage() {
   const [ocrLoading, setOcrLoading] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [confirmedWarnings, setConfirmedWarnings] = useState(false);
-  const [providerSelector, setProviderSelector] = useState<string>(DEFAULT_MODEL_KEY);
+  const [providerSelector, setProviderSelectorState] = useState<string>(DEFAULT_MODEL_KEY);
+  const setProviderSelector = (v: string) => {
+    setProviderSelectorState(v);
+    if (typeof window !== "undefined") {
+      try { localStorage.setItem(MODEL_STORAGE_KEY, v); } catch { /* ignore */ }
+    }
+  };
+  // Restore persisted model on mount
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const stored = localStorage.getItem(MODEL_STORAGE_KEY);
+      if (stored) setProviderSelectorState(stored);
+    } catch { /* ignore */ }
+  }, []);
   const [personalSkillId, setPersonalSkillId] = useState<string>("__none__");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const baseRef = useRef("");
@@ -374,35 +390,64 @@ function RunPage() {
           </div>
 
           <div className="flex items-center gap-1.5">
-            <Select value={providerSelector} onValueChange={setProviderSelector}>
-              <SelectTrigger
-                className="h-8 w-auto min-w-[160px] gap-2 rounded-full border border-border bg-muted/40 px-3 text-xs font-medium shadow-none hover:bg-muted focus:ring-1 focus:ring-primary/40 data-[state=open]:border-primary/50 data-[state=open]:bg-muted"
-                aria-label={lang === "th" ? "เลือกโมเดล" : "Select model"}
-              >
-                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)]" aria-hidden />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent align="end">
-                <SelectItem value={DEFAULT_MODEL_KEY}>{lang === "th" ? "ค่าเริ่มต้น (Gemini)" : "Default (Gemini)"}</SelectItem>
-                {models.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {(() => {
+              const currentModel =
+                providerSelector === DEFAULT_MODEL_KEY
+                  ? (lang === "th" ? "ค่าเริ่มต้น (Gemini)" : "Default (Gemini)")
+                  : (models.find((m) => m.id === providerSelector)?.name ?? (lang === "th" ? "โมเดล" : "Model"));
+              return (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex">
+                      <Select value={providerSelector} onValueChange={setProviderSelector}>
+                        <SelectTrigger
+                          className="h-8 w-auto min-w-[160px] max-w-[240px] gap-2 rounded-full border border-border bg-muted/40 px-3 text-xs font-medium shadow-none hover:bg-muted focus:ring-1 focus:ring-primary/40 data-[state=open]:border-primary/50 data-[state=open]:bg-muted"
+                          aria-label={lang === "th" ? "เลือกโมเดล AI" : "Select AI model"}
+                        >
+                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)]" aria-hidden />
+                          <span className="truncate">{currentModel}</span>
+                          <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" aria-hidden />
+                        </SelectTrigger>
+                        <SelectContent align="end">
+                          <SelectItem value={DEFAULT_MODEL_KEY}>{lang === "th" ? "ค่าเริ่มต้น (Gemini)" : "Default (Gemini)"}</SelectItem>
+                          {models.map((m) => (
+                            <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    {lang === "th" ? `กำลังใช้: ${currentModel} · พร้อมใช้งาน` : `In use: ${currentModel} · Ready`}
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })()}
             <VoiceInputButton onTranscript={onVoice} />
-            <Button
-              onClick={onRun}
-              disabled={loading || ocrLoading || (!prompt.trim() && attachments.length === 0)}
-              size="icon"
-              className="h-9 w-9 rounded-full"
-              aria-label={t("run")}
-            >
-              {ocrLoading || loading ? (
-                <span className="h-3 w-3 animate-pulse rounded-sm bg-primary-foreground" />
-              ) : (
-                <ArrowUp className="h-4 w-4" />
-              )}
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  onClick={onRun}
+                  disabled={loading || ocrLoading || (!prompt.trim() && attachments.length === 0)}
+                  size="icon"
+                  className="h-9 w-9 rounded-full"
+                  aria-label={t("run")}
+                >
+                  {ocrLoading || loading ? (
+                    <span className="h-3 w-3 animate-pulse rounded-sm bg-primary-foreground" />
+                  ) : (
+                    <ArrowUp className="h-4 w-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                {ocrLoading
+                  ? (lang === "th" ? "กำลังถอดข้อความ (OCR)…" : "Running OCR…")
+                  : loading
+                    ? (lang === "th" ? "กำลังประมวลผล…" : "Processing…")
+                    : (lang === "th" ? "ส่งงาน (Enter)" : "Send (Enter)")}
+              </TooltipContent>
+            </Tooltip>
           </div>
         </div>
       </div>

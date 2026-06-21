@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Search, LogOut, User as UserIcon, Keyboard } from "lucide-react";
+import { Search, LogOut, User as UserIcon, Keyboard, Sun, Moon } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./app-sidebar";
 import { Button } from "@/components/ui/button";
@@ -7,14 +7,17 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { CommandPalette } from "./command-palette";
 import { KeyboardShortcuts } from "./keyboard-shortcuts";
 import { useI18n } from "@/lib/i18n";
+import { useTheme } from "@/lib/theme";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "@tanstack/react-router";
 
 export function AppShell({ children, userEmail }: { children: ReactNode; userEmail?: string | null }) {
   const { t, lang, setLang } = useI18n();
+  const { theme, toggle: toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   const signOut = async () => {
@@ -24,6 +27,7 @@ export function AppShell({ children, userEmail }: { children: ReactNode; userEma
 
   return (
     <SidebarProvider>
+      <TooltipProvider delayDuration={200}>
       <div className="flex min-h-screen w-full bg-background">
         <AppSidebar />
         <div className="flex flex-1 flex-col">
@@ -40,23 +44,45 @@ export function AppShell({ children, userEmail }: { children: ReactNode; userEma
               </kbd>
             </button>
             <div className="ml-auto flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                title={lang === "th" ? "คีย์ลัด (?)" : "Keyboard shortcuts (?)"}
-                onClick={() => window.dispatchEvent(new CustomEvent("open-shortcuts"))}
-              >
-                <Keyboard className="h-4 w-4" />
-              </Button>
-              <div className="flex items-center rounded-md border border-border p-0.5 text-xs">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={theme === "dark" ? (lang === "th" ? "สลับเป็นโหมดสว่าง" : "Switch to light mode") : (lang === "th" ? "สลับเป็นโหมดมืด" : "Switch to dark mode")}
+                    onClick={toggleTheme}
+                  >
+                    {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {theme === "dark" ? (lang === "th" ? "โหมดสว่าง" : "Light mode") : (lang === "th" ? "โหมดมืด" : "Dark mode")}
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={lang === "th" ? "คีย์ลัด" : "Keyboard shortcuts"}
+                    onClick={() => window.dispatchEvent(new CustomEvent("open-shortcuts"))}
+                  >
+                    <Keyboard className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{lang === "th" ? "คีย์ลัด (?)" : "Keyboard shortcuts (?)"}</TooltipContent>
+              </Tooltip>
+              <div className="flex items-center rounded-md border border-border p-0.5 text-xs" role="group" aria-label={lang === "th" ? "เลือกภาษา" : "Language"}>
                 <button
                   onClick={() => setLang("th")}
+                  aria-pressed={lang === "th"}
                   className={`rounded px-2 py-1 transition-colors ${lang === "th" ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`}
                 >
                   TH
                 </button>
                 <button
                   onClick={() => setLang("en")}
+                  aria-pressed={lang === "en"}
                   className={`rounded px-2 py-1 transition-colors ${lang === "en" ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`}
                 >
                   EN
@@ -84,6 +110,7 @@ export function AppShell({ children, userEmail }: { children: ReactNode; userEma
           <main className="flex-1">{children}</main>
         </div>
       </div>
+      </TooltipProvider>
       <CommandPalette />
       <KeyboardShortcuts />
     </SidebarProvider>
