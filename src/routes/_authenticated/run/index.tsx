@@ -13,7 +13,8 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger,
   DropdownMenuSubContent, DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
-import { Copy, Paperclip, X, FileText, Image as ImageIcon, FileType2, AlertTriangle, UserCog, Plus, ArrowUp } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Copy, Paperclip, X, FileText, Image as ImageIcon, FileType2, AlertTriangle, UserCog, Plus, ArrowUp, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { VoiceInputButton } from "@/components/voice-input-button";
 import logo from "@/assets/rathcowork-icon.png.asset.json";
