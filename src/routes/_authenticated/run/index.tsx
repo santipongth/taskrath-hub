@@ -390,35 +390,62 @@ function RunPage() {
           </div>
 
           <div className="flex items-center gap-1.5">
-            <Select value={providerSelector} onValueChange={setProviderSelector}>
-              <SelectTrigger
-                className="h-8 w-auto min-w-[160px] gap-2 rounded-full border border-border bg-muted/40 px-3 text-xs font-medium shadow-none hover:bg-muted focus:ring-1 focus:ring-primary/40 data-[state=open]:border-primary/50 data-[state=open]:bg-muted"
-                aria-label={lang === "th" ? "เลือกโมเดล" : "Select model"}
-              >
-                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)]" aria-hidden />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent align="end">
-                <SelectItem value={DEFAULT_MODEL_KEY}>{lang === "th" ? "ค่าเริ่มต้น (Gemini)" : "Default (Gemini)"}</SelectItem>
-                {models.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {(() => {
+              const currentModel =
+                providerSelector === DEFAULT_MODEL_KEY
+                  ? (lang === "th" ? "ค่าเริ่มต้น (Gemini)" : "Default (Gemini)")
+                  : (models.find((m) => m.id === providerSelector)?.name ?? (lang === "th" ? "โมเดล" : "Model"));
+              return (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Select value={providerSelector} onValueChange={setProviderSelector}>
+                      <SelectTrigger
+                        className="h-8 w-auto min-w-[160px] max-w-[240px] gap-2 rounded-full border border-border bg-muted/40 px-3 text-xs font-medium shadow-none hover:bg-muted focus:ring-1 focus:ring-primary/40 data-[state=open]:border-primary/50 data-[state=open]:bg-muted"
+                        aria-label={lang === "th" ? "เลือกโมเดล AI" : "Select AI model"}
+                      >
+                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)]" aria-hidden />
+                        <span className="truncate">{currentModel}</span>
+                        <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" aria-hidden />
+                      </SelectTrigger>
+                      <SelectContent align="end">
+                        <SelectItem value={DEFAULT_MODEL_KEY}>{lang === "th" ? "ค่าเริ่มต้น (Gemini)" : "Default (Gemini)"}</SelectItem>
+                        {models.map((m) => (
+                          <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    {lang === "th" ? `กำลังใช้: ${currentModel} · พร้อมใช้งาน` : `In use: ${currentModel} · Ready`}
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })()}
             <VoiceInputButton onTranscript={onVoice} />
-            <Button
-              onClick={onRun}
-              disabled={loading || ocrLoading || (!prompt.trim() && attachments.length === 0)}
-              size="icon"
-              className="h-9 w-9 rounded-full"
-              aria-label={t("run")}
-            >
-              {ocrLoading || loading ? (
-                <span className="h-3 w-3 animate-pulse rounded-sm bg-primary-foreground" />
-              ) : (
-                <ArrowUp className="h-4 w-4" />
-              )}
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  onClick={onRun}
+                  disabled={loading || ocrLoading || (!prompt.trim() && attachments.length === 0)}
+                  size="icon"
+                  className="h-9 w-9 rounded-full"
+                  aria-label={t("run")}
+                >
+                  {ocrLoading || loading ? (
+                    <span className="h-3 w-3 animate-pulse rounded-sm bg-primary-foreground" />
+                  ) : (
+                    <ArrowUp className="h-4 w-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                {ocrLoading
+                  ? (lang === "th" ? "กำลังถอดข้อความ (OCR)…" : "Running OCR…")
+                  : loading
+                    ? (lang === "th" ? "กำลังประมวลผล…" : "Processing…")
+                    : (lang === "th" ? "ส่งงาน (Enter)" : "Send (Enter)")}
+              </TooltipContent>
+            </Tooltip>
           </div>
         </div>
       </div>
