@@ -48,10 +48,10 @@ function Dashboard() {
     [favs],
   );
 
-  const name = email?.split("@")[0] ?? (lang === "th" ? "ผู้ใช้งาน" : "there");
+  const name = email?.split("@")[0] ?? t("defaultUser");
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-8">
+    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
       <div className="mb-8">
         <p className="text-xs uppercase tracking-wide text-muted-foreground">{t("appName")}</p>
         <h1 className="mt-1 text-2xl font-semibold text-foreground">
@@ -69,7 +69,7 @@ function Dashboard() {
         <section className="mt-10">
           <div className="mb-4 flex items-center gap-2">
             <Star className="h-4 w-4 text-amber-500" fill="currentColor" />
-            <h2 className="text-sm font-semibold text-foreground">{lang === "th" ? "ปักหมุดไว้" : "Pinned"}</h2>
+            <h2 className="text-sm font-semibold text-foreground">{t("pinned")}</h2>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {pinnedTemplates.map((tpl) => <TemplateCard key={tpl.id} template={tpl} pinned />)}
@@ -78,8 +78,8 @@ function Dashboard() {
       )}
 
       <section className="mt-10">
-        <div className="mb-4 flex items-end justify-between">
-          <div>
+        <div className="mb-4 flex items-end justify-between gap-3">
+          <div className="min-w-0">
             <h2 className="text-sm font-semibold text-foreground">{t("quickActions")}</h2>
             <p className="text-xs text-muted-foreground">{t("quickActionsDesc")}</p>
           </div>
