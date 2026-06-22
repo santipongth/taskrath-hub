@@ -33,7 +33,7 @@ function useGreeting(t: (k: "greetingMorning" | "greetingAfternoon" | "greetingE
 }
 
 function Dashboard() {
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const greetingText = useGreeting(t);
 
   const { email } = Route.useRouteContext();
