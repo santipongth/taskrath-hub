@@ -76,6 +76,25 @@ export const messages = {
   // History
   historyTitle: { th: "ประวัติการใช้งาน", en: "History" },
   historyEmpty: { th: "ยังไม่มีประวัติงาน", en: "No past runs yet" },
+  historyDesc: { th: "งานทั้งหมดที่คุณสั่งให้ AI ทำ", en: "All your past AI runs" },
+  historySearchPlaceholder: { th: "ค้นหาในหัวข้อ/เทมเพลต…", en: "Search by title or template…" },
+  filterTemplate: { th: "เทมเพลต", en: "Template" },
+  filterAllTemplates: { th: "ทุกเทมเพลต", en: "All templates" },
+  filterStatus: { th: "สถานะ", en: "Status" },
+  filterAllStatuses: { th: "ทุกสถานะ", en: "All statuses" },
+  statusCompleted: { th: "เสร็จสิ้น", en: "Completed" },
+  statusFailed: { th: "ล้มเหลว", en: "Failed" },
+  clear: { th: "ล้าง", en: "Clear" },
+  colTitle: { th: "หัวข้อ", en: "Title" },
+  colFiles: { th: "ไฟล์แนบ", en: "Files" },
+  colWhen: { th: "เวลา", en: "When" },
+  historyNoMatch: { th: "ไม่พบรายการที่ตรงกับเงื่อนไข", en: "No runs match your filters" },
+  freeformRun: { th: "สั่งงานอิสระ", en: "Freeform" },
+  pinned: { th: "ปักหมุดไว้", en: "Pinned" },
+  defaultUser: { th: "ผู้ใช้งาน", en: "there" },
+  adminGroupLabel: { th: "ผู้ดูแลระบบ", en: "Admin" },
+
+
 
 
   // Governance
