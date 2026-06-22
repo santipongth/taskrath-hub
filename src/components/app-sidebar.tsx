@@ -94,7 +94,7 @@ export function AppSidebar() {
         {isAdmin && (
           <SidebarGroup>
             {!collapsed && (
-              <SidebarGroupLabel>{lang === "th" ? "ผู้ดูแลระบบ" : "Admin"}</SidebarGroupLabel>
+              <SidebarGroupLabel>{t("adminGroupLabel")}</SidebarGroupLabel>
             )}
             <SidebarGroupContent>
               <SidebarMenu>
