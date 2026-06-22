@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   LayoutDashboard, Sparkles, LibraryBig, History, Bot, Plug,
   ShieldCheck, Settings, BarChart3, PieChart, Building2, Bell, BookText, MessageSquare,
-  LayoutTemplate, Telescope, FolderKanban, ListChecks,
+  LayoutTemplate, Telescope, FolderKanban,
 } from "lucide-react";
 
 import {
