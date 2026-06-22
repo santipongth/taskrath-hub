@@ -64,28 +64,26 @@ function HistoryPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-8">
+    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
       <h1 className="text-xl font-semibold text-foreground">{t("historyTitle")}</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {lang === "th" ? "งานทั้งหมดที่คุณสั่งให้ AI ทำ" : "All your past AI runs"}
-      </p>
+      <p className="mt-1 text-sm text-muted-foreground">{t("historyDesc")}</p>
 
-      <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
+      <div className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] sm:items-center">
+        <div className="relative min-w-0">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder={lang === "th" ? "ค้นหาในหัวข้อ/เทมเพลต…" : "Search by title or template…"}
+            placeholder={t("historySearchPlaceholder")}
             className="h-9 pl-9"
           />
         </div>
         <Select value={tplFilter} onValueChange={setTplFilter}>
           <SelectTrigger className="h-9 w-full sm:w-52">
-            <SelectValue placeholder={lang === "th" ? "เทมเพลต" : "Template"} />
+            <SelectValue placeholder={t("filterTemplate")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">{lang === "th" ? "ทุกเทมเพลต" : "All templates"}</SelectItem>
+            <SelectItem value="all">{t("filterAllTemplates")}</SelectItem>
             {TEMPLATES.map((tpl) => (
               <SelectItem key={tpl.id} value={tpl.id}>{lang === "th" ? tpl.titleTh : tpl.titleEn}</SelectItem>
             ))}
@@ -93,53 +91,52 @@ function HistoryPage() {
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="h-9 w-full sm:w-40">
-            <SelectValue placeholder={lang === "th" ? "สถานะ" : "Status"} />
+            <SelectValue placeholder={t("filterStatus")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">{lang === "th" ? "ทุกสถานะ" : "All statuses"}</SelectItem>
-            <SelectItem value="completed">{lang === "th" ? "เสร็จสิ้น" : "Completed"}</SelectItem>
-            <SelectItem value="failed">{lang === "th" ? "ล้มเหลว" : "Failed"}</SelectItem>
+            <SelectItem value="all">{t("filterAllStatuses")}</SelectItem>
+            <SelectItem value="completed">{t("statusCompleted")}</SelectItem>
+            <SelectItem value="failed">{t("statusFailed")}</SelectItem>
           </SelectContent>
         </Select>
-        {hasActiveFilter && (
+        {hasActiveFilter ? (
           <Button
             variant="ghost"
             size="sm"
             onClick={() => { setQ(""); setTplFilter("all"); setStatusFilter("all"); }}
           >
             <X className="mr-1 h-3.5 w-3.5" />
-            {lang === "th" ? "ล้าง" : "Clear"}
+            {t("clear")}
           </Button>
-        )}
+        ) : <div className="hidden sm:block" />}
       </div>
 
-      <div className="mt-3 overflow-hidden rounded-lg border border-border">
+      <div className="mt-4 overflow-hidden rounded-lg border border-border bg-card">
         {isLoading ? (
           <div className="space-y-2 p-4">
             {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
           </div>
         ) : !filtered.length ? (
           <p className="p-12 text-center text-sm text-muted-foreground">
-            {hasActiveFilter
-              ? (lang === "th" ? "ไม่พบรายการที่ตรงกับเงื่อนไข" : "No runs match your filters")
-              : t("historyEmpty")}
+            {hasActiveFilter ? t("historyNoMatch") : t("historyEmpty")}
           </p>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="border-b border-border bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
-                <th className="px-4 py-3 text-left font-medium">{lang === "th" ? "เทมเพลต" : "Template"}</th>
-                <th className="px-4 py-3 text-left font-medium">{lang === "th" ? "หัวข้อ" : "Title"}</th>
-                <th className="px-4 py-3 text-left font-medium">{lang === "th" ? "ไฟล์แนบ" : "Files"}</th>
-                <th className="px-4 py-3 text-left font-medium">{lang === "th" ? "สถานะ" : "Status"}</th>
-                <th className="px-4 py-3 text-left font-medium">{lang === "th" ? "เวลา" : "When"}</th>
+                <th className="px-4 py-3 text-left font-medium">{t("filterTemplate")}</th>
+                <th className="px-4 py-3 text-left font-medium">{t("colTitle")}</th>
+                <th className="px-4 py-3 text-left font-medium">{t("colFiles")}</th>
+                <th className="px-4 py-3 text-left font-medium">{t("filterStatus")}</th>
+                <th className="px-4 py-3 text-left font-medium">{t("colWhen")}</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody>
               {filtered.map((r) => {
                 const tpl = r.template_id ? TEMPLATES_BY_ID[r.template_id] : null;
-                const title = tpl ? (lang === "th" ? tpl.titleTh : tpl.titleEn) : (lang === "th" ? "สั่งงานอิสระ" : "Freeform");
+                const title = tpl ? (lang === "th" ? tpl.titleTh : tpl.titleEn) : t("freeformRun");
                 const atts = (((r as { input?: { attachments?: Array<{ kind: string }> } }).input?.attachments) ?? []) as Array<{ kind: string }>;
                 return (
                   <tr key={r.id} className="border-b border-border last:border-0 hover:bg-muted/30">
@@ -182,6 +179,7 @@ function HistoryPage() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

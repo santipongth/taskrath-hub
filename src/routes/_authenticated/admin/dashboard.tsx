@@ -59,23 +59,23 @@ function ExecutiveDashboard() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-8">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">
+    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+      <div className="mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 sm:flex sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="truncate text-xl font-semibold text-foreground">
             {L("แดชบอร์ดผู้บริหาร", "Executive Dashboard")}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {L("ภาพรวมการใช้งาน AI ทั้งหน่วยงาน", "Organization-wide AI usage overview")}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <div className="flex rounded-md border border-border bg-card text-xs">
             {[7, 30, 90].map((d) => (
               <button
                 key={d}
                 onClick={() => setDays(d)}
-                className={`px-3 py-1.5 ${days === d ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                className={`px-3 py-1.5 transition-colors ${days === d ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
               >
                 {d}{L(" วัน", "d")}
               </button>
@@ -86,6 +86,7 @@ function ExecutiveDashboard() {
           </Button>
         </div>
       </div>
+
 
       {isLoading ? (
         <div className="grid gap-3 sm:grid-cols-4">

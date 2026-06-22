@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   LayoutDashboard, Sparkles, LibraryBig, History, Bot, Plug,
   ShieldCheck, Settings, BarChart3, PieChart, Building2, Bell, BookText, MessageSquare,
-  LayoutTemplate, Telescope, FolderKanban,
+  LayoutTemplate, Telescope, FolderKanban, ListChecks,
 } from "lucide-react";
 
 import {
@@ -23,6 +23,7 @@ import { checkIsAdmin } from "@/lib/ai.functions";
 const ITEMS: { to: string; key: MessageKey; icon: typeof LayoutDashboard; labelTh?: string; labelEn?: string }[] = [
   { to: "/", key: "nav_dashboard", icon: LayoutDashboard },
   { to: "/run", key: "nav_run", icon: Sparkles },
+  { to: "/tasks", key: "nav_tasks", icon: ListChecks },
   { to: "/chat", key: "nav_chat", icon: MessageSquare },
   { to: "/research", key: "nav_research", icon: Telescope },
   { to: "/projects", key: "nav_run", icon: FolderKanban, labelTh: "Notebooks", labelEn: "Notebooks" },
@@ -30,6 +31,7 @@ const ITEMS: { to: string; key: MessageKey; icon: typeof LayoutDashboard; labelT
   { to: "/history", key: "nav_history", icon: History },
   { to: "/settings", key: "nav_settings", icon: Settings },
 ];
+
 
 export function AppSidebar() {
   const { state } = useSidebar();
@@ -92,7 +94,7 @@ export function AppSidebar() {
         {isAdmin && (
           <SidebarGroup>
             {!collapsed && (
-              <SidebarGroupLabel>{lang === "th" ? "ผู้ดูแลระบบ" : "Admin"}</SidebarGroupLabel>
+              <SidebarGroupLabel>{t("adminGroupLabel")}</SidebarGroupLabel>
             )}
             <SidebarGroupContent>
               <SidebarMenu>
