@@ -216,7 +216,7 @@ export const synthesizeResearchReport = createServerFn({ method: "POST" })
         prompt_tokens: ai.usage.promptTokens,
         completion_tokens: ai.usage.completionTokens,
         cost_usd: ai.usage.costUsd,
-        metadata: { kind: "deep_research", sources, mode: data.mode },
+        metadata: { kind: "deep_research", sources, mode: data.mode, depth: data.depth },
       })
       .select("id")
       .single();
