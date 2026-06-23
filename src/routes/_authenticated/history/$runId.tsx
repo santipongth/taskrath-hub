@@ -106,6 +106,36 @@ function RunDetail() {
         {new Date(run.created_at).toLocaleString(lang === "th" ? "th-TH" : "en-US")}
       </p>
 
+      {(run.status === "running" || run.status === "failed") && (() => {
+        const step = metaObj.step as string | undefined;
+        const labelTh = (metaObj.step_label_th as string | undefined) ?? "";
+        const labelEn = (metaObj.step_label_en as string | undefined) ?? "";
+        const prog = typeof metaObj.step_progress === "number" ? (metaObj.step_progress as number) : (step === "synthesize" ? 70 : step === "gather" ? 25 : 0);
+        const isError = run.status === "failed" || step === "error";
+        return (
+          <div className={`mt-4 rounded-lg border p-4 ${isError ? "border-destructive/40 bg-destructive/5" : "border-primary/30 bg-primary/5"}`}>
+            <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
+              {isError
+                ? <span className="text-destructive">{lang === "th" ? "เกิดข้อผิดพลาด" : "Error"}</span>
+                : <><Loader2 className="h-3.5 w-3.5 animate-spin text-primary" /><span>{lang === "th" ? "กำลังประมวลผล" : "Processing"}</span></>}
+            </div>
+            <div className="mb-2 flex items-center gap-2 text-xs">
+              <Badge variant={step === "gather" ? "default" : "outline"} className="text-[10px]">
+                1. {lang === "th" ? "เตรียมแหล่งข้อมูล" : "Prepare sources"}
+              </Badge>
+              <span className="text-muted-foreground">→</span>
+              <Badge variant={step === "synthesize" ? "default" : "outline"} className="text-[10px]">
+                2. {lang === "th" ? "สังเคราะห์รายงาน" : "Synthesize report"}
+              </Badge>
+            </div>
+            {!isError && <Progress value={prog} className="h-1.5" />}
+            <p className={`mt-2 text-xs ${isError ? "text-destructive" : "text-muted-foreground"}`}>
+              {(lang === "th" ? labelTh : labelEn) || (lang === "th" ? "กำลังทำงาน…" : "Working…")}
+            </p>
+          </div>
+        );
+      })()}
+
       {(metaDepth || metaKind === "deep_research") && (
         <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-4 py-3 text-xs">
           <span className="font-semibold text-foreground">
