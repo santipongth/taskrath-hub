@@ -87,7 +87,7 @@ const docSchema = z.object({
   markdown: z.string().max(20_000),
 });
 
-/** Step 1: gather sources (search the web OR scrape provided URLs). */
+/** Step 1: create the run row, gather sources, and stream per-step progress via realtime. */
 export const prepareResearchSources = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
@@ -102,42 +102,109 @@ export const prepareResearchSources = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
     const guard = checkPromptInjection(data.question);
     if (guard.decision === "block") throw new Error("คำถามมีรูปแบบที่ไม่อนุญาต (prompt injection)");
 
     const effectiveLimit = data.limit ?? (data.depth === "deep" ? 10 : 4);
     const urls = (data.urls ?? []).filter(Boolean);
     const useProvided = urls.length > 0 || data.hasAttachments;
+    const mode = useProvided ? ("provided" as const) : ("search" as const);
+
+    // Create run row up front so the UI can subscribe to realtime progress.
+    const { data: runRow, error: insertErr } = await supabase
+      .from("ai_runs")
+      .insert({
+        user_id: userId,
+        template_id: "deep-research",
+        title: data.question.slice(0, 120),
+        input: { question: data.question, lang: data.lang, urls, hasAttachments: data.hasAttachments },
+        status: "running",
+        metadata: {
+          kind: "deep_research",
+          step: "gather",
+          step_label_th: useProvided
+            ? `กำลังดึงเนื้อหาจาก ${urls.length} ลิงก์…`
+            : `กำลังค้นเว็บ (สูงสุด ${effectiveLimit} แหล่ง)…`,
+          step_label_en: useProvided
+            ? `Fetching ${urls.length} link(s)…`
+            : `Searching the web (up to ${effectiveLimit} sources)…`,
+          step_progress: 15,
+          depth: data.depth,
+          limit: effectiveLimit,
+          mode,
+        },
+      })
+      .select("id")
+      .single();
+    if (insertErr) throw new Error(insertErr.message);
+    const runId = runRow.id as string;
+
     let docs: ResearchDoc[] = [];
     const failed: string[] = [];
 
-    if (urls.length > 0) {
-      const results = await Promise.allSettled(urls.map((u) => firecrawlScrape(u)));
-      results.forEach((r, i) => {
-        if (r.status === "fulfilled") docs.push(r.value);
-        else failed.push(urls[i]);
-      });
-    }
+    try {
+      if (urls.length > 0) {
+        const results = await Promise.allSettled(urls.map((u) => firecrawlScrape(u)));
+        results.forEach((r, i) => {
+          if (r.status === "fulfilled") docs.push(r.value);
+          else failed.push(urls[i]);
+        });
+      }
 
-    if (!useProvided) {
-      docs = await firecrawlSearch(data.question, effectiveLimit, data.lang);
-      if (docs.length === 0) throw new Error("ไม่พบแหล่งข้อมูล กรุณาลองคำถามใหม่");
-    } else if (docs.length === 0 && !data.hasAttachments) {
-      throw new Error("ดึงข้อมูลจาก URL ที่ระบุไม่สำเร็จ");
-    }
+      if (!useProvided) {
+        docs = await firecrawlSearch(data.question, effectiveLimit, data.lang);
+        if (docs.length === 0) throw new Error("ไม่พบแหล่งข้อมูล กรุณาลองคำถามใหม่");
+      } else if (docs.length === 0 && !data.hasAttachments) {
+        throw new Error("ดึงข้อมูลจาก URL ที่ระบุไม่สำเร็จ");
+      }
 
-    const sources: ResearchSource[] = docs.map((d, i) => ({
-      n: i + 1, title: d.title, url: d.url, snippet: d.snippet,
-    }));
-    return {
-      sources,
-      docs,
-      failed,
-      mode: useProvided ? ("provided" as const) : ("search" as const),
-      depth: data.depth,
-      limit: effectiveLimit,
-    };
+      const sources: ResearchSource[] = docs.map((d, i) => ({
+        n: i + 1, title: d.title, url: d.url, snippet: d.snippet,
+      }));
+
+      // Gather done → advance to synthesize step (realtime UPDATE).
+      await supabase
+        .from("ai_runs")
+        .update({
+          metadata: {
+            kind: "deep_research",
+            step: "synthesize",
+            step_label_th: `กำลังสรุปจาก ${sources.length} แหล่ง…`,
+            step_label_en: `Synthesizing from ${sources.length} sources…`,
+            step_progress: 55,
+            depth: data.depth,
+            limit: effectiveLimit,
+            mode,
+            sources,
+            failed,
+          },
+        })
+        .eq("id", runId);
+
+      return { runId, sources, docs, failed, mode, depth: data.depth, limit: effectiveLimit };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Gather failed";
+      await supabase
+        .from("ai_runs")
+        .update({
+          status: "failed",
+          metadata: {
+            kind: "deep_research",
+            step: "error",
+            step_label_th: `ดึงแหล่งข้อมูลล้มเหลว: ${msg}`,
+            step_label_en: `Gather failed: ${msg}`,
+            step_progress: 0,
+            depth: data.depth,
+            limit: effectiveLimit,
+            mode,
+            failed,
+          },
+        })
+        .eq("id", runId);
+      throw err;
+    }
   });
 
 /** Step 2: synthesize report from prepared docs (+ optional file attachments). */
