@@ -42,6 +42,21 @@ function RunDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data?.run?.id, serverOutput]);
 
+  // Realtime: stream backend step updates while the run is in progress.
+  const runStatus = data?.run?.status;
+  useEffect(() => {
+    if (runStatus !== "running") return;
+    const channel = supabase
+      .channel(`ai_run_detail:${runId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "ai_runs", filter: `id=eq.${runId}` },
+        () => { qc.invalidateQueries({ queryKey: ["run", runId] }); },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [runId, runStatus, qc]);
+
   if (isLoading) {
     return (
       <div className="mx-auto max-w-4xl px-6 py-8 space-y-4">
