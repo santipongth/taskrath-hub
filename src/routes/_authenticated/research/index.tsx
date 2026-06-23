@@ -336,11 +336,18 @@ function ResearchPage() {
           </div>
           <Button onClick={onRun} disabled={loading || question.trim().length < 5}>
             {loading
-              ? (lang === "th" ? "กำลังวิจัย…" : "Researching…")
+              ? (depth === "deep"
+                  ? (lang === "th" ? "กำลังวิจัยเชิงลึก…" : "Deep researching…")
+                  : (lang === "th" ? "กำลังวิจัย…" : "Researching…"))
               : hasProvided
-                ? (lang === "th" ? "วิจัยจากแหล่งที่ระบุ" : "Research from sources")
-                : (lang === "th" ? "ค้นเว็บและวิจัย" : "Search & research")}
+                ? (lang === "th"
+                    ? (depth === "deep" ? "วิจัยเชิงลึกจากแหล่งที่ระบุ" : "วิจัยจากแหล่งที่ระบุ")
+                    : (depth === "deep" ? "Deep research from sources" : "Research from sources"))
+                : (lang === "th"
+                    ? (depth === "deep" ? "ค้นเว็บและวิจัยเชิงลึก" : "ค้นเว็บและวิจัย")
+                    : (depth === "deep" ? "Search & deep research" : "Search & research"))}
           </Button>
+
         </div>
       </div>
 
