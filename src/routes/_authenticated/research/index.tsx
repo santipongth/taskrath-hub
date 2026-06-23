@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import {
   prepareResearchSources,
   synthesizeResearchReport,
@@ -77,8 +78,10 @@ function ResearchPage() {
   const [sources, setSources] = useState<ResearchSource[]>([]);
   const [stage, setStage] = useState<Stage>("idle");
   const [stageDetail, setStageDetail] = useState<string>("");
+  const [stageProgress, setStageProgress] = useState<number>(0);
   const [failedUrls, setFailedUrls] = useState<string[]>([]);
   const [elapsedMs, setElapsedMs] = useState(0);
+  const [runId, setRunId] = useState<string | null>(null);
   const startedAtRef = useRef<number>(0);
   const fileRef = useRef<HTMLInputElement>(null);
   const [saveProjectId, setSaveProjectId] = useState<string>("");
@@ -102,7 +105,9 @@ function ResearchPage() {
   const parsedUrls = urlsText.split(/\s+/).map((s) => s.trim()).filter((s) => /^https?:\/\//i.test(s));
   const hasProvided = parsedUrls.length > 0 || attachments.length > 0;
   const loading = stage === "gather" || stage === "synthesize";
-  const progressValue = stage === "idle" ? 0 : stage === "gather" ? 35 : stage === "synthesize" ? 75 : 100;
+  const progressValue = stageProgress > 0
+    ? stageProgress
+    : stage === "idle" ? 0 : stage === "gather" ? 35 : stage === "synthesize" ? 75 : 100;
 
   useEffect(() => {
     if (!loading) return;
@@ -110,6 +115,32 @@ function ResearchPage() {
     const id = window.setInterval(() => setElapsedMs(Date.now() - startedAtRef.current), 250);
     return () => window.clearInterval(id);
   }, [loading]);
+
+  // Realtime: subscribe to the active run row and reflect backend step updates.
+  useEffect(() => {
+    if (!runId) return;
+    const channel = supabase
+      .channel(`ai_run:${runId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "ai_runs", filter: `id=eq.${runId}` },
+        (payload) => {
+          const row = payload.new as { status?: string; metadata?: Record<string, unknown> | null };
+          const meta = (row.metadata ?? {}) as Record<string, unknown>;
+          const step = meta.step as Stage | undefined;
+          const labelTh = (meta.step_label_th as string | undefined) ?? "";
+          const labelEn = (meta.step_label_en as string | undefined) ?? "";
+          const prog = typeof meta.step_progress === "number" ? (meta.step_progress as number) : 0;
+          if (step === "gather" || step === "synthesize") setStage(step);
+          else if (step === "done" || row.status === "completed") setStage("done");
+          else if (step === "error" || row.status === "failed") setStage("error");
+          setStageDetail(lang === "th" ? labelTh : labelEn);
+          if (prog > 0) setStageProgress(prog);
+        },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [runId, lang]);
 
   const onSaveToProject = async () => {
     if (!saveProjectId) { toast.error(lang === "th" ? "เลือก Notebook ก่อน" : "Select notebook"); return; }
@@ -166,6 +197,7 @@ function ResearchPage() {
       return;
     }
     setReport(""); setSources([]); setFailedUrls([]);
+    setRunId(null); setStageProgress(0);
     startedAtRef.current = Date.now(); setElapsedMs(0);
     setStage("gather");
 
@@ -189,6 +221,7 @@ function ResearchPage() {
           hasAttachments: attachments.length > 0,
         },
       });
+      setRunId(prepared.runId);
       setSources(prepared.sources);
       setFailedUrls(prepared.failed ?? []);
 
@@ -202,6 +235,7 @@ function ResearchPage() {
       const docs = prepared.docs as ResearchDoc[];
       const r = await synthesize({
         data: {
+          runId: prepared.runId,
           question: question.trim(),
           lang,
           docs,
@@ -213,6 +247,7 @@ function ResearchPage() {
       setReport(r.report);
       setSources(r.sources);
       setStage("done");
+      setStageProgress(100);
       setStageDetail("");
       toast.success(
         depth === "deep"

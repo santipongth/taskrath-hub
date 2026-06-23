@@ -5,10 +5,12 @@ import { useState, useEffect } from "react";
 import { getRun } from "@/lib/ai.functions";
 import { TEMPLATES_BY_ID } from "@/lib/templates";
 import { useI18n } from "@/lib/i18n";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Copy, Download, Paperclip } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { ArrowLeft, Copy, Download, Paperclip, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { ExportDialog } from "@/components/export-dialog";
 import { RefineBar } from "@/components/refine-bar";
@@ -39,6 +41,21 @@ function RunDetail() {
     setRevisions(serverRevisions);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data?.run?.id, serverOutput]);
+
+  // Realtime: stream backend step updates while the run is in progress.
+  const runStatus = data?.run?.status;
+  useEffect(() => {
+    if (runStatus !== "running") return;
+    const channel = supabase
+      .channel(`ai_run_detail:${runId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "ai_runs", filter: `id=eq.${runId}` },
+        () => { qc.invalidateQueries({ queryKey: ["run", runId] }); },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [runId, runStatus, qc]);
 
   if (isLoading) {
     return (
@@ -88,6 +105,36 @@ function RunDetail() {
       <p className="mt-1 text-xs text-muted-foreground">
         {new Date(run.created_at).toLocaleString(lang === "th" ? "th-TH" : "en-US")}
       </p>
+
+      {(run.status === "running" || run.status === "failed") && (() => {
+        const step = metaObj.step as string | undefined;
+        const labelTh = (metaObj.step_label_th as string | undefined) ?? "";
+        const labelEn = (metaObj.step_label_en as string | undefined) ?? "";
+        const prog = typeof metaObj.step_progress === "number" ? (metaObj.step_progress as number) : (step === "synthesize" ? 70 : step === "gather" ? 25 : 0);
+        const isError = run.status === "failed" || step === "error";
+        return (
+          <div className={`mt-4 rounded-lg border p-4 ${isError ? "border-destructive/40 bg-destructive/5" : "border-primary/30 bg-primary/5"}`}>
+            <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
+              {isError
+                ? <span className="text-destructive">{lang === "th" ? "เกิดข้อผิดพลาด" : "Error"}</span>
+                : <><Loader2 className="h-3.5 w-3.5 animate-spin text-primary" /><span>{lang === "th" ? "กำลังประมวลผล" : "Processing"}</span></>}
+            </div>
+            <div className="mb-2 flex items-center gap-2 text-xs">
+              <Badge variant={step === "gather" ? "default" : "outline"} className="text-[10px]">
+                1. {lang === "th" ? "เตรียมแหล่งข้อมูล" : "Prepare sources"}
+              </Badge>
+              <span className="text-muted-foreground">→</span>
+              <Badge variant={step === "synthesize" ? "default" : "outline"} className="text-[10px]">
+                2. {lang === "th" ? "สังเคราะห์รายงาน" : "Synthesize report"}
+              </Badge>
+            </div>
+            {!isError && <Progress value={prog} className="h-1.5" />}
+            <p className={`mt-2 text-xs ${isError ? "text-destructive" : "text-muted-foreground"}`}>
+              {(lang === "th" ? labelTh : labelEn) || (lang === "th" ? "กำลังทำงาน…" : "Working…")}
+            </p>
+          </div>
+        );
+      })()}
 
       {(metaDepth || metaKind === "deep_research") && (
         <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-4 py-3 text-xs">
