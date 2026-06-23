@@ -197,6 +197,7 @@ function ResearchPage() {
       return;
     }
     setReport(""); setSources([]); setFailedUrls([]);
+    setRunId(null); setStageProgress(0);
     startedAtRef.current = Date.now(); setElapsedMs(0);
     setStage("gather");
 
@@ -220,6 +221,7 @@ function ResearchPage() {
           hasAttachments: attachments.length > 0,
         },
       });
+      setRunId(prepared.runId);
       setSources(prepared.sources);
       setFailedUrls(prepared.failed ?? []);
 
@@ -233,6 +235,7 @@ function ResearchPage() {
       const docs = prepared.docs as ResearchDoc[];
       const r = await synthesize({
         data: {
+          runId: prepared.runId,
           question: question.trim(),
           lang,
           docs,
@@ -244,6 +247,7 @@ function ResearchPage() {
       setReport(r.report);
       setSources(r.sources);
       setStage("done");
+      setStageProgress(100);
       setStageDetail("");
       toast.success(
         depth === "deep"
