@@ -170,16 +170,20 @@ function ResearchPage() {
     setStage("gather");
 
     try {
+      const depthLabel = depth === "deep"
+        ? (lang === "th" ? "เชิงลึก" : "Deep")
+        : (lang === "th" ? "เร็ว" : "Fast");
       setStageDetail(
         hasProvided
-          ? (lang === "th" ? `กำลังดึงเนื้อหาจาก ${parsedUrls.length} ลิงก์…` : `Fetching ${parsedUrls.length} link(s)…`)
-          : (lang === "th" ? `กำลังค้นเว็บสูงสุด ${limit} แหล่ง…` : `Searching the web for up to ${limit} sources…`),
+          ? (lang === "th" ? `[โหมด${depthLabel}] กำลังดึงเนื้อหาจาก ${parsedUrls.length} ลิงก์…` : `[${depthLabel} mode] Fetching ${parsedUrls.length} link(s)…`)
+          : (lang === "th" ? `[โหมด${depthLabel}] กำลังค้นเว็บสูงสุด ${limit} แหล่ง…` : `[${depthLabel} mode] Searching the web for up to ${limit} sources…`),
       );
 
       const prepared = await prepare({
         data: {
           question: question.trim(),
           limit,
+          depth,
           lang,
           urls: parsedUrls,
           hasAttachments: attachments.length > 0,
@@ -191,8 +195,8 @@ function ResearchPage() {
       setStage("synthesize");
       setStageDetail(
         lang === "th"
-          ? `กำลังสรุปจาก ${prepared.sources.length} แหล่ง${attachments.length ? ` + ${attachments.length} ไฟล์` : ""}…`
-          : `Synthesizing from ${prepared.sources.length} sources${attachments.length ? ` + ${attachments.length} files` : ""}…`,
+          ? `[โหมด${depthLabel}] กำลังสรุปจาก ${prepared.sources.length} แหล่ง${attachments.length ? ` + ${attachments.length} ไฟล์` : ""}…`
+          : `[${depthLabel} mode] Synthesizing from ${prepared.sources.length} sources${attachments.length ? ` + ${attachments.length} files` : ""}…`,
       );
 
       const docs = prepared.docs as ResearchDoc[];
@@ -203,13 +207,18 @@ function ResearchPage() {
           docs,
           attachments: attachments.map((a) => ({ name: a.name, kind: a.kind, data: a.data, mime: a.mime, size: a.size })),
           mode: prepared.mode,
+          depth,
         },
       });
       setReport(r.report);
       setSources(r.sources);
       setStage("done");
       setStageDetail("");
-      toast.success(lang === "th" ? "รายงานพร้อมแล้ว" : "Report ready");
+      toast.success(
+        depth === "deep"
+          ? (lang === "th" ? "รายงานเชิงลึกพร้อมแล้ว" : "Deep report ready")
+          : (lang === "th" ? "รายงานพร้อมแล้ว" : "Report ready"),
+      );
     } catch (e) {
       setStage("error");
       setStageDetail(e instanceof Error ? e.message : "Error");
@@ -327,11 +336,18 @@ function ResearchPage() {
           </div>
           <Button onClick={onRun} disabled={loading || question.trim().length < 5}>
             {loading
-              ? (lang === "th" ? "กำลังวิจัย…" : "Researching…")
+              ? (depth === "deep"
+                  ? (lang === "th" ? "กำลังวิจัยเชิงลึก…" : "Deep researching…")
+                  : (lang === "th" ? "กำลังวิจัย…" : "Researching…"))
               : hasProvided
-                ? (lang === "th" ? "วิจัยจากแหล่งที่ระบุ" : "Research from sources")
-                : (lang === "th" ? "ค้นเว็บและวิจัย" : "Search & research")}
+                ? (lang === "th"
+                    ? (depth === "deep" ? "วิจัยเชิงลึกจากแหล่งที่ระบุ" : "วิจัยจากแหล่งที่ระบุ")
+                    : (depth === "deep" ? "Deep research from sources" : "Research from sources"))
+                : (lang === "th"
+                    ? (depth === "deep" ? "ค้นเว็บและวิจัยเชิงลึก" : "ค้นเว็บและวิจัย")
+                    : (depth === "deep" ? "Search & deep research" : "Search & research"))}
           </Button>
+
         </div>
       </div>
 

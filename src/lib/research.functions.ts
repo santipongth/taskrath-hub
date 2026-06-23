@@ -94,7 +94,8 @@ export const prepareResearchSources = createServerFn({ method: "POST" })
     z
       .object({
         question: z.string().trim().min(5).max(2000),
-        limit: z.number().int().min(3).max(10).optional().default(6),
+        limit: z.number().int().min(3).max(10).optional(),
+        depth: z.enum(["fast", "deep"]).optional().default("fast"),
         lang: z.enum(["th", "en"]).optional().default("th"),
         urls: z.array(z.string().url()).max(8).optional().default([]),
         hasAttachments: z.boolean().optional().default(false),
@@ -105,6 +106,7 @@ export const prepareResearchSources = createServerFn({ method: "POST" })
     const guard = checkPromptInjection(data.question);
     if (guard.decision === "block") throw new Error("คำถามมีรูปแบบที่ไม่อนุญาต (prompt injection)");
 
+    const effectiveLimit = data.limit ?? (data.depth === "deep" ? 10 : 4);
     const urls = (data.urls ?? []).filter(Boolean);
     const useProvided = urls.length > 0 || data.hasAttachments;
     let docs: ResearchDoc[] = [];
@@ -119,7 +121,7 @@ export const prepareResearchSources = createServerFn({ method: "POST" })
     }
 
     if (!useProvided) {
-      docs = await firecrawlSearch(data.question, data.limit, data.lang);
+      docs = await firecrawlSearch(data.question, effectiveLimit, data.lang);
       if (docs.length === 0) throw new Error("ไม่พบแหล่งข้อมูล กรุณาลองคำถามใหม่");
     } else if (docs.length === 0 && !data.hasAttachments) {
       throw new Error("ดึงข้อมูลจาก URL ที่ระบุไม่สำเร็จ");
@@ -128,7 +130,14 @@ export const prepareResearchSources = createServerFn({ method: "POST" })
     const sources: ResearchSource[] = docs.map((d, i) => ({
       n: i + 1, title: d.title, url: d.url, snippet: d.snippet,
     }));
-    return { sources, docs, failed, mode: useProvided ? ("provided" as const) : ("search" as const) };
+    return {
+      sources,
+      docs,
+      failed,
+      mode: useProvided ? ("provided" as const) : ("search" as const),
+      depth: data.depth,
+      limit: effectiveLimit,
+    };
   });
 
 /** Step 2: synthesize report from prepared docs (+ optional file attachments). */
@@ -142,6 +151,7 @@ export const synthesizeResearchReport = createServerFn({ method: "POST" })
         docs: z.array(docSchema).max(10),
         attachments: z.array(attachmentSchema).max(6).optional().default([]),
         mode: z.enum(["search", "provided"]).optional().default("search"),
+        depth: z.enum(["fast", "deep"]).optional().default("fast"),
       })
       .parse(input),
   )
@@ -159,10 +169,20 @@ export const synthesizeResearchReport = createServerFn({ method: "POST" })
       .join("\n\n---\n\n") || (data.lang === "th" ? "(ไม่มีแหล่ง URL — ใช้ไฟล์แนบเป็นหลัก)" : "(no URL sources — use attachments)");
 
     const memBlock = await loadUserMemoryBlock(supabase, userId);
+    const depthDirective =
+      data.depth === "deep"
+        ? (data.lang === "th"
+            ? "\n\nโหมด: เชิงลึก — วิเคราะห์ละเอียด เปรียบเทียบมุมมองจากหลายแหล่ง ระบุข้อขัดแย้ง/ข้อจำกัด และเสนอข้อเสนอแนะเชิงนโยบาย ความยาวประมาณ 800–1200 คำ"
+            : "\n\nMode: Deep — produce a thorough analysis, contrast viewpoints across sources, surface conflicts/limitations, and add policy-style recommendations. Target 800–1200 words.")
+        : (data.lang === "th"
+            ? "\n\nโหมด: เร็ว — สรุปกระชับ เน้นประเด็นสำคัญและข้อค้นพบหลัก ความยาวประมาณ 300–500 คำ"
+            : "\n\nMode: Fast — concise summary focusing on key points and main findings. Target 300–500 words.");
+
     const systemPrompt =
       (data.lang === "th"
         ? "คุณเป็นนักวิเคราะห์ราชการไทย จงเขียนรายงานสรุปจากแหล่งข้อมูลและไฟล์แนบที่ให้มา ใช้ภาษาทางการ จัดหัวข้อชัดเจน อ้างอิงด้วยเลขในวงเล็บ [n] ทุกข้อความที่อ้างจากแหล่ง สำหรับไฟล์แนบให้ระบุ [ไฟล์: ชื่อไฟล์] ห้ามแต่งข้อมูลที่ไม่มีในแหล่ง"
         : "You are a research analyst. Write a clear report from the provided sources and attachments. Cite every factual claim using [n] for URLs or [file: name] for attachments. Do not invent information.") +
+      depthDirective +
       memBlock;
 
     const userPrompt =
@@ -196,7 +216,7 @@ export const synthesizeResearchReport = createServerFn({ method: "POST" })
         prompt_tokens: ai.usage.promptTokens,
         completion_tokens: ai.usage.completionTokens,
         cost_usd: ai.usage.costUsd,
-        metadata: { kind: "deep_research", sources, mode: data.mode },
+        metadata: { kind: "deep_research", sources, mode: data.mode, depth: data.depth },
       })
       .select("id")
       .single();
