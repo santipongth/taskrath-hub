@@ -54,6 +54,11 @@ function RunDetail() {
   const run = data.run;
   const tpl = run.template_id ? TEMPLATES_BY_ID[run.template_id] : null;
   const inputObj = (run.input ?? {}) as Record<string, unknown>;
+  const metaObj = (run.metadata ?? {}) as Record<string, unknown>;
+  const metaDepth = (metaObj.depth as "fast" | "deep" | undefined) ?? (inputObj.depth as "fast" | "deep" | undefined);
+  const metaMode = metaObj.mode as "search" | "provided" | undefined;
+  const metaKind = metaObj.kind as string | undefined;
+  const metaSources = Array.isArray(metaObj.sources) ? (metaObj.sources as Array<{ n: number; title: string; url: string }>) : [];
   const attachments = (Array.isArray((inputObj as { attachments?: unknown }).attachments)
     ? (inputObj as { attachments: Array<{ name: string; kind: string; mime?: string | null; size?: number | null }> }).attachments
     : []) as Array<{ name: string; kind: string; mime?: string | null; size?: number | null }>;
@@ -83,6 +88,33 @@ function RunDetail() {
       <p className="mt-1 text-xs text-muted-foreground">
         {new Date(run.created_at).toLocaleString(lang === "th" ? "th-TH" : "en-US")}
       </p>
+
+      {(metaDepth || metaKind === "deep_research") && (
+        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-4 py-3 text-xs">
+          <span className="font-semibold text-foreground">
+            {lang === "th" ? "วิจัยเชิงลึก" : "Deep Research"}
+          </span>
+          {metaDepth && (
+            <Badge variant={metaDepth === "deep" ? "default" : "secondary"} className="text-[10px]">
+              {metaDepth === "deep"
+                ? (lang === "th" ? "โหมดเชิงลึก (สูงสุด 10 แหล่ง)" : "Deep mode (up to 10)")
+                : (lang === "th" ? "โหมดเร็ว (สูงสุด 4 แหล่ง)" : "Fast mode (up to 4)")}
+            </Badge>
+          )}
+          {metaMode && (
+            <Badge variant="outline" className="text-[10px]">
+              {metaMode === "provided"
+                ? (lang === "th" ? "จากแหล่งที่ระบุ" : "From provided sources")
+                : (lang === "th" ? "ค้นเว็บ" : "Web search")}
+            </Badge>
+          )}
+          {metaSources.length > 0 && (
+            <span className="text-muted-foreground">
+              {lang === "th" ? `ใช้ ${metaSources.length} แหล่ง` : `${metaSources.length} sources used`}
+            </span>
+          )}
+        </div>
+      )}
 
       <div className="mt-6 rounded-lg border border-border bg-card p-5">
         <h2 className="mb-3 text-sm font-semibold">{lang === "th" ? "ข้อมูลที่ป้อน" : "Inputs"}</h2>
