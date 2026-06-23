@@ -39,6 +39,8 @@ export const messages = {
   copied: { th: "คัดลอกแล้ว", en: "Copied" },
   save: { th: "บันทึก", en: "Save" },
   empty: { th: "ยังไม่มีข้อมูล", en: "No data yet" },
+  loadError: { th: "โหลดข้อมูลไม่สำเร็จ", en: "Failed to load data" },
+  retry: { th: "ลองอีกครั้ง", en: "Retry" },
 
   // Dashboard
   greetingMorning: { th: "อรุณสวัสดิ์", en: "Good morning" },

@@ -30,7 +30,7 @@ function HistoryPage() {
   const fetchHistory = useServerFn(listHistory);
   const fetchRun = useServerFn(getRun);
   const fetchAgency = useServerFn(getAgencySettings);
-  const { data, isLoading } = useQuery({ queryKey: ["history"], queryFn: () => fetchHistory() });
+  const { data, isLoading, isError, refetch } = useQuery({ queryKey: ["history"], queryFn: () => fetchHistory() });
   const { data: agency } = useQuery({ queryKey: ["agency"], queryFn: () => fetchAgency() });
 
   const [q, setQ] = useState("");
@@ -115,6 +115,11 @@ function HistoryPage() {
         {isLoading ? (
           <div className="space-y-2 p-4">
             {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+          </div>
+        ) : isError ? (
+          <div className="flex flex-col items-center gap-3 p-12 text-center">
+            <p className="text-sm text-destructive">{t("loadError")}</p>
+            <Button variant="outline" size="sm" onClick={() => refetch()}>{t("retry")}</Button>
           </div>
         ) : !filtered.length ? (
           <p className="p-12 text-center text-sm text-muted-foreground">
