@@ -54,6 +54,11 @@ function RunDetail() {
   const run = data.run;
   const tpl = run.template_id ? TEMPLATES_BY_ID[run.template_id] : null;
   const inputObj = (run.input ?? {}) as Record<string, unknown>;
+  const metaObj = (run.metadata ?? {}) as Record<string, unknown>;
+  const metaDepth = (metaObj.depth as "fast" | "deep" | undefined) ?? (inputObj.depth as "fast" | "deep" | undefined);
+  const metaMode = metaObj.mode as "search" | "provided" | undefined;
+  const metaKind = metaObj.kind as string | undefined;
+  const metaSources = Array.isArray(metaObj.sources) ? (metaObj.sources as Array<{ n: number; title: string; url: string }>) : [];
   const attachments = (Array.isArray((inputObj as { attachments?: unknown }).attachments)
     ? (inputObj as { attachments: Array<{ name: string; kind: string; mime?: string | null; size?: number | null }> }).attachments
     : []) as Array<{ name: string; kind: string; mime?: string | null; size?: number | null }>;
