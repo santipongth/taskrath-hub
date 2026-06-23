@@ -7,7 +7,8 @@ import { listFavorites } from "@/lib/favorites.functions";
 import { TEMPLATES, TEMPLATES_BY_ID } from "@/lib/templates";
 import { TemplateCard } from "@/components/template-card";
 import { useI18n } from "@/lib/i18n";
-import { Sparkles, LibraryBig, Star } from "lucide-react";
+import { Sparkles, LibraryBig, Star, AlertCircle } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
@@ -39,8 +40,8 @@ function Dashboard() {
   const { email } = Route.useRouteContext();
   const fetchStats = useServerFn(dashboardStats);
   const fetchFavs = useServerFn(listFavorites);
-  const { data } = useQuery({ queryKey: ["dashboardStats"], queryFn: () => fetchStats() });
-  const { data: favs } = useQuery({ queryKey: ["favorites"], queryFn: () => fetchFavs() });
+  const { data, isLoading: statsLoading, isError: statsError, refetch: refetchStats } = useQuery({ queryKey: ["dashboardStats"], queryFn: () => fetchStats() });
+  const { data: favs, isLoading: favsLoading } = useQuery({ queryKey: ["favorites"], queryFn: () => fetchFavs() });
 
   const favoriteSet = useMemo(() => new Set(favs?.ids ?? []), [favs]);
   const pinnedTemplates = useMemo(
@@ -60,10 +61,22 @@ function Dashboard() {
         <p className="mt-1 text-sm text-muted-foreground">{t("appTagline")}</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <StatCard icon={<Sparkles className="h-4 w-4" />} label={t("statRunsWeek")} value={data?.runsThisWeek ?? "—"} />
-        <StatCard icon={<LibraryBig className="h-4 w-4" />} label={t("statTemplates")} value={TEMPLATES.length} />
-      </div>
+      {statsError ? (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
+          <span className="flex items-center gap-2"><AlertCircle className="h-4 w-4" />{t("loadError")}</span>
+          <button onClick={() => refetchStats()} className="text-xs font-medium underline underline-offset-2 hover:opacity-80">{t("retry")}</button>
+        </div>
+      ) : statsLoading ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Skeleton className="h-24 w-full rounded-lg" />
+          <Skeleton className="h-24 w-full rounded-lg" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <StatCard icon={<Sparkles className="h-4 w-4" />} label={t("statRunsWeek")} value={data?.runsThisWeek ?? "—"} />
+          <StatCard icon={<LibraryBig className="h-4 w-4" />} label={t("statTemplates")} value={TEMPLATES.length} />
+        </div>
+      )}
 
       {pinnedTemplates.length > 0 && (
         <section className="mt-10">
@@ -84,9 +97,17 @@ function Dashboard() {
             <p className="text-xs text-muted-foreground">{t("quickActionsDesc")}</p>
           </div>
         </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {TEMPLATES.map((tpl) => <TemplateCard key={tpl.id} template={tpl} pinned={favoriteSet.has(tpl.id)} />)}
-        </div>
+        {favsLoading ? (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-32 w-full rounded-lg" />)}
+          </div>
+        ) : TEMPLATES.length === 0 ? (
+          <p className="rounded-lg border border-dashed border-border p-12 text-center text-sm text-muted-foreground">{t("empty")}</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {TEMPLATES.map((tpl) => <TemplateCard key={tpl.id} template={tpl} pinned={favoriteSet.has(tpl.id)} />)}
+          </div>
+        )}
       </section>
     </div>
   );

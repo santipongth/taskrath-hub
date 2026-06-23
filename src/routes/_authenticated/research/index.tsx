@@ -71,7 +71,8 @@ function ResearchPage() {
   const [question, setQuestion] = useState("");
   const [urlsText, setUrlsText] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
-  const [limit, setLimit] = useState(6);
+  const [depth, setDepth] = useState<"fast" | "deep">("fast");
+  const limit = depth === "fast" ? 4 : 10;
   const [report, setReport] = useState("");
   const [sources, setSources] = useState<ResearchSource[]>([]);
   const [stage, setStage] = useState<Stage>("idle");
@@ -306,18 +307,24 @@ function ResearchPage() {
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
-          <label className={`flex items-center gap-2 text-xs ${hasProvided ? "text-muted-foreground/50" : "text-muted-foreground"}`}>
-            {lang === "th" ? "จำนวนแหล่งสูงสุด (โหมดค้นเว็บ)" : "Max web sources"}
-            <input
-              type="number"
-              min={3}
-              max={10}
-              value={limit}
-              disabled={hasProvided || loading}
-              onChange={(e) => setLimit(Math.max(3, Math.min(10, Number(e.target.value) || 6)))}
-              className="h-7 w-16 rounded-md border border-border bg-background px-2 text-xs disabled:opacity-50"
-            />
-          </label>
+          <div className="inline-flex rounded-md border border-border bg-background p-0.5">
+            <button
+              type="button"
+              onClick={() => setDepth("fast")}
+              disabled={loading}
+              className={`rounded px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${depth === "fast" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              {lang === "th" ? "โหมดเร็ว (Fast)" : "Fast Mode"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setDepth("deep")}
+              disabled={loading}
+              className={`rounded px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${depth === "deep" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              {lang === "th" ? "โหมดเชิงลึก (Deep)" : "Deep Mode"}
+            </button>
+          </div>
           <Button onClick={onRun} disabled={loading || question.trim().length < 5}>
             {loading
               ? (lang === "th" ? "กำลังวิจัย…" : "Researching…")
