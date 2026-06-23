@@ -353,23 +353,35 @@ function ResearchPage() {
 
       {(stage !== "idle") && (
         <div className="mt-4 rounded-lg border border-border bg-card p-5">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold">
-              {stage === "done"
-                ? (lang === "th" ? "เสร็จสิ้น" : "Complete")
-                : stage === "error"
-                  ? (lang === "th" ? "เกิดข้อผิดพลาด" : "Error")
-                  : (lang === "th" ? "กำลังประมวลผล" : "Processing")}
-            </h2>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold">
+                {stage === "done"
+                  ? (lang === "th" ? "เสร็จสิ้น" : "Complete")
+                  : stage === "error"
+                    ? (lang === "th" ? "เกิดข้อผิดพลาด" : "Error")
+                    : (lang === "th" ? "กำลังประมวลผล" : "Processing")}
+              </h2>
+              <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${depth === "deep" ? "border-primary/30 bg-primary/10 text-primary" : "border-border bg-muted text-muted-foreground"}`}>
+                {depth === "deep"
+                  ? (lang === "th" ? `เชิงลึก · สูงสุด ${limit} แหล่ง` : `Deep · up to ${limit} sources`)
+                  : (lang === "th" ? `เร็ว · สูงสุด ${limit} แหล่ง` : `Fast · up to ${limit} sources`)}
+              </span>
+            </div>
             <span className="font-mono text-xs text-muted-foreground">{elapsedLabel}</span>
           </div>
           <Progress value={progressValue} className="h-1.5" />
           <ul className="mt-3 space-y-1.5">
             <StepRow
               status={gatherStatus}
-              label={hasProvided
-                ? (lang === "th" ? "ดึงเนื้อหาจากลิงก์ที่ระบุ" : "Fetch provided links")
-                : (lang === "th" ? "ค้นเว็บและรวบรวมแหล่งข้อมูล" : "Search web & collect sources")}
+              label={
+                (lang === "th" ? "1. เตรียมแหล่งข้อมูล — " : "1. Prepare sources — ") +
+                (hasProvided
+                  ? (lang === "th" ? "ดึงเนื้อหาจากลิงก์ที่ระบุ" : "fetch provided links")
+                  : depth === "deep"
+                    ? (lang === "th" ? `ค้นเว็บแบบกว้าง (สูงสุด ${limit} แหล่ง)` : `broad web search (up to ${limit} sources)`)
+                    : (lang === "th" ? `ค้นเว็บแบบเร็ว (สูงสุด ${limit} แหล่ง)` : `fast web search (up to ${limit} sources)`))
+              }
               detail={
                 gatherStatus === "active" ? stageDetail :
                 gatherStatus === "done" ? (lang === "th" ? `พบ ${sources.length} แหล่ง` : `${sources.length} sources`) +
@@ -379,7 +391,12 @@ function ResearchPage() {
             />
             <StepRow
               status={synthStatus}
-              label={lang === "th" ? "สรุปและเรียบเรียงรายงานด้วย AI" : "Synthesize report with AI"}
+              label={
+                (lang === "th" ? "2. สังเคราะห์รายงาน — " : "2. Synthesize report — ") +
+                (depth === "deep"
+                  ? (lang === "th" ? "วิเคราะห์ละเอียด เปรียบเทียบหลายมุมมอง (800–1200 คำ)" : "thorough analysis with cross-source comparison (800–1200 words)")
+                  : (lang === "th" ? "สรุปกระชับ เน้นประเด็นสำคัญ (300–500 คำ)" : "concise key-point summary (300–500 words)"))
+              }
               detail={synthStatus === "active" ? stageDetail : undefined}
             />
             {stage === "error" && (
