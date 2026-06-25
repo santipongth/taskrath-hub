@@ -539,22 +539,38 @@ function ResearchPage() {
         </div>
       )}
 
-      {sources.length > 0 && stage !== "gather" && (
+      {sources.length > 0 && stage !== "gather" && stage !== "plan" && (
         <div className="mt-6 rounded-lg border border-border bg-card p-5">
           <h2 className="mb-3 text-sm font-semibold">{lang === "th" ? "แหล่งข้อมูลที่ใช้" : "Sources"}</h2>
-          <ol className="space-y-2 text-sm">
-            {sources.map((s) => (
-              <li key={s.n} className="flex items-start gap-2">
-                <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-medium text-primary">{s.n}</span>
-                <div className="min-w-0 flex-1">
-                  <a href={s.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-foreground hover:underline">
-                    <span className="truncate">{s.title}</span>
-                    <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
-                  </a>
-                  {s.snippet && <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{s.snippet}</p>}
-                </div>
-              </li>
-            ))}
+          <ol className="space-y-3 text-sm">
+            {sources.map((s) => {
+              const relPct = typeof s.relevance === "number" ? Math.round(s.relevance * 100) : null;
+              const relColor = relPct == null ? "bg-muted text-muted-foreground" : relPct >= 75 ? "bg-primary/15 text-primary" : relPct >= 50 ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" : "bg-muted text-muted-foreground";
+              return (
+                <li key={s.n} className="flex items-start gap-2">
+                  <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-medium text-primary">{s.n}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <a href={s.url} target="_blank" rel="noopener noreferrer" className="flex min-w-0 items-center gap-1 text-foreground hover:underline">
+                        <span className="truncate">{s.title}</span>
+                        <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
+                      </a>
+                      {relPct != null && (
+                        <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${relColor}`} title={lang === "th" ? "คะแนนความเกี่ยวข้อง" : "Relevance score"}>
+                          {relPct}%
+                        </span>
+                      )}
+                    </div>
+                    {s.snippet && <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{s.snippet}</p>}
+                    {s.keypoints && s.keypoints.length > 0 && (
+                      <ul className="mt-1 list-disc space-y-0.5 pl-4 text-[11px] text-muted-foreground">
+                        {s.keypoints.slice(0, 3).map((k, i) => <li key={i} className="line-clamp-2">{k}</li>)}
+                      </ul>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
           </ol>
         </div>
       )}
