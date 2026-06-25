@@ -145,7 +145,7 @@ function ResearchPage() {
           const labelTh = (meta.step_label_th as string | undefined) ?? "";
           const labelEn = (meta.step_label_en as string | undefined) ?? "";
           const prog = typeof meta.step_progress === "number" ? (meta.step_progress as number) : 0;
-          if (step === "gather" || step === "synthesize") setStage(step);
+          if (step === "plan" || step === "gather" || step === "extract" || step === "synthesize") setStage(step);
           else if (step === "done" || row.status === "completed") setStage("done");
           else if (step === "error" || row.status === "failed") setStage("error");
           setStageDetail(lang === "th" ? labelTh : labelEn);
