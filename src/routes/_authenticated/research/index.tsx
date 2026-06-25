@@ -288,8 +288,16 @@ function ResearchPage() {
   };
 
   const elapsedLabel = `${(elapsedMs / 1000).toFixed(1)}s`;
-  const gatherStatus: StepStatus = stage === "idle" ? "pending" : stage === "gather" ? "active" : stage === "error" && sources.length === 0 ? "error" : "done";
+  const showPlannerStep = intensity !== "fast" && !hasProvided;
+  const planStatus: StepStatus = !showPlannerStep ? "pending" : stage === "idle" ? "pending" : stage === "plan" ? "active" : (stage === "error" && sources.length === 0) ? "error" : "done";
+  const gatherStatus: StepStatus = stage === "idle" || stage === "plan" ? "pending" : stage === "gather" ? "active" : stage === "error" && sources.length === 0 ? "error" : "done";
+  const extractStatus: StepStatus = (stage === "idle" || stage === "plan" || stage === "gather") ? "pending" : stage === "extract" ? "active" : stage === "error" && sources.length > 0 && !report ? "error" : (stage === "synthesize" || stage === "done") ? "done" : "pending";
   const synthStatus: StepStatus = stage === "synthesize" ? "active" : stage === "done" ? "done" : stage === "error" && sources.length > 0 ? "error" : "pending";
+  const intensityBadgeLabel = intensity === "deep"
+    ? (lang === "th" ? `เชิงลึก · multi-agent · สูงสุด ${limit} แหล่ง` : `Deep · multi-agent · up to ${limit} sources`)
+    : intensity === "custom"
+      ? (lang === "th" ? `กำหนดเอง · ${limit} แหล่ง · ${customLength === "short" ? "สั้น" : customLength === "medium" ? "ปานกลาง" : "ยาว"}` : `Custom · ${limit} sources · ${customLength}`)
+      : (lang === "th" ? `เร็ว · สูงสุด ${limit} แหล่ง` : `Fast · up to ${limit} sources`);
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-8">
