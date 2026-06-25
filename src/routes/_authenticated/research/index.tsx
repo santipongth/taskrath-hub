@@ -118,10 +118,10 @@ function ResearchPage() {
 
   const parsedUrls = urlsText.split(/\s+/).map((s) => s.trim()).filter((s) => /^https?:\/\//i.test(s));
   const hasProvided = parsedUrls.length > 0 || attachments.length > 0;
-  const loading = stage === "gather" || stage === "synthesize";
+  const loading = stage === "plan" || stage === "gather" || stage === "extract" || stage === "synthesize";
   const progressValue = stageProgress > 0
     ? stageProgress
-    : stage === "idle" ? 0 : stage === "gather" ? 35 : stage === "synthesize" ? 75 : 100;
+    : stage === "idle" ? 0 : stage === "plan" ? 15 : stage === "gather" ? 35 : stage === "extract" ? 55 : stage === "synthesize" ? 80 : 100;
 
   useEffect(() => {
     if (!loading) return;
