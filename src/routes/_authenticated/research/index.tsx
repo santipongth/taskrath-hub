@@ -40,7 +40,9 @@ type Attachment = {
   size: number;
 };
 
-type Stage = "idle" | "gather" | "synthesize" | "done" | "error";
+type Stage = "idle" | "plan" | "gather" | "extract" | "synthesize" | "done" | "error";
+type Intensity = "fast" | "deep" | "custom";
+type ReportLength = "short" | "medium" | "long";
 type StepStatus = "pending" | "active" | "done" | "error";
 
 const MAX_FILES = 6;
