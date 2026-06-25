@@ -11,7 +11,9 @@ import {
 } from "@/lib/research.functions";
 import { listMyProjects } from "@/lib/user-projects.functions";
 import { upsertProjectSource } from "@/lib/project-sources.functions";
+import { listMySkills } from "@/lib/user-skills.functions";
 import { useI18n } from "@/lib/i18n";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
@@ -38,7 +40,9 @@ type Attachment = {
   size: number;
 };
 
-type Stage = "idle" | "gather" | "synthesize" | "done" | "error";
+type Stage = "idle" | "plan" | "gather" | "extract" | "synthesize" | "done" | "error";
+type Intensity = "fast" | "deep" | "custom";
+type ReportLength = "short" | "medium" | "long";
 type StepStatus = "pending" | "active" | "done" | "error";
 
 const MAX_FILES = 6;
@@ -68,12 +72,17 @@ function ResearchPage() {
   const synthesize = useServerFn(synthesizeResearchReport);
   const listProjects = useServerFn(listMyProjects);
   const saveSource = useServerFn(upsertProjectSource);
+  const fetchSkills = useServerFn(listMySkills);
 
   const [question, setQuestion] = useState("");
   const [urlsText, setUrlsText] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
-  const [depth, setDepth] = useState<"fast" | "deep">("fast");
-  const limit = depth === "fast" ? 4 : 10;
+  const [intensity, setIntensity] = useState<Intensity>("fast");
+  const [customSources, setCustomSources] = useState<number>(6);
+  const [customLength, setCustomLength] = useState<ReportLength>("medium");
+  const [skillId, setSkillId] = useState<string>("");
+  const limit = intensity === "fast" ? 4 : intensity === "deep" ? 10 : Math.min(Math.max(customSources, 3), 15);
+  const reportLength: ReportLength = intensity === "fast" ? "short" : intensity === "deep" ? "long" : customLength;
   const [report, setReport] = useState("");
   const [sources, setSources] = useState<ResearchSource[]>([]);
   const [stage, setStage] = useState<Stage>("idle");
@@ -91,6 +100,11 @@ function ResearchPage() {
     queryFn: () => listProjects(),
   });
   const projects = useMemo(() => projData?.projects.filter((p) => !p.archived) ?? [], [projData]);
+  const { data: skillsData } = useQuery({
+    queryKey: ["my-skills"],
+    queryFn: () => fetchSkills(),
+  });
+  const skills = useMemo(() => skillsData?.skills ?? [], [skillsData]);
 
   // Prefill from /tasks "ทำเลย" or notebook hub
   useEffect(() => {
@@ -104,10 +118,10 @@ function ResearchPage() {
 
   const parsedUrls = urlsText.split(/\s+/).map((s) => s.trim()).filter((s) => /^https?:\/\//i.test(s));
   const hasProvided = parsedUrls.length > 0 || attachments.length > 0;
-  const loading = stage === "gather" || stage === "synthesize";
+  const loading = stage === "plan" || stage === "gather" || stage === "extract" || stage === "synthesize";
   const progressValue = stageProgress > 0
     ? stageProgress
-    : stage === "idle" ? 0 : stage === "gather" ? 35 : stage === "synthesize" ? 75 : 100;
+    : stage === "idle" ? 0 : stage === "plan" ? 15 : stage === "gather" ? 35 : stage === "extract" ? 55 : stage === "synthesize" ? 80 : 100;
 
   useEffect(() => {
     if (!loading) return;
@@ -131,7 +145,7 @@ function ResearchPage() {
           const labelTh = (meta.step_label_th as string | undefined) ?? "";
           const labelEn = (meta.step_label_en as string | undefined) ?? "";
           const prog = typeof meta.step_progress === "number" ? (meta.step_progress as number) : 0;
-          if (step === "gather" || step === "synthesize") setStage(step);
+          if (step === "plan" || step === "gather" || step === "extract" || step === "synthesize") setStage(step);
           else if (step === "done" || row.status === "completed") setStage("done");
           else if (step === "error" || row.status === "failed") setStage("error");
           setStageDetail(lang === "th" ? labelTh : labelEn);
@@ -202,20 +216,23 @@ function ResearchPage() {
     setStage("gather");
 
     try {
-      const depthLabel = depth === "deep"
+      const intensityLabel = intensity === "deep"
         ? (lang === "th" ? "เชิงลึก" : "Deep")
-        : (lang === "th" ? "เร็ว" : "Fast");
+        : intensity === "custom"
+          ? (lang === "th" ? "กำหนดเอง" : "Custom")
+          : (lang === "th" ? "เร็ว" : "Fast");
       setStageDetail(
         hasProvided
-          ? (lang === "th" ? `[โหมด${depthLabel}] กำลังดึงเนื้อหาจาก ${parsedUrls.length} ลิงก์…` : `[${depthLabel} mode] Fetching ${parsedUrls.length} link(s)…`)
-          : (lang === "th" ? `[โหมด${depthLabel}] กำลังค้นเว็บสูงสุด ${limit} แหล่ง…` : `[${depthLabel} mode] Searching the web for up to ${limit} sources…`),
+          ? (lang === "th" ? `[โหมด${intensityLabel}] กำลังดึงเนื้อหาจาก ${parsedUrls.length} ลิงก์…` : `[${intensityLabel} mode] Fetching ${parsedUrls.length} link(s)…`)
+          : (lang === "th" ? `[โหมด${intensityLabel}] กำลังค้นเว็บสูงสุด ${limit} แหล่ง…` : `[${intensityLabel} mode] Searching the web for up to ${limit} sources…`),
       );
 
       const prepared = await prepare({
         data: {
           question: question.trim(),
-          limit,
-          depth,
+          intensity,
+          maxSources: limit,
+          reportLength,
           lang,
           urls: parsedUrls,
           hasAttachments: attachments.length > 0,
@@ -228,8 +245,8 @@ function ResearchPage() {
       setStage("synthesize");
       setStageDetail(
         lang === "th"
-          ? `[โหมด${depthLabel}] กำลังสรุปจาก ${prepared.sources.length} แหล่ง${attachments.length ? ` + ${attachments.length} ไฟล์` : ""}…`
-          : `[${depthLabel} mode] Synthesizing from ${prepared.sources.length} sources${attachments.length ? ` + ${attachments.length} files` : ""}…`,
+          ? `[โหมด${intensityLabel}] กำลังสรุปจาก ${prepared.sources.length} แหล่ง${attachments.length ? ` + ${attachments.length} ไฟล์` : ""}…`
+          : `[${intensityLabel} mode] Synthesizing from ${prepared.sources.length} sources${attachments.length ? ` + ${attachments.length} files` : ""}…`,
       );
 
       const docs = prepared.docs as ResearchDoc[];
@@ -241,7 +258,9 @@ function ResearchPage() {
           docs,
           attachments: attachments.map((a) => ({ name: a.name, kind: a.kind, data: a.data, mime: a.mime, size: a.size })),
           mode: prepared.mode,
-          depth,
+          intensity,
+          reportLength,
+          skillId: skillId || null,
         },
       });
       setReport(r.report);
@@ -250,7 +269,7 @@ function ResearchPage() {
       setStageProgress(100);
       setStageDetail("");
       toast.success(
-        depth === "deep"
+        intensity === "deep"
           ? (lang === "th" ? "รายงานเชิงลึกพร้อมแล้ว" : "Deep report ready")
           : (lang === "th" ? "รายงานพร้อมแล้ว" : "Report ready"),
       );
@@ -269,8 +288,16 @@ function ResearchPage() {
   };
 
   const elapsedLabel = `${(elapsedMs / 1000).toFixed(1)}s`;
-  const gatherStatus: StepStatus = stage === "idle" ? "pending" : stage === "gather" ? "active" : stage === "error" && sources.length === 0 ? "error" : "done";
+  const showPlannerStep = intensity !== "fast" && !hasProvided;
+  const planStatus: StepStatus = !showPlannerStep ? "pending" : stage === "idle" ? "pending" : stage === "plan" ? "active" : (stage === "error" && sources.length === 0) ? "error" : "done";
+  const gatherStatus: StepStatus = stage === "idle" || stage === "plan" ? "pending" : stage === "gather" ? "active" : stage === "error" && sources.length === 0 ? "error" : "done";
+  const extractStatus: StepStatus = (stage === "idle" || stage === "plan" || stage === "gather") ? "pending" : stage === "extract" ? "active" : stage === "error" && sources.length > 0 && !report ? "error" : (stage === "synthesize" || stage === "done") ? "done" : "pending";
   const synthStatus: StepStatus = stage === "synthesize" ? "active" : stage === "done" ? "done" : stage === "error" && sources.length > 0 ? "error" : "pending";
+  const intensityBadgeLabel = intensity === "deep"
+    ? (lang === "th" ? `เชิงลึก · multi-agent · สูงสุด ${limit} แหล่ง` : `Deep · multi-agent · up to ${limit} sources`)
+    : intensity === "custom"
+      ? (lang === "th" ? `กำหนดเอง · ${limit} แหล่ง · ${customLength === "short" ? "สั้น" : customLength === "medium" ? "ปานกลาง" : "ยาว"}` : `Custom · ${limit} sources · ${customLength}`)
+      : (lang === "th" ? `เร็ว · สูงสุด ${limit} แหล่ง` : `Fast · up to ${limit} sources`);
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-8">
@@ -350,39 +377,82 @@ function ResearchPage() {
           )}
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
-          <div className="inline-flex rounded-md border border-border bg-background p-0.5">
-            <button
-              type="button"
-              onClick={() => setDepth("fast")}
-              disabled={loading}
-              className={`rounded px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${depth === "fast" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              {lang === "th" ? "โหมดเร็ว (Fast)" : "Fast Mode"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setDepth("deep")}
-              disabled={loading}
-              className={`rounded px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${depth === "deep" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              {lang === "th" ? "โหมดเชิงลึก (Deep)" : "Deep Mode"}
-            </button>
+        <div className="space-y-2 border-t border-border pt-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground">{lang === "th" ? "ความเข้มข้น:" : "Intensity:"}</span>
+            <div className="inline-flex rounded-md border border-border bg-background p-0.5">
+              {(["fast", "deep", "custom"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setIntensity(m)}
+                  disabled={loading}
+                  className={`rounded px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${intensity === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  {m === "fast" ? (lang === "th" ? "เร็ว" : "Fast")
+                    : m === "deep" ? (lang === "th" ? "เชิงลึก" : "Deep")
+                    : (lang === "th" ? "กำหนดเอง" : "Custom")}
+                </button>
+              ))}
+            </div>
+            {skills.length > 0 && (
+              <Select value={skillId || "__none"} onValueChange={(v) => setSkillId(v === "__none" ? "" : v)} disabled={loading}>
+                <SelectTrigger className="h-8 w-48 text-xs">
+                  <SelectValue placeholder={lang === "th" ? "Skill (ไม่บังคับ)" : "Skill (optional)"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">{lang === "th" ? "— ไม่ใช้ skill —" : "— No skill —"}</SelectItem>
+                  {skills.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
-          <Button onClick={onRun} disabled={loading || question.trim().length < 5}>
-            {loading
-              ? (depth === "deep"
-                  ? (lang === "th" ? "กำลังวิจัยเชิงลึก…" : "Deep researching…")
-                  : (lang === "th" ? "กำลังวิจัย…" : "Researching…"))
-              : hasProvided
-                ? (lang === "th"
-                    ? (depth === "deep" ? "วิจัยเชิงลึกจากแหล่งที่ระบุ" : "วิจัยจากแหล่งที่ระบุ")
-                    : (depth === "deep" ? "Deep research from sources" : "Research from sources"))
-                : (lang === "th"
-                    ? (depth === "deep" ? "ค้นเว็บและวิจัยเชิงลึก" : "ค้นเว็บและวิจัย")
-                    : (depth === "deep" ? "Search & deep research" : "Search & research"))}
-          </Button>
 
+          {intensity === "custom" && (
+            <div className="flex flex-wrap items-center gap-3 rounded-md border border-border bg-muted/30 p-2 text-xs">
+              <label className="flex items-center gap-1.5">
+                <span className="text-muted-foreground">{lang === "th" ? "จำนวนแหล่ง:" : "Sources:"}</span>
+                <Input
+                  type="number"
+                  min={3}
+                  max={15}
+                  value={customSources}
+                  onChange={(e) => setCustomSources(Math.min(15, Math.max(3, Number(e.target.value) || 6)))}
+                  disabled={loading}
+                  className="h-7 w-16 text-xs"
+                />
+              </label>
+              <label className="flex items-center gap-1.5">
+                <span className="text-muted-foreground">{lang === "th" ? "ความยาวรายงาน:" : "Length:"}</span>
+                <Select value={customLength} onValueChange={(v) => setCustomLength(v as ReportLength)} disabled={loading}>
+                  <SelectTrigger className="h-7 w-36 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="short">{lang === "th" ? "สั้น (300–500)" : "Short (300–500)"}</SelectItem>
+                    <SelectItem value="medium">{lang === "th" ? "ปานกลาง (500–800)" : "Medium (500–800)"}</SelectItem>
+                    <SelectItem value="long">{lang === "th" ? "ยาว (1000–1500)" : "Long (1000–1500)"}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </label>
+            </div>
+          )}
+
+          <div className="flex justify-end pt-1">
+            <Button onClick={onRun} disabled={loading || question.trim().length < 5}>
+              {loading
+                ? (intensity === "deep"
+                    ? (lang === "th" ? "กำลังวิจัยเชิงลึก…" : "Deep researching…")
+                    : (lang === "th" ? "กำลังวิจัย…" : "Researching…"))
+                : hasProvided
+                  ? (lang === "th"
+                      ? (intensity === "deep" ? "วิจัยเชิงลึกจากแหล่งที่ระบุ" : "วิจัยจากแหล่งที่ระบุ")
+                      : (intensity === "deep" ? "Deep research from sources" : "Research from sources"))
+                  : (lang === "th"
+                      ? (intensity === "deep" ? "ค้นเว็บและวิจัยเชิงลึก" : "ค้นเว็บและวิจัย")
+                      : (intensity === "deep" ? "Search & deep research" : "Search & research"))}
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -397,25 +467,31 @@ function ResearchPage() {
                     ? (lang === "th" ? "เกิดข้อผิดพลาด" : "Error")
                     : (lang === "th" ? "กำลังประมวลผล" : "Processing")}
               </h2>
-              <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${depth === "deep" ? "border-primary/30 bg-primary/10 text-primary" : "border-border bg-muted text-muted-foreground"}`}>
-                {depth === "deep"
-                  ? (lang === "th" ? `เชิงลึก · สูงสุด ${limit} แหล่ง` : `Deep · up to ${limit} sources`)
-                  : (lang === "th" ? `เร็ว · สูงสุด ${limit} แหล่ง` : `Fast · up to ${limit} sources`)}
+              <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${intensity !== "fast" ? "border-primary/30 bg-primary/10 text-primary" : "border-border bg-muted text-muted-foreground"}`}>
+                {intensityBadgeLabel}
               </span>
             </div>
             <span className="font-mono text-xs text-muted-foreground">{elapsedLabel}</span>
           </div>
           <Progress value={progressValue} className="h-1.5" />
           <ul className="mt-3 space-y-1.5">
+            {showPlannerStep && (
+              <StepRow
+                status={planStatus}
+                label={lang === "th" ? "1. Planner Agent — แตกคำถามเป็นคำค้นย่อย" : "1. Planner agent — decompose into sub-queries"}
+                detail={planStatus === "active" ? stageDetail : undefined}
+              />
+            )}
             <StepRow
               status={gatherStatus}
               label={
-                (lang === "th" ? "1. เตรียมแหล่งข้อมูล — " : "1. Prepare sources — ") +
+                (showPlannerStep ? "2. " : "1. ") +
+                (lang === "th" ? "เตรียมแหล่งข้อมูล — " : "Prepare sources — ") +
                 (hasProvided
                   ? (lang === "th" ? "ดึงเนื้อหาจากลิงก์ที่ระบุ" : "fetch provided links")
-                  : depth === "deep"
+                  : intensity === "deep"
                     ? (lang === "th" ? `ค้นเว็บแบบกว้าง (สูงสุด ${limit} แหล่ง)` : `broad web search (up to ${limit} sources)`)
-                    : (lang === "th" ? `ค้นเว็บแบบเร็ว (สูงสุด ${limit} แหล่ง)` : `fast web search (up to ${limit} sources)`))
+                    : (lang === "th" ? `ค้นเว็บ (สูงสุด ${limit} แหล่ง)` : `web search (up to ${limit} sources)`))
               }
               detail={
                 gatherStatus === "active" ? stageDetail :
@@ -425,15 +501,27 @@ function ResearchPage() {
               }
             />
             <StepRow
+              status={extractStatus}
+              label={
+                (showPlannerStep ? "3. " : "2. ") +
+                (lang === "th" ? "Extractor Agent — ประเมินความเกี่ยวข้องและสกัดประเด็น" : "Extractor agent — score relevance & extract findings")
+              }
+              detail={extractStatus === "active" ? stageDetail : undefined}
+            />
+            <StepRow
               status={synthStatus}
               label={
-                (lang === "th" ? "2. สังเคราะห์รายงาน — " : "2. Synthesize report — ") +
-                (depth === "deep"
-                  ? (lang === "th" ? "วิเคราะห์ละเอียด เปรียบเทียบหลายมุมมอง (800–1200 คำ)" : "thorough analysis with cross-source comparison (800–1200 words)")
-                  : (lang === "th" ? "สรุปกระชับ เน้นประเด็นสำคัญ (300–500 คำ)" : "concise key-point summary (300–500 words)"))
+                (showPlannerStep ? "4. " : "3. ") +
+                (lang === "th" ? "Synthesizer Agent — เรียบเรียงรายงาน " : "Synthesizer agent — draft report ") +
+                (reportLength === "long"
+                  ? (lang === "th" ? "(1000–1500 คำ)" : "(1000–1500 words)")
+                  : reportLength === "medium"
+                    ? (lang === "th" ? "(500–800 คำ)" : "(500–800 words)")
+                    : (lang === "th" ? "(300–500 คำ)" : "(300–500 words)"))
               }
               detail={synthStatus === "active" ? stageDetail : undefined}
             />
+
             {stage === "error" && (
               <li className="mt-1 rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">
                 {stageDetail}
@@ -451,22 +539,38 @@ function ResearchPage() {
         </div>
       )}
 
-      {sources.length > 0 && stage !== "gather" && (
+      {sources.length > 0 && stage !== "gather" && stage !== "plan" && (
         <div className="mt-6 rounded-lg border border-border bg-card p-5">
           <h2 className="mb-3 text-sm font-semibold">{lang === "th" ? "แหล่งข้อมูลที่ใช้" : "Sources"}</h2>
-          <ol className="space-y-2 text-sm">
-            {sources.map((s) => (
-              <li key={s.n} className="flex items-start gap-2">
-                <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-medium text-primary">{s.n}</span>
-                <div className="min-w-0 flex-1">
-                  <a href={s.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-foreground hover:underline">
-                    <span className="truncate">{s.title}</span>
-                    <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
-                  </a>
-                  {s.snippet && <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{s.snippet}</p>}
-                </div>
-              </li>
-            ))}
+          <ol className="space-y-3 text-sm">
+            {sources.map((s) => {
+              const relPct = typeof s.relevance === "number" ? Math.round(s.relevance * 100) : null;
+              const relColor = relPct == null ? "bg-muted text-muted-foreground" : relPct >= 75 ? "bg-primary/15 text-primary" : relPct >= 50 ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" : "bg-muted text-muted-foreground";
+              return (
+                <li key={s.n} className="flex items-start gap-2">
+                  <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-medium text-primary">{s.n}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <a href={s.url} target="_blank" rel="noopener noreferrer" className="flex min-w-0 items-center gap-1 text-foreground hover:underline">
+                        <span className="truncate">{s.title}</span>
+                        <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
+                      </a>
+                      {relPct != null && (
+                        <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${relColor}`} title={lang === "th" ? "คะแนนความเกี่ยวข้อง" : "Relevance score"}>
+                          {relPct}%
+                        </span>
+                      )}
+                    </div>
+                    {s.snippet && <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{s.snippet}</p>}
+                    {s.keypoints && s.keypoints.length > 0 && (
+                      <ul className="mt-1 list-disc space-y-0.5 pl-4 text-[11px] text-muted-foreground">
+                        {s.keypoints.slice(0, 3).map((k, i) => <li key={i} className="line-clamp-2">{k}</li>)}
+                      </ul>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
           </ol>
         </div>
       )}

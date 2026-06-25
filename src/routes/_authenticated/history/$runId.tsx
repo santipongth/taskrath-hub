@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Copy, Download, Paperclip, Loader2 } from "lucide-react";
+import { ArrowLeft, Copy, Download, Paperclip, Loader2, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { ExportDialog } from "@/components/export-dialog";
 import { RefineBar } from "@/components/refine-bar";
@@ -72,10 +72,13 @@ function RunDetail() {
   const tpl = run.template_id ? TEMPLATES_BY_ID[run.template_id] : null;
   const inputObj = (run.input ?? {}) as Record<string, unknown>;
   const metaObj = (run.metadata ?? {}) as Record<string, unknown>;
-  const metaDepth = (metaObj.depth as "fast" | "deep" | undefined) ?? (inputObj.depth as "fast" | "deep" | undefined);
+  const metaDepth = (metaObj.depth as "fast" | "deep" | "custom" | undefined) ?? (inputObj.depth as "fast" | "deep" | undefined);
+  const metaIntensity = (metaObj.intensity as "fast" | "deep" | "custom" | undefined) ?? (inputObj.intensity as "fast" | "deep" | "custom" | undefined) ?? metaDepth;
+  const metaReportLength = (metaObj.reportLength as "short" | "medium" | "long" | undefined) ?? (inputObj.reportLength as "short" | "medium" | "long" | undefined);
   const metaMode = metaObj.mode as "search" | "provided" | undefined;
   const metaKind = metaObj.kind as string | undefined;
-  const metaSources = Array.isArray(metaObj.sources) ? (metaObj.sources as Array<{ n: number; title: string; url: string }>) : [];
+  const metaSources = Array.isArray(metaObj.sources) ? (metaObj.sources as Array<{ n: number; title: string; url: string; snippet?: string; relevance?: number; keypoints?: string[] }>) : [];
+  const metaPlan = Array.isArray(metaObj.plan) ? (metaObj.plan as string[]) : [];
   const attachments = (Array.isArray((inputObj as { attachments?: unknown }).attachments)
     ? (inputObj as { attachments: Array<{ name: string; kind: string; mime?: string | null; size?: number | null }> }).attachments
     : []) as Array<{ name: string; kind: string; mime?: string | null; size?: number | null }>;
@@ -136,30 +139,92 @@ function RunDetail() {
         );
       })()}
 
-      {(metaDepth || metaKind === "deep_research") && (
-        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-4 py-3 text-xs">
-          <span className="font-semibold text-foreground">
-            {lang === "th" ? "วิจัยเชิงลึก" : "Deep Research"}
-          </span>
-          {metaDepth && (
-            <Badge variant={metaDepth === "deep" ? "default" : "secondary"} className="text-[10px]">
-              {metaDepth === "deep"
-                ? (lang === "th" ? "โหมดเชิงลึก (สูงสุด 10 แหล่ง)" : "Deep mode (up to 10)")
-                : (lang === "th" ? "โหมดเร็ว (สูงสุด 4 แหล่ง)" : "Fast mode (up to 4)")}
-            </Badge>
-          )}
-          {metaMode && (
-            <Badge variant="outline" className="text-[10px]">
-              {metaMode === "provided"
-                ? (lang === "th" ? "จากแหล่งที่ระบุ" : "From provided sources")
-                : (lang === "th" ? "ค้นเว็บ" : "Web search")}
-            </Badge>
-          )}
-          {metaSources.length > 0 && (
-            <span className="text-muted-foreground">
-              {lang === "th" ? `ใช้ ${metaSources.length} แหล่ง` : `${metaSources.length} sources used`}
+      {(metaIntensity || metaDepth || metaKind === "deep_research") && (
+        <div className="mt-4 space-y-3 rounded-lg border border-border bg-card px-4 py-3 text-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold text-foreground">
+              {lang === "th" ? "วิจัยเชิงลึก (multi-agent)" : "Deep Research (multi-agent)"}
             </span>
+            {metaIntensity && (
+              <Badge variant={metaIntensity === "deep" ? "default" : metaIntensity === "custom" ? "secondary" : "outline"} className="text-[10px]">
+                {metaIntensity === "deep"
+                  ? (lang === "th" ? "โหมดเชิงลึก" : "Deep mode")
+                  : metaIntensity === "custom"
+                    ? (lang === "th" ? "กำหนดเอง" : "Custom")
+                    : (lang === "th" ? "โหมดเร็ว" : "Fast mode")}
+              </Badge>
+            )}
+            {metaReportLength && (
+              <Badge variant="outline" className="text-[10px]">
+                {metaReportLength === "long" ? (lang === "th" ? "ยาว 1000–1500 คำ" : "Long 1000–1500w")
+                  : metaReportLength === "medium" ? (lang === "th" ? "ปานกลาง 500–800 คำ" : "Medium 500–800w")
+                  : (lang === "th" ? "สั้น 300–500 คำ" : "Short 300–500w")}
+              </Badge>
+            )}
+            {metaMode && (
+              <Badge variant="outline" className="text-[10px]">
+                {metaMode === "provided"
+                  ? (lang === "th" ? "จากแหล่งที่ระบุ" : "From provided sources")
+                  : (lang === "th" ? "ค้นเว็บ" : "Web search")}
+              </Badge>
+            )}
+            {metaSources.length > 0 && (
+              <span className="text-muted-foreground">
+                {lang === "th" ? `ใช้ ${metaSources.length} แหล่ง` : `${metaSources.length} sources used`}
+              </span>
+            )}
+          </div>
+          {metaPlan.length > 0 && (
+            <div>
+              <div className="mb-1 text-[11px] font-medium text-muted-foreground">
+                {lang === "th" ? "แผนคำค้นจาก Planner Agent:" : "Planner agent sub-queries:"}
+              </div>
+              <ul className="list-disc space-y-0.5 pl-4 text-[11px] text-muted-foreground">
+                {metaPlan.map((q, i) => <li key={i}>{q}</li>)}
+              </ul>
+            </div>
           )}
+        </div>
+      )}
+
+      {metaSources.length > 0 && (
+        <div className="mt-4 rounded-lg border border-border bg-card p-5">
+          <h2 className="mb-3 text-sm font-semibold">
+            {lang === "th" ? `แหล่งข้อมูล (${metaSources.length})` : `Sources (${metaSources.length})`}
+          </h2>
+          <ol className="space-y-3 text-sm">
+            {metaSources.map((s) => {
+              const relPct = typeof s.relevance === "number" ? Math.round(s.relevance * 100) : null;
+              const relColor = relPct == null ? "bg-muted text-muted-foreground" : relPct >= 75 ? "bg-primary/15 text-primary" : relPct >= 50 ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" : "bg-muted text-muted-foreground";
+              return (
+                <li key={s.n} className="flex items-start gap-2">
+                  <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-medium text-primary">{s.n}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <a href={s.url} target="_blank" rel="noopener noreferrer" className="flex min-w-0 items-center gap-1 text-foreground hover:underline">
+                        <span className="truncate">{s.title}</span>
+                        <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
+                      </a>
+                      {relPct != null && (
+                        <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${relColor}`} title={lang === "th" ? "คะแนนความเกี่ยวข้อง" : "Relevance score"}>
+                          {relPct}%
+                        </span>
+                      )}
+                    </div>
+                    <a href={s.url} target="_blank" rel="noopener noreferrer" className="mt-0.5 block truncate text-[11px] text-muted-foreground hover:underline">
+                      {s.url}
+                    </a>
+                    {s.snippet && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{s.snippet}</p>}
+                    {s.keypoints && s.keypoints.length > 0 && (
+                      <ul className="mt-1 list-disc space-y-0.5 pl-4 text-[11px] text-muted-foreground">
+                        {s.keypoints.slice(0, 4).map((k, i) => <li key={i}>{k}</li>)}
+                      </ul>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
         </div>
       )}
 
