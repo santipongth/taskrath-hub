@@ -377,39 +377,82 @@ function ResearchPage() {
           )}
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
-          <div className="inline-flex rounded-md border border-border bg-background p-0.5">
-            <button
-              type="button"
-              onClick={() => setDepth("fast")}
-              disabled={loading}
-              className={`rounded px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${depth === "fast" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              {lang === "th" ? "โหมดเร็ว (Fast)" : "Fast Mode"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setDepth("deep")}
-              disabled={loading}
-              className={`rounded px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${depth === "deep" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              {lang === "th" ? "โหมดเชิงลึก (Deep)" : "Deep Mode"}
-            </button>
+        <div className="space-y-2 border-t border-border pt-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground">{lang === "th" ? "ความเข้มข้น:" : "Intensity:"}</span>
+            <div className="inline-flex rounded-md border border-border bg-background p-0.5">
+              {(["fast", "deep", "custom"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setIntensity(m)}
+                  disabled={loading}
+                  className={`rounded px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${intensity === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  {m === "fast" ? (lang === "th" ? "เร็ว" : "Fast")
+                    : m === "deep" ? (lang === "th" ? "เชิงลึก" : "Deep")
+                    : (lang === "th" ? "กำหนดเอง" : "Custom")}
+                </button>
+              ))}
+            </div>
+            {skills.length > 0 && (
+              <Select value={skillId || "__none"} onValueChange={(v) => setSkillId(v === "__none" ? "" : v)} disabled={loading}>
+                <SelectTrigger className="h-8 w-48 text-xs">
+                  <SelectValue placeholder={lang === "th" ? "Skill (ไม่บังคับ)" : "Skill (optional)"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">{lang === "th" ? "— ไม่ใช้ skill —" : "— No skill —"}</SelectItem>
+                  {skills.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
-          <Button onClick={onRun} disabled={loading || question.trim().length < 5}>
-            {loading
-              ? (depth === "deep"
-                  ? (lang === "th" ? "กำลังวิจัยเชิงลึก…" : "Deep researching…")
-                  : (lang === "th" ? "กำลังวิจัย…" : "Researching…"))
-              : hasProvided
-                ? (lang === "th"
-                    ? (depth === "deep" ? "วิจัยเชิงลึกจากแหล่งที่ระบุ" : "วิจัยจากแหล่งที่ระบุ")
-                    : (depth === "deep" ? "Deep research from sources" : "Research from sources"))
-                : (lang === "th"
-                    ? (depth === "deep" ? "ค้นเว็บและวิจัยเชิงลึก" : "ค้นเว็บและวิจัย")
-                    : (depth === "deep" ? "Search & deep research" : "Search & research"))}
-          </Button>
 
+          {intensity === "custom" && (
+            <div className="flex flex-wrap items-center gap-3 rounded-md border border-border bg-muted/30 p-2 text-xs">
+              <label className="flex items-center gap-1.5">
+                <span className="text-muted-foreground">{lang === "th" ? "จำนวนแหล่ง:" : "Sources:"}</span>
+                <Input
+                  type="number"
+                  min={3}
+                  max={15}
+                  value={customSources}
+                  onChange={(e) => setCustomSources(Math.min(15, Math.max(3, Number(e.target.value) || 6)))}
+                  disabled={loading}
+                  className="h-7 w-16 text-xs"
+                />
+              </label>
+              <label className="flex items-center gap-1.5">
+                <span className="text-muted-foreground">{lang === "th" ? "ความยาวรายงาน:" : "Length:"}</span>
+                <Select value={customLength} onValueChange={(v) => setCustomLength(v as ReportLength)} disabled={loading}>
+                  <SelectTrigger className="h-7 w-36 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="short">{lang === "th" ? "สั้น (300–500)" : "Short (300–500)"}</SelectItem>
+                    <SelectItem value="medium">{lang === "th" ? "ปานกลาง (500–800)" : "Medium (500–800)"}</SelectItem>
+                    <SelectItem value="long">{lang === "th" ? "ยาว (1000–1500)" : "Long (1000–1500)"}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </label>
+            </div>
+          )}
+
+          <div className="flex justify-end pt-1">
+            <Button onClick={onRun} disabled={loading || question.trim().length < 5}>
+              {loading
+                ? (intensity === "deep"
+                    ? (lang === "th" ? "กำลังวิจัยเชิงลึก…" : "Deep researching…")
+                    : (lang === "th" ? "กำลังวิจัย…" : "Researching…"))
+                : hasProvided
+                  ? (lang === "th"
+                      ? (intensity === "deep" ? "วิจัยเชิงลึกจากแหล่งที่ระบุ" : "วิจัยจากแหล่งที่ระบุ")
+                      : (intensity === "deep" ? "Deep research from sources" : "Research from sources"))
+                  : (lang === "th"
+                      ? (intensity === "deep" ? "ค้นเว็บและวิจัยเชิงลึก" : "ค้นเว็บและวิจัย")
+                      : (intensity === "deep" ? "Search & deep research" : "Search & research"))}
+            </Button>
+          </div>
         </div>
       </div>
 
