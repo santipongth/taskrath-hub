@@ -467,25 +467,31 @@ function ResearchPage() {
                     ? (lang === "th" ? "เกิดข้อผิดพลาด" : "Error")
                     : (lang === "th" ? "กำลังประมวลผล" : "Processing")}
               </h2>
-              <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${depth === "deep" ? "border-primary/30 bg-primary/10 text-primary" : "border-border bg-muted text-muted-foreground"}`}>
-                {depth === "deep"
-                  ? (lang === "th" ? `เชิงลึก · สูงสุด ${limit} แหล่ง` : `Deep · up to ${limit} sources`)
-                  : (lang === "th" ? `เร็ว · สูงสุด ${limit} แหล่ง` : `Fast · up to ${limit} sources`)}
+              <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${intensity !== "fast" ? "border-primary/30 bg-primary/10 text-primary" : "border-border bg-muted text-muted-foreground"}`}>
+                {intensityBadgeLabel}
               </span>
             </div>
             <span className="font-mono text-xs text-muted-foreground">{elapsedLabel}</span>
           </div>
           <Progress value={progressValue} className="h-1.5" />
           <ul className="mt-3 space-y-1.5">
+            {showPlannerStep && (
+              <StepRow
+                status={planStatus}
+                label={lang === "th" ? "1. Planner Agent — แตกคำถามเป็นคำค้นย่อย" : "1. Planner agent — decompose into sub-queries"}
+                detail={planStatus === "active" ? stageDetail : undefined}
+              />
+            )}
             <StepRow
               status={gatherStatus}
               label={
-                (lang === "th" ? "1. เตรียมแหล่งข้อมูล — " : "1. Prepare sources — ") +
+                (showPlannerStep ? "2. " : "1. ") +
+                (lang === "th" ? "เตรียมแหล่งข้อมูล — " : "Prepare sources — ") +
                 (hasProvided
                   ? (lang === "th" ? "ดึงเนื้อหาจากลิงก์ที่ระบุ" : "fetch provided links")
-                  : depth === "deep"
+                  : intensity === "deep"
                     ? (lang === "th" ? `ค้นเว็บแบบกว้าง (สูงสุด ${limit} แหล่ง)` : `broad web search (up to ${limit} sources)`)
-                    : (lang === "th" ? `ค้นเว็บแบบเร็ว (สูงสุด ${limit} แหล่ง)` : `fast web search (up to ${limit} sources)`))
+                    : (lang === "th" ? `ค้นเว็บ (สูงสุด ${limit} แหล่ง)` : `web search (up to ${limit} sources)`))
               }
               detail={
                 gatherStatus === "active" ? stageDetail :
@@ -495,15 +501,27 @@ function ResearchPage() {
               }
             />
             <StepRow
+              status={extractStatus}
+              label={
+                (showPlannerStep ? "3. " : "2. ") +
+                (lang === "th" ? "Extractor Agent — ประเมินความเกี่ยวข้องและสกัดประเด็น" : "Extractor agent — score relevance & extract findings")
+              }
+              detail={extractStatus === "active" ? stageDetail : undefined}
+            />
+            <StepRow
               status={synthStatus}
               label={
-                (lang === "th" ? "2. สังเคราะห์รายงาน — " : "2. Synthesize report — ") +
-                (depth === "deep"
-                  ? (lang === "th" ? "วิเคราะห์ละเอียด เปรียบเทียบหลายมุมมอง (800–1200 คำ)" : "thorough analysis with cross-source comparison (800–1200 words)")
-                  : (lang === "th" ? "สรุปกระชับ เน้นประเด็นสำคัญ (300–500 คำ)" : "concise key-point summary (300–500 words)"))
+                (showPlannerStep ? "4. " : "3. ") +
+                (lang === "th" ? "Synthesizer Agent — เรียบเรียงรายงาน " : "Synthesizer agent — draft report ") +
+                (reportLength === "long"
+                  ? (lang === "th" ? "(1000–1500 คำ)" : "(1000–1500 words)")
+                  : reportLength === "medium"
+                    ? (lang === "th" ? "(500–800 คำ)" : "(500–800 words)")
+                    : (lang === "th" ? "(300–500 คำ)" : "(300–500 words)"))
               }
               detail={synthStatus === "active" ? stageDetail : undefined}
             />
+
             {stage === "error" && (
               <li className="mt-1 rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">
                 {stageDetail}
