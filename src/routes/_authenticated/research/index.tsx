@@ -216,20 +216,23 @@ function ResearchPage() {
     setStage("gather");
 
     try {
-      const depthLabel = depth === "deep"
+      const intensityLabel = intensity === "deep"
         ? (lang === "th" ? "เชิงลึก" : "Deep")
-        : (lang === "th" ? "เร็ว" : "Fast");
+        : intensity === "custom"
+          ? (lang === "th" ? "กำหนดเอง" : "Custom")
+          : (lang === "th" ? "เร็ว" : "Fast");
       setStageDetail(
         hasProvided
-          ? (lang === "th" ? `[โหมด${depthLabel}] กำลังดึงเนื้อหาจาก ${parsedUrls.length} ลิงก์…` : `[${depthLabel} mode] Fetching ${parsedUrls.length} link(s)…`)
-          : (lang === "th" ? `[โหมด${depthLabel}] กำลังค้นเว็บสูงสุด ${limit} แหล่ง…` : `[${depthLabel} mode] Searching the web for up to ${limit} sources…`),
+          ? (lang === "th" ? `[โหมด${intensityLabel}] กำลังดึงเนื้อหาจาก ${parsedUrls.length} ลิงก์…` : `[${intensityLabel} mode] Fetching ${parsedUrls.length} link(s)…`)
+          : (lang === "th" ? `[โหมด${intensityLabel}] กำลังค้นเว็บสูงสุด ${limit} แหล่ง…` : `[${intensityLabel} mode] Searching the web for up to ${limit} sources…`),
       );
 
       const prepared = await prepare({
         data: {
           question: question.trim(),
-          limit,
-          depth,
+          intensity,
+          maxSources: limit,
+          reportLength,
           lang,
           urls: parsedUrls,
           hasAttachments: attachments.length > 0,
@@ -242,8 +245,8 @@ function ResearchPage() {
       setStage("synthesize");
       setStageDetail(
         lang === "th"
-          ? `[โหมด${depthLabel}] กำลังสรุปจาก ${prepared.sources.length} แหล่ง${attachments.length ? ` + ${attachments.length} ไฟล์` : ""}…`
-          : `[${depthLabel} mode] Synthesizing from ${prepared.sources.length} sources${attachments.length ? ` + ${attachments.length} files` : ""}…`,
+          ? `[โหมด${intensityLabel}] กำลังสรุปจาก ${prepared.sources.length} แหล่ง${attachments.length ? ` + ${attachments.length} ไฟล์` : ""}…`
+          : `[${intensityLabel} mode] Synthesizing from ${prepared.sources.length} sources${attachments.length ? ` + ${attachments.length} files` : ""}…`,
       );
 
       const docs = prepared.docs as ResearchDoc[];
@@ -255,7 +258,9 @@ function ResearchPage() {
           docs,
           attachments: attachments.map((a) => ({ name: a.name, kind: a.kind, data: a.data, mime: a.mime, size: a.size })),
           mode: prepared.mode,
-          depth,
+          intensity,
+          reportLength,
+          skillId: skillId || null,
         },
       });
       setReport(r.report);
@@ -264,7 +269,7 @@ function ResearchPage() {
       setStageProgress(100);
       setStageDetail("");
       toast.success(
-        depth === "deep"
+        intensity === "deep"
           ? (lang === "th" ? "รายงานเชิงลึกพร้อมแล้ว" : "Deep report ready")
           : (lang === "th" ? "รายงานพร้อมแล้ว" : "Report ready"),
       );
