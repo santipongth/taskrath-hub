@@ -72,12 +72,17 @@ function ResearchPage() {
   const synthesize = useServerFn(synthesizeResearchReport);
   const listProjects = useServerFn(listMyProjects);
   const saveSource = useServerFn(upsertProjectSource);
+  const fetchSkills = useServerFn(listMySkills);
 
   const [question, setQuestion] = useState("");
   const [urlsText, setUrlsText] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
-  const [depth, setDepth] = useState<"fast" | "deep">("fast");
-  const limit = depth === "fast" ? 4 : 10;
+  const [intensity, setIntensity] = useState<Intensity>("fast");
+  const [customSources, setCustomSources] = useState<number>(6);
+  const [customLength, setCustomLength] = useState<ReportLength>("medium");
+  const [skillId, setSkillId] = useState<string>("");
+  const limit = intensity === "fast" ? 4 : intensity === "deep" ? 10 : Math.min(Math.max(customSources, 3), 15);
+  const reportLength: ReportLength = intensity === "fast" ? "short" : intensity === "deep" ? "long" : customLength;
   const [report, setReport] = useState("");
   const [sources, setSources] = useState<ResearchSource[]>([]);
   const [stage, setStage] = useState<Stage>("idle");
@@ -95,6 +100,11 @@ function ResearchPage() {
     queryFn: () => listProjects(),
   });
   const projects = useMemo(() => projData?.projects.filter((p) => !p.archived) ?? [], [projData]);
+  const { data: skillsData } = useQuery({
+    queryKey: ["my-skills"],
+    queryFn: () => fetchSkills(),
+  });
+  const skills = useMemo(() => skillsData?.skills ?? [], [skillsData]);
 
   // Prefill from /tasks "ทำเลย" or notebook hub
   useEffect(() => {
