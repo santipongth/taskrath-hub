@@ -72,10 +72,13 @@ function RunDetail() {
   const tpl = run.template_id ? TEMPLATES_BY_ID[run.template_id] : null;
   const inputObj = (run.input ?? {}) as Record<string, unknown>;
   const metaObj = (run.metadata ?? {}) as Record<string, unknown>;
-  const metaDepth = (metaObj.depth as "fast" | "deep" | undefined) ?? (inputObj.depth as "fast" | "deep" | undefined);
+  const metaDepth = (metaObj.depth as "fast" | "deep" | "custom" | undefined) ?? (inputObj.depth as "fast" | "deep" | undefined);
+  const metaIntensity = (metaObj.intensity as "fast" | "deep" | "custom" | undefined) ?? (inputObj.intensity as "fast" | "deep" | "custom" | undefined) ?? metaDepth;
+  const metaReportLength = (metaObj.reportLength as "short" | "medium" | "long" | undefined) ?? (inputObj.reportLength as "short" | "medium" | "long" | undefined);
   const metaMode = metaObj.mode as "search" | "provided" | undefined;
   const metaKind = metaObj.kind as string | undefined;
-  const metaSources = Array.isArray(metaObj.sources) ? (metaObj.sources as Array<{ n: number; title: string; url: string }>) : [];
+  const metaSources = Array.isArray(metaObj.sources) ? (metaObj.sources as Array<{ n: number; title: string; url: string; snippet?: string; relevance?: number; keypoints?: string[] }>) : [];
+  const metaPlan = Array.isArray(metaObj.plan) ? (metaObj.plan as string[]) : [];
   const attachments = (Array.isArray((inputObj as { attachments?: unknown }).attachments)
     ? (inputObj as { attachments: Array<{ name: string; kind: string; mime?: string | null; size?: number | null }> }).attachments
     : []) as Array<{ name: string; kind: string; mime?: string | null; size?: number | null }>;
