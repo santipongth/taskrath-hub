@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Copy, Download, Paperclip, Loader2 } from "lucide-react";
+import { ArrowLeft, Copy, Download, Paperclip, Loader2, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { ExportDialog } from "@/components/export-dialog";
 import { RefineBar } from "@/components/refine-bar";
