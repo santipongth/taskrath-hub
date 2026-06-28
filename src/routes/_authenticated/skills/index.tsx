@@ -6,8 +6,9 @@ import { listSharedSkills, type SharedSkill } from "@/lib/shared-skills.function
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { SkillIcon } from "@/components/SkillIcon";
 import {
   Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
@@ -53,11 +54,11 @@ function SkillsPage() {
     });
   }, [skills, q, cat]);
 
-  const runInTool = (s: SharedSkill, tool: "run" | "research") => {
+  const runInTool = (s: SharedSkill, tool: "run" | "research", prompt?: string) => {
     try {
       sessionStorage.setItem(
         `${tool}:prefill`,
-        JSON.stringify({ sharedSkillId: s.id }),
+        JSON.stringify({ sharedSkillId: s.id, prompt: prompt ?? undefined }),
       );
     } catch { /* ignore */ }
     navigate({ to: tool === "run" ? "/run" : "/research" });
@@ -135,7 +136,7 @@ function SkillsPage() {
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 text-primary">
-                    <Sparkles className="h-4 w-4" />
+                    <SkillIcon value={s.icon} className="h-4 w-4" />
                   </span>
                   <div>
                     <h3 className="text-sm font-semibold leading-snug line-clamp-1">{s.name}</h3>
@@ -146,6 +147,18 @@ function SkillsPage() {
               </div>
               {s.description && (
                 <p className="mt-2 text-xs text-muted-foreground line-clamp-3">{s.description}</p>
+              )}
+              {(s.conversation_starters?.length ?? 0) > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {s.conversation_starters.slice(0, 2).map((cs, i) => (
+                    <span key={i} className="inline-block max-w-full truncate rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+                      {cs}
+                    </span>
+                  ))}
+                  {s.conversation_starters.length > 2 && (
+                    <span className="text-[10px] text-muted-foreground">+{s.conversation_starters.length - 2}</span>
+                  )}
+                </div>
               )}
             </button>
           ))}
@@ -158,12 +171,34 @@ function SkillsPage() {
             <>
               <SheetHeader>
                 <SheetTitle className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-primary" /> {active.name}
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
+                    <SkillIcon value={active.icon} className="h-3.5 w-3.5" />
+                  </span>
+                  {active.name}
                 </SheetTitle>
                 {active.description && <SheetDescription>{active.description}</SheetDescription>}
               </SheetHeader>
 
               <div className="mt-4 space-y-4">
+                {(active.conversation_starters?.length ?? 0) > 0 && (
+                  <div>
+                    <h4 className="text-xs font-medium uppercase text-muted-foreground mb-1.5">
+                      {lang === "th" ? "เริ่มงานด้วยคำสั่งนี้" : "Start with"}
+                    </h4>
+                    <div className="flex flex-col gap-1.5">
+                      {active.conversation_starters.map((cs, i) => (
+                        <button
+                          key={i}
+                          onClick={() => runInTool(active, "run", cs)}
+                          className="rounded-md border border-border bg-muted/30 px-3 py-2 text-left text-xs hover:border-primary/40 hover:bg-accent/30"
+                        >
+                          {cs}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <h4 className="text-xs font-medium uppercase text-muted-foreground mb-1">
                     {lang === "th" ? "บทบาท (role prompt)" : "Role prompt"}
@@ -173,10 +208,16 @@ function SkillsPage() {
                   </pre>
                 </div>
 
+                {active.recommended_model && (
+                  <div className="text-xs text-muted-foreground">
+                    {lang === "th" ? "โมเดลที่แนะนำ" : "Recommended model"}: <code className="text-foreground">{active.recommended_model}</code>
+                  </div>
+                )}
+
                 {active.example_output && (
                   <div>
                     <h4 className="text-xs font-medium uppercase text-muted-foreground mb-1">
-                      {lang === "th" ? "ตัวอย่างผลลัพธ์" : "Example output"}
+                      {lang === "th" ? "ตัวอย่างผลลัพธ์" : "Sample output"}
                     </h4>
                     <pre className="whitespace-pre-wrap rounded-md border border-border bg-muted/30 p-3 text-xs">
                       {active.example_output}
