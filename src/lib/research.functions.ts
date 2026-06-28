@@ -5,6 +5,7 @@ import { checkPromptInjection } from "@/lib/prompt-guard";
 import { callAI, callAIMultimodal, attachmentSchema, type AttachmentInput } from "@/lib/ai.functions";
 import { loadUserMemoryBlock } from "@/lib/user-memory.functions";
 import { loadSkillPrompt } from "@/lib/user-skills.functions";
+import { loadSharedSkillPrompt } from "@/lib/shared-skills.functions";
 
 export type ResearchSource = {
   n: number;
