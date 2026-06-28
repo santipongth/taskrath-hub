@@ -80,9 +80,21 @@ export const listSharedSkillsForAdmin = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     const dept = await getMyDept(supabase, userId);
-    if (!dept) throw new Error("ไม่ได้กำหนดหน่วยงานในโปรไฟล์");
+    if (!dept) {
+      return {
+        skills: [] as SharedSkill[],
+        department: null as string | null,
+        error: "no_department" as const,
+      };
+    }
     const can = await isDeptAdmin(supabase, userId, dept);
-    if (!can) throw new Error("เฉพาะผู้ดูแลหน่วยงานเท่านั้น");
+    if (!can) {
+      return {
+        skills: [] as SharedSkill[],
+        department: dept,
+        error: "not_admin" as const,
+      };
+    }
     const { data, error } = await supabase
       .from("shared_skills")
       .select(
@@ -92,8 +104,13 @@ export const listSharedSkillsForAdmin = createServerFn({ method: "GET" })
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true });
     if (error) throw new Error(error.message);
-    return { skills: (data ?? []) as SharedSkill[], department: dept };
+    return {
+      skills: (data ?? []) as SharedSkill[],
+      department: dept,
+      error: null as null | "no_department" | "not_admin",
+    };
   });
+
 
 export const upsertSharedSkill = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

@@ -33,7 +33,7 @@ export const Route = createFileRoute("/_authenticated/skills/manage")({
       return await listSharedSkillsForAdmin();
     } catch (e) {
       if (isRedirect(e)) throw e;
-      throw redirect({ to: "/skills" });
+      return { skills: [], department: null, error: "load_failed" as const };
     }
   },
   component: SkillsManagePage,
@@ -41,6 +41,7 @@ export const Route = createFileRoute("/_authenticated/skills/manage")({
     <div className="p-6 text-sm text-muted-foreground">ไม่สามารถโหลดหน้าจัดการ Skill ได้ โปรดตรวจสอบสิทธิ์ผู้ดูแลหน่วยงาน</div>
   ),
 });
+
 
 type Draft = {
   id?: string;
@@ -80,6 +81,37 @@ function SkillsManagePage() {
   });
   const skills: SharedSkill[] = data?.skills ?? [];
   const department = data?.department ?? null;
+  const loadError = (data as { error?: string | null } | undefined)?.error ?? null;
+
+  if (loadError === "no_department") {
+    return (
+      <div className="mx-auto max-w-2xl px-6 py-16 text-center space-y-4">
+        <Building2 className="h-10 w-10 mx-auto text-muted-foreground" />
+        <h1 className="text-xl font-semibold">{lang === "th" ? "ยังไม่ได้กำหนดหน่วยงาน" : "No department set"}</h1>
+        <p className="text-sm text-muted-foreground">
+          {lang === "th"
+            ? "โปรดกำหนดหน่วยงานในโปรไฟล์ของคุณก่อนจึงจะสามารถจัดการ Skill ของหน่วยงานได้"
+            : "Please set your department in profile before managing department skills."}
+        </p>
+        <div className="flex justify-center gap-2">
+          <Button asChild variant="outline"><Link to="/skills"><ArrowLeft className="h-4 w-4 mr-1" />{lang === "th" ? "กลับ" : "Back"}</Link></Button>
+          <Button asChild><Link to="/settings">{lang === "th" ? "ไปที่โปรไฟล์" : "Open profile"}</Link></Button>
+        </div>
+      </div>
+    );
+  }
+  if (loadError === "not_admin") {
+    return (
+      <div className="mx-auto max-w-2xl px-6 py-16 text-center space-y-4">
+        <h1 className="text-xl font-semibold">{lang === "th" ? "ไม่มีสิทธิ์" : "Not authorized"}</h1>
+        <p className="text-sm text-muted-foreground">
+          {lang === "th" ? "เฉพาะผู้ดูแลหน่วยงานเท่านั้นที่จัดการ Skill ได้" : "Only department admins can manage skills."}
+        </p>
+        <Button asChild variant="outline"><Link to="/skills"><ArrowLeft className="h-4 w-4 mr-1" />{lang === "th" ? "กลับ" : "Back"}</Link></Button>
+      </div>
+    );
+  }
+
 
   const [draft, setDraft] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
