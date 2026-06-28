@@ -189,17 +189,36 @@ function SkillsManagePage() {
         </Card>
       ) : (
         <div className="space-y-2">
-          {skills.map((s) => (
+          {skills.map((s) => {
+            const updated = new Date(s.updated_at);
+            const updatedLabel = isNaN(updated.getTime())
+              ? ""
+              : updated.toLocaleString(lang === "th" ? "th-TH" : "en-US", {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                });
+            return (
             <Card key={s.id} className={s.is_active ? "" : "opacity-60"}>
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <CardTitle className="text-base flex items-center gap-2">
+                    <CardTitle className="text-base flex items-center gap-2 flex-wrap">
                       {s.name}
-                      {!s.is_active && <Badge variant="outline" className="text-[10px]">{lang === "th" ? "ปิดใช้" : "off"}</Badge>}
+                      {s.is_active ? (
+                        <Badge variant="secondary" className="text-[10px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-0">
+                          {lang === "th" ? "เปิดใช้งาน" : "active"}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px]">{lang === "th" ? "ปิดใช้" : "inactive"}</Badge>
+                      )}
                       {s.category && <Badge variant="secondary" className="text-[10px]">{s.category}</Badge>}
                     </CardTitle>
                     {s.description && <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{s.description}</p>}
+                    {updatedLabel && (
+                      <p className="mt-1.5 text-[11px] text-muted-foreground">
+                        {lang === "th" ? "อัปเดตล่าสุด" : "Updated"}: {updatedLabel}
+                      </p>
+                    )}
                   </div>
                   <div className="flex shrink-0 gap-1">
                     <Button size="sm" variant="ghost" onClick={() => openEdit(s)}>
