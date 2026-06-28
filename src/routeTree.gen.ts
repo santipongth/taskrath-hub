@@ -20,6 +20,7 @@ import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authenticated/integrations'
 import { Route as AuthenticatedGovernanceRouteImport } from './routes/_authenticated/governance'
 import { Route as AuthenticatedAgentsRouteImport } from './routes/_authenticated/agents'
+import { Route as AuthenticatedSkillsIndexRouteImport } from './routes/_authenticated/skills/index'
 import { Route as AuthenticatedRunIndexRouteImport } from './routes/_authenticated/run/index'
 import { Route as AuthenticatedResearchIndexRouteImport } from './routes/_authenticated/research/index'
 import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authenticated/projects/index'
@@ -97,6 +98,12 @@ const AuthenticatedAgentsRoute = AuthenticatedAgentsRouteImport.update({
   path: '/agents',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedSkillsIndexRoute =
+  AuthenticatedSkillsIndexRouteImport.update({
+    id: '/skills/',
+    path: '/skills/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedRunIndexRoute = AuthenticatedRunIndexRouteImport.update({
   id: '/run/',
   path: '/run/',
@@ -248,6 +255,7 @@ export interface FileRoutesByFullPath {
   '/projects/': typeof AuthenticatedProjectsIndexRoute
   '/research/': typeof AuthenticatedResearchIndexRoute
   '/run/': typeof AuthenticatedRunIndexRoute
+  '/skills/': typeof AuthenticatedSkillsIndexRoute
   '/agents/manage/providers': typeof AuthenticatedAgentsManageProvidersRoute
   '/agents/manage/runs': typeof AuthenticatedAgentsManageRunsRoute
   '/api/public/calendar/ics': typeof ApiPublicCalendarIcsRoute
@@ -280,6 +288,7 @@ export interface FileRoutesByTo {
   '/projects': typeof AuthenticatedProjectsIndexRoute
   '/research': typeof AuthenticatedResearchIndexRoute
   '/run': typeof AuthenticatedRunIndexRoute
+  '/skills': typeof AuthenticatedSkillsIndexRoute
   '/agents/manage/providers': typeof AuthenticatedAgentsManageProvidersRoute
   '/agents/manage/runs': typeof AuthenticatedAgentsManageRunsRoute
   '/api/public/calendar/ics': typeof ApiPublicCalendarIcsRoute
@@ -315,6 +324,7 @@ export interface FileRoutesById {
   '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
   '/_authenticated/research/': typeof AuthenticatedResearchIndexRoute
   '/_authenticated/run/': typeof AuthenticatedRunIndexRoute
+  '/_authenticated/skills/': typeof AuthenticatedSkillsIndexRoute
   '/_authenticated/agents/manage/providers': typeof AuthenticatedAgentsManageProvidersRoute
   '/_authenticated/agents/manage/runs': typeof AuthenticatedAgentsManageRunsRoute
   '/api/public/calendar/ics': typeof ApiPublicCalendarIcsRoute
@@ -350,6 +360,7 @@ export interface FileRouteTypes {
     | '/projects/'
     | '/research/'
     | '/run/'
+    | '/skills/'
     | '/agents/manage/providers'
     | '/agents/manage/runs'
     | '/api/public/calendar/ics'
@@ -382,6 +393,7 @@ export interface FileRouteTypes {
     | '/projects'
     | '/research'
     | '/run'
+    | '/skills'
     | '/agents/manage/providers'
     | '/agents/manage/runs'
     | '/api/public/calendar/ics'
@@ -416,6 +428,7 @@ export interface FileRouteTypes {
     | '/_authenticated/projects/'
     | '/_authenticated/research/'
     | '/_authenticated/run/'
+    | '/_authenticated/skills/'
     | '/_authenticated/agents/manage/providers'
     | '/_authenticated/agents/manage/runs'
     | '/api/public/calendar/ics'
@@ -509,6 +522,13 @@ declare module '@tanstack/react-router' {
       path: '/agents'
       fullPath: '/agents'
       preLoaderRoute: typeof AuthenticatedAgentsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/skills/': {
+      id: '/_authenticated/skills/'
+      path: '/skills'
+      fullPath: '/skills/'
+      preLoaderRoute: typeof AuthenticatedSkillsIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/run/': {
@@ -713,6 +733,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedProjectsIndexRoute: typeof AuthenticatedProjectsIndexRoute
   AuthenticatedResearchIndexRoute: typeof AuthenticatedResearchIndexRoute
   AuthenticatedRunIndexRoute: typeof AuthenticatedRunIndexRoute
+  AuthenticatedSkillsIndexRoute: typeof AuthenticatedSkillsIndexRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
@@ -737,6 +758,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedProjectsIndexRoute: AuthenticatedProjectsIndexRoute,
   AuthenticatedResearchIndexRoute: AuthenticatedResearchIndexRoute,
   AuthenticatedRunIndexRoute: AuthenticatedRunIndexRoute,
+  AuthenticatedSkillsIndexRoute: AuthenticatedSkillsIndexRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
