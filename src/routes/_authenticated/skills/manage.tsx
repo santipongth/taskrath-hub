@@ -23,7 +23,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, ArrowLeft, Building2, Sparkles, Save } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowLeft, Sparkles, Save } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/skills/manage")({
@@ -80,41 +80,12 @@ function SkillsManagePage() {
     queryFn: () => fetchAll(),
   });
   const skills: SharedSkill[] = data?.skills ?? [];
-  const department = data?.department ?? null;
   const loadError = (data as { error?: string | null } | undefined)?.error ?? null;
-
-  if (loadError === "no_department") {
-    return (
-      <div className="mx-auto max-w-2xl px-6 py-16 text-center space-y-4">
-        <Building2 className="h-10 w-10 mx-auto text-muted-foreground" />
-        <h1 className="text-xl font-semibold">{lang === "th" ? "ยังไม่ได้กำหนดหน่วยงาน" : "No department set"}</h1>
-        <p className="text-sm text-muted-foreground">
-          {lang === "th"
-            ? "โปรดกำหนดหน่วยงานในโปรไฟล์ของคุณก่อนจึงจะสามารถจัดการ Skill ของหน่วยงานได้"
-            : "Please set your department in profile before managing department skills."}
-        </p>
-        <div className="flex justify-center gap-2">
-          <Button asChild variant="outline"><Link to="/skills"><ArrowLeft className="h-4 w-4 mr-1" />{lang === "th" ? "กลับ" : "Back"}</Link></Button>
-          <Button asChild><Link to="/settings">{lang === "th" ? "ไปที่โปรไฟล์" : "Open profile"}</Link></Button>
-        </div>
-      </div>
-    );
-  }
-  if (loadError === "not_admin") {
-    return (
-      <div className="mx-auto max-w-2xl px-6 py-16 text-center space-y-4">
-        <h1 className="text-xl font-semibold">{lang === "th" ? "ไม่มีสิทธิ์" : "Not authorized"}</h1>
-        <p className="text-sm text-muted-foreground">
-          {lang === "th" ? "เฉพาะผู้ดูแลหน่วยงานเท่านั้นที่จัดการ Skill ได้" : "Only department admins can manage skills."}
-        </p>
-        <Button asChild variant="outline"><Link to="/skills"><ArrowLeft className="h-4 w-4 mr-1" />{lang === "th" ? "กลับ" : "Back"}</Link></Button>
-      </div>
-    );
-  }
-
 
   const [draft, setDraft] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
+
+
 
   const openCreate = () => setDraft({ ...EMPTY });
   const openEdit = (s: SharedSkill) =>
@@ -177,7 +148,20 @@ function SkillsManagePage() {
     }
   };
 
+  if (loadError === "not_admin") {
+    return (
+      <div className="mx-auto max-w-2xl px-6 py-16 text-center space-y-4">
+        <h1 className="text-xl font-semibold">{lang === "th" ? "ไม่มีสิทธิ์" : "Not authorized"}</h1>
+        <p className="text-sm text-muted-foreground">
+          {lang === "th" ? "เฉพาะผู้ดูแลระบบเท่านั้นที่จัดการ Skill ได้" : "Only admins can manage skills."}
+        </p>
+        <Button asChild variant="outline"><Link to="/skills"><ArrowLeft className="h-4 w-4 mr-1" />{lang === "th" ? "กลับ" : "Back"}</Link></Button>
+      </div>
+    );
+  }
+
   return (
+
     <div className="mx-auto max-w-5xl px-6 py-8 space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -185,19 +169,15 @@ function SkillsManagePage() {
             <Link to="/skills"><ArrowLeft className="h-3.5 w-3.5 mr-1" />{lang === "th" ? "กลับคลัง Skill" : "Back to library"}</Link>
           </Button>
           <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" /> {lang === "th" ? "จัดการ Skill ของหน่วยงาน" : "Manage Department Skills"}
+            <Sparkles className="h-5 w-5 text-primary" /> {lang === "th" ? "จัดการคลัง Skill" : "Manage Skill Library"}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             {lang === "th"
-              ? "สร้าง Skill กลางที่ทุกคนในหน่วยงานเรียกใช้ได้ผ่านเมนู Skills, สั่งงาน AI, และวิจัยเชิงลึก"
-              : "Create department-wide skills usable from Skills, Run, and Deep Research."}
+              ? "สร้าง Skill กลางที่ทุกคนเรียกใช้ได้ผ่านเมนู Skills, สั่งงาน AI, และวิจัยเชิงลึก"
+              : "Create shared skills usable from Skills, Run, and Deep Research."}
           </p>
-          {department && (
-            <Badge variant="secondary" className="mt-2 inline-flex items-center gap-1 text-[11px]">
-              <Building2 className="h-3 w-3" /> {department}
-            </Badge>
-          )}
         </div>
+
         <Button onClick={openCreate}><Plus className="h-4 w-4 mr-1.5" />{lang === "th" ? "สร้าง Skill" : "New skill"}</Button>
       </header>
 

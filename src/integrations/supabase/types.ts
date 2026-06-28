@@ -610,7 +610,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           default_model_selector: string | null
-          department: string
+          department: string | null
           description: string | null
           example_output: string | null
           icon: string | null
@@ -626,7 +626,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           default_model_selector?: string | null
-          department: string
+          department?: string | null
           description?: string | null
           example_output?: string | null
           icon?: string | null
@@ -642,7 +642,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           default_model_selector?: string | null
-          department?: string
+          department?: string | null
           description?: string | null
           example_output?: string | null
           icon?: string | null

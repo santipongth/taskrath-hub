@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
-import { Sparkles, Search, Settings2, Building2, ArrowRight, Telescope, MessageSquare } from "lucide-react";
+import { Sparkles, Search, Settings2, ArrowRight, Telescope, MessageSquare } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/skills/")({
   head: () => ({ meta: [{ title: "Skills · RathCoWork" }] }),
@@ -28,8 +28,8 @@ function SkillsPage() {
   });
 
   const skills: SharedSkill[] = data?.skills ?? [];
-  const department = data?.department ?? null;
   const canManage = data?.canManage ?? false;
+
 
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<string>("__all__");
@@ -72,15 +72,11 @@ function SkillsPage() {
           </h1>
           <p className="text-sm text-muted-foreground">
             {lang === "th"
-              ? "Skill ที่ผู้ดูแลหน่วยงานสร้างและแชร์ให้สมาชิกเรียกใช้ใน สั่งงาน AI / วิจัยเชิงลึก / แชต"
-              : "Skills published by your department admin — usable from Run / Research / Chat."}
+              ? "Skill ที่ผู้ดูแลสร้างและแชร์ให้สมาชิกเรียกใช้ใน สั่งงาน AI / วิจัยเชิงลึก / แชต"
+              : "Skills published by admins — usable from Run / Research / Chat."}
           </p>
-          {department && (
-            <Badge variant="secondary" className="mt-1 inline-flex items-center gap-1 text-[11px]">
-              <Building2 className="h-3 w-3" /> {department}
-            </Badge>
-          )}
         </div>
+
         {canManage && (
           <Button asChild variant="outline">
             <Link to="/skills/manage"><Settings2 className="h-4 w-4 mr-1.5" />{lang === "th" ? "จัดการ Skill" : "Manage skills"}</Link>
@@ -114,15 +110,8 @@ function SkillsPage() {
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground py-8 text-center">{lang === "th" ? "กำลังโหลด…" : "Loading…"}</p>
-      ) : !department ? (
-        <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            {lang === "th"
-              ? "ยังไม่ได้กำหนดหน่วยงานในโปรไฟล์ — โปรดติดต่อผู้ดูแลระบบ"
-              : "Your profile has no department set — please contact admin."}
-          </CardContent>
-        </Card>
       ) : filtered.length === 0 ? (
+
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
             {skills.length === 0
