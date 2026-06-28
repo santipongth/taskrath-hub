@@ -215,15 +215,31 @@ function SkillsManagePage() {
         <Button onClick={openCreate}><Plus className="h-4 w-4 mr-1.5" />{lang === "th" ? "สร้าง Skill" : "New skill"}</Button>
       </header>
 
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={lang === "th" ? "ค้นหาตามชื่อหรือคำอธิบาย…" : "Search by name or description…"}
+          className="pl-8"
+        />
+      </div>
+
       {skills.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
             {lang === "th" ? "ยังไม่มี Skill — เริ่มจากกด 'สร้าง Skill'" : "No skills yet — click 'New skill' to start"}
           </CardContent>
         </Card>
+      ) : filtered.length === 0 ? (
+        <Card>
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            {lang === "th" ? "ไม่พบ Skill ที่ตรงกับคำค้น" : "No skills match your search"}
+          </CardContent>
+        </Card>
       ) : (
         <div className="space-y-2">
-          {skills.map((s) => {
+          {filtered.map((s) => {
             const updated = new Date(s.updated_at);
             const updatedLabel = isNaN(updated.getTime())
               ? ""
@@ -237,7 +253,13 @@ function SkillsManagePage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <CardTitle className="text-base flex items-center gap-2 flex-wrap">
-                      {s.name}
+                      <Link
+                        to="/skills/manage/$skillId"
+                        params={{ skillId: s.id }}
+                        className="hover:underline"
+                      >
+                        {s.name}
+                      </Link>
                       {s.is_active ? (
                         <Badge variant="secondary" className="text-[10px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-0">
                           {lang === "th" ? "เปิดใช้งาน" : "active"}
@@ -255,8 +277,18 @@ function SkillsManagePage() {
                     )}
                   </div>
                   <div className="flex shrink-0 gap-1">
-                    <Button size="sm" variant="ghost" onClick={() => openEdit(s)}>
-                      <Pencil className="h-3.5 w-3.5" />
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      title={s.is_active ? (lang === "th" ? "ปิดใช้งาน" : "Deactivate") : (lang === "th" ? "เปิดใช้งาน" : "Activate")}
+                      onClick={() => setToggleTarget(s)}
+                    >
+                      {s.is_active ? <PowerOff className="h-3.5 w-3.5" /> : <Power className="h-3.5 w-3.5 text-emerald-600" />}
+                    </Button>
+                    <Button asChild size="sm" variant="ghost" title={lang === "th" ? "รายละเอียด/แก้ไข" : "Details / edit"}>
+                      <Link to="/skills/manage/$skillId" params={{ skillId: s.id }}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Link>
                     </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
@@ -283,6 +315,28 @@ function SkillsManagePage() {
           })}
         </div>
       )}
+
+      <AlertDialog open={!!toggleTarget} onOpenChange={(o) => !o && setToggleTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {toggleTarget?.is_active
+                ? (lang === "th" ? `ปิดใช้งาน "${toggleTarget?.name}"?` : `Deactivate "${toggleTarget?.name}"?`)
+                : (lang === "th" ? `เปิดใช้งาน "${toggleTarget?.name}"?` : `Activate "${toggleTarget?.name}"?`)}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {toggleTarget?.is_active
+                ? (lang === "th" ? "ผู้ใช้ทั่วไปจะมองไม่เห็น Skill นี้จนกว่าจะเปิดใช้งานอีกครั้ง" : "Members won't see this skill until you reactivate it.")
+                : (lang === "th" ? "Skill นี้จะปรากฏให้ผู้ใช้ทุกคนเรียกใช้งานทันที" : "This skill will become visible to all users immediately.")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{lang === "th" ? "ยกเลิก" : "Cancel"}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmToggle}>{lang === "th" ? "ยืนยัน" : "Confirm"}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
 
       <Sheet open={!!draft} onOpenChange={(o) => !o && setDraft(null)}>
         <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
