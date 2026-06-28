@@ -19,20 +19,17 @@ import { Route as AuthenticatedTemplatesRouteImport } from './routes/_authentica
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authenticated/integrations'
 import { Route as AuthenticatedGovernanceRouteImport } from './routes/_authenticated/governance'
-import { Route as AuthenticatedAgentsRouteImport } from './routes/_authenticated/agents'
 import { Route as AuthenticatedSkillsIndexRouteImport } from './routes/_authenticated/skills/index'
 import { Route as AuthenticatedRunIndexRouteImport } from './routes/_authenticated/run/index'
 import { Route as AuthenticatedResearchIndexRouteImport } from './routes/_authenticated/research/index'
 import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authenticated/projects/index'
 import { Route as AuthenticatedHistoryIndexRouteImport } from './routes/_authenticated/history/index'
 import { Route as AuthenticatedChatIndexRouteImport } from './routes/_authenticated/chat/index'
-import { Route as AuthenticatedAgentsIndexRouteImport } from './routes/_authenticated/agents.index'
 import { Route as AuthenticatedSkillsManageRouteImport } from './routes/_authenticated/skills/manage'
 import { Route as AuthenticatedRunTemplateIdRouteImport } from './routes/_authenticated/run/$templateId'
 import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects/$projectId'
 import { Route as AuthenticatedHistoryRunIdRouteImport } from './routes/_authenticated/history/$runId'
 import { Route as AuthenticatedChatThreadIdRouteImport } from './routes/_authenticated/chat/$threadId'
-import { Route as AuthenticatedAgentsManageRouteImport } from './routes/_authenticated/agents.manage'
 import { Route as AuthenticatedAdminUsageRouteImport } from './routes/_authenticated/admin/usage'
 import { Route as AuthenticatedAdminTemplatesRouteImport } from './routes/_authenticated/admin/templates'
 import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authenticated/admin/settings'
@@ -41,8 +38,6 @@ import { Route as AuthenticatedAdminKnowledgeRouteImport } from './routes/_authe
 import { Route as AuthenticatedAdminDashboardRouteImport } from './routes/_authenticated/admin/dashboard'
 import { Route as ApiPublicHooksTaskRemindersRouteImport } from './routes/api/public/hooks/task-reminders'
 import { Route as ApiPublicCalendarIcsRouteImport } from './routes/api/public/calendar/ics'
-import { Route as AuthenticatedAgentsManageRunsRouteImport } from './routes/_authenticated/agents.manage.runs'
-import { Route as AuthenticatedAgentsManageProvidersRouteImport } from './routes/_authenticated/agents.manage.providers'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -94,11 +89,6 @@ const AuthenticatedGovernanceRoute = AuthenticatedGovernanceRouteImport.update({
   path: '/governance',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedAgentsRoute = AuthenticatedAgentsRouteImport.update({
-  id: '/agents',
-  path: '/agents',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
 const AuthenticatedSkillsIndexRoute =
   AuthenticatedSkillsIndexRouteImport.update({
     id: '/skills/',
@@ -133,12 +123,6 @@ const AuthenticatedChatIndexRoute = AuthenticatedChatIndexRouteImport.update({
   path: '/chat/',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedAgentsIndexRoute =
-  AuthenticatedAgentsIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => AuthenticatedAgentsRoute,
-  } as any)
 const AuthenticatedSkillsManageRoute =
   AuthenticatedSkillsManageRouteImport.update({
     id: '/skills/manage',
@@ -168,12 +152,6 @@ const AuthenticatedChatThreadIdRoute =
     id: '/chat/$threadId',
     path: '/chat/$threadId',
     getParentRoute: () => AuthenticatedRoute,
-  } as any)
-const AuthenticatedAgentsManageRoute =
-  AuthenticatedAgentsManageRouteImport.update({
-    id: '/manage',
-    path: '/manage',
-    getParentRoute: () => AuthenticatedAgentsRoute,
   } as any)
 const AuthenticatedAdminUsageRoute = AuthenticatedAdminUsageRouteImport.update({
   id: '/admin/usage',
@@ -221,25 +199,12 @@ const ApiPublicCalendarIcsRoute = ApiPublicCalendarIcsRouteImport.update({
   path: '/api/public/calendar/ics',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedAgentsManageRunsRoute =
-  AuthenticatedAgentsManageRunsRouteImport.update({
-    id: '/runs',
-    path: '/runs',
-    getParentRoute: () => AuthenticatedAgentsManageRoute,
-  } as any)
-const AuthenticatedAgentsManageProvidersRoute =
-  AuthenticatedAgentsManageProvidersRouteImport.update({
-    id: '/providers',
-    path: '/providers',
-    getParentRoute: () => AuthenticatedAgentsManageRoute,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/agents': typeof AuthenticatedAgentsRouteWithChildren
   '/governance': typeof AuthenticatedGovernanceRoute
   '/integrations': typeof AuthenticatedIntegrationsRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -251,21 +216,17 @@ export interface FileRoutesByFullPath {
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/templates': typeof AuthenticatedAdminTemplatesRoute
   '/admin/usage': typeof AuthenticatedAdminUsageRoute
-  '/agents/manage': typeof AuthenticatedAgentsManageRouteWithChildren
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/history/$runId': typeof AuthenticatedHistoryRunIdRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/run/$templateId': typeof AuthenticatedRunTemplateIdRoute
   '/skills/manage': typeof AuthenticatedSkillsManageRoute
-  '/agents/': typeof AuthenticatedAgentsIndexRoute
   '/chat/': typeof AuthenticatedChatIndexRoute
   '/history/': typeof AuthenticatedHistoryIndexRoute
   '/projects/': typeof AuthenticatedProjectsIndexRoute
   '/research/': typeof AuthenticatedResearchIndexRoute
   '/run/': typeof AuthenticatedRunIndexRoute
   '/skills/': typeof AuthenticatedSkillsIndexRoute
-  '/agents/manage/providers': typeof AuthenticatedAgentsManageProvidersRoute
-  '/agents/manage/runs': typeof AuthenticatedAgentsManageRunsRoute
   '/api/public/calendar/ics': typeof ApiPublicCalendarIcsRoute
   '/api/public/hooks/task-reminders': typeof ApiPublicHooksTaskRemindersRoute
 }
@@ -285,21 +246,17 @@ export interface FileRoutesByTo {
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/templates': typeof AuthenticatedAdminTemplatesRoute
   '/admin/usage': typeof AuthenticatedAdminUsageRoute
-  '/agents/manage': typeof AuthenticatedAgentsManageRouteWithChildren
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/history/$runId': typeof AuthenticatedHistoryRunIdRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/run/$templateId': typeof AuthenticatedRunTemplateIdRoute
   '/skills/manage': typeof AuthenticatedSkillsManageRoute
-  '/agents': typeof AuthenticatedAgentsIndexRoute
   '/chat': typeof AuthenticatedChatIndexRoute
   '/history': typeof AuthenticatedHistoryIndexRoute
   '/projects': typeof AuthenticatedProjectsIndexRoute
   '/research': typeof AuthenticatedResearchIndexRoute
   '/run': typeof AuthenticatedRunIndexRoute
   '/skills': typeof AuthenticatedSkillsIndexRoute
-  '/agents/manage/providers': typeof AuthenticatedAgentsManageProvidersRoute
-  '/agents/manage/runs': typeof AuthenticatedAgentsManageRunsRoute
   '/api/public/calendar/ics': typeof ApiPublicCalendarIcsRoute
   '/api/public/hooks/task-reminders': typeof ApiPublicHooksTaskRemindersRoute
 }
@@ -309,7 +266,6 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/_authenticated/agents': typeof AuthenticatedAgentsRouteWithChildren
   '/_authenticated/governance': typeof AuthenticatedGovernanceRoute
   '/_authenticated/integrations': typeof AuthenticatedIntegrationsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
@@ -322,21 +278,17 @@ export interface FileRoutesById {
   '/_authenticated/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/_authenticated/admin/templates': typeof AuthenticatedAdminTemplatesRoute
   '/_authenticated/admin/usage': typeof AuthenticatedAdminUsageRoute
-  '/_authenticated/agents/manage': typeof AuthenticatedAgentsManageRouteWithChildren
   '/_authenticated/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/_authenticated/history/$runId': typeof AuthenticatedHistoryRunIdRoute
   '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/_authenticated/run/$templateId': typeof AuthenticatedRunTemplateIdRoute
   '/_authenticated/skills/manage': typeof AuthenticatedSkillsManageRoute
-  '/_authenticated/agents/': typeof AuthenticatedAgentsIndexRoute
   '/_authenticated/chat/': typeof AuthenticatedChatIndexRoute
   '/_authenticated/history/': typeof AuthenticatedHistoryIndexRoute
   '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
   '/_authenticated/research/': typeof AuthenticatedResearchIndexRoute
   '/_authenticated/run/': typeof AuthenticatedRunIndexRoute
   '/_authenticated/skills/': typeof AuthenticatedSkillsIndexRoute
-  '/_authenticated/agents/manage/providers': typeof AuthenticatedAgentsManageProvidersRoute
-  '/_authenticated/agents/manage/runs': typeof AuthenticatedAgentsManageRunsRoute
   '/api/public/calendar/ics': typeof ApiPublicCalendarIcsRoute
   '/api/public/hooks/task-reminders': typeof ApiPublicHooksTaskRemindersRoute
 }
@@ -347,7 +299,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/sitemap.xml'
-    | '/agents'
     | '/governance'
     | '/integrations'
     | '/settings'
@@ -359,21 +310,17 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/templates'
     | '/admin/usage'
-    | '/agents/manage'
     | '/chat/$threadId'
     | '/history/$runId'
     | '/projects/$projectId'
     | '/run/$templateId'
     | '/skills/manage'
-    | '/agents/'
     | '/chat/'
     | '/history/'
     | '/projects/'
     | '/research/'
     | '/run/'
     | '/skills/'
-    | '/agents/manage/providers'
-    | '/agents/manage/runs'
     | '/api/public/calendar/ics'
     | '/api/public/hooks/task-reminders'
   fileRoutesByTo: FileRoutesByTo
@@ -393,21 +340,17 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/templates'
     | '/admin/usage'
-    | '/agents/manage'
     | '/chat/$threadId'
     | '/history/$runId'
     | '/projects/$projectId'
     | '/run/$templateId'
     | '/skills/manage'
-    | '/agents'
     | '/chat'
     | '/history'
     | '/projects'
     | '/research'
     | '/run'
     | '/skills'
-    | '/agents/manage/providers'
-    | '/agents/manage/runs'
     | '/api/public/calendar/ics'
     | '/api/public/hooks/task-reminders'
   id:
@@ -416,7 +359,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/sitemap.xml'
-    | '/_authenticated/agents'
     | '/_authenticated/governance'
     | '/_authenticated/integrations'
     | '/_authenticated/settings'
@@ -429,21 +371,17 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/settings'
     | '/_authenticated/admin/templates'
     | '/_authenticated/admin/usage'
-    | '/_authenticated/agents/manage'
     | '/_authenticated/chat/$threadId'
     | '/_authenticated/history/$runId'
     | '/_authenticated/projects/$projectId'
     | '/_authenticated/run/$templateId'
     | '/_authenticated/skills/manage'
-    | '/_authenticated/agents/'
     | '/_authenticated/chat/'
     | '/_authenticated/history/'
     | '/_authenticated/projects/'
     | '/_authenticated/research/'
     | '/_authenticated/run/'
     | '/_authenticated/skills/'
-    | '/_authenticated/agents/manage/providers'
-    | '/_authenticated/agents/manage/runs'
     | '/api/public/calendar/ics'
     | '/api/public/hooks/task-reminders'
   fileRoutesById: FileRoutesById
@@ -530,13 +468,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedGovernanceRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/agents': {
-      id: '/_authenticated/agents'
-      path: '/agents'
-      fullPath: '/agents'
-      preLoaderRoute: typeof AuthenticatedAgentsRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
     '/_authenticated/skills/': {
       id: '/_authenticated/skills/'
       path: '/skills'
@@ -579,13 +510,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedChatIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/agents/': {
-      id: '/_authenticated/agents/'
-      path: '/'
-      fullPath: '/agents/'
-      preLoaderRoute: typeof AuthenticatedAgentsIndexRouteImport
-      parentRoute: typeof AuthenticatedAgentsRoute
-    }
     '/_authenticated/skills/manage': {
       id: '/_authenticated/skills/manage'
       path: '/skills/manage'
@@ -620,13 +544,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/chat/$threadId'
       preLoaderRoute: typeof AuthenticatedChatThreadIdRouteImport
       parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/agents/manage': {
-      id: '/_authenticated/agents/manage'
-      path: '/manage'
-      fullPath: '/agents/manage'
-      preLoaderRoute: typeof AuthenticatedAgentsManageRouteImport
-      parentRoute: typeof AuthenticatedAgentsRoute
     }
     '/_authenticated/admin/usage': {
       id: '/_authenticated/admin/usage'
@@ -684,55 +601,10 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCalendarIcsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/agents/manage/runs': {
-      id: '/_authenticated/agents/manage/runs'
-      path: '/runs'
-      fullPath: '/agents/manage/runs'
-      preLoaderRoute: typeof AuthenticatedAgentsManageRunsRouteImport
-      parentRoute: typeof AuthenticatedAgentsManageRoute
-    }
-    '/_authenticated/agents/manage/providers': {
-      id: '/_authenticated/agents/manage/providers'
-      path: '/providers'
-      fullPath: '/agents/manage/providers'
-      preLoaderRoute: typeof AuthenticatedAgentsManageProvidersRouteImport
-      parentRoute: typeof AuthenticatedAgentsManageRoute
-    }
   }
 }
-
-interface AuthenticatedAgentsManageRouteChildren {
-  AuthenticatedAgentsManageProvidersRoute: typeof AuthenticatedAgentsManageProvidersRoute
-  AuthenticatedAgentsManageRunsRoute: typeof AuthenticatedAgentsManageRunsRoute
-}
-
-const AuthenticatedAgentsManageRouteChildren: AuthenticatedAgentsManageRouteChildren =
-  {
-    AuthenticatedAgentsManageProvidersRoute:
-      AuthenticatedAgentsManageProvidersRoute,
-    AuthenticatedAgentsManageRunsRoute: AuthenticatedAgentsManageRunsRoute,
-  }
-
-const AuthenticatedAgentsManageRouteWithChildren =
-  AuthenticatedAgentsManageRoute._addFileChildren(
-    AuthenticatedAgentsManageRouteChildren,
-  )
-
-interface AuthenticatedAgentsRouteChildren {
-  AuthenticatedAgentsManageRoute: typeof AuthenticatedAgentsManageRouteWithChildren
-  AuthenticatedAgentsIndexRoute: typeof AuthenticatedAgentsIndexRoute
-}
-
-const AuthenticatedAgentsRouteChildren: AuthenticatedAgentsRouteChildren = {
-  AuthenticatedAgentsManageRoute: AuthenticatedAgentsManageRouteWithChildren,
-  AuthenticatedAgentsIndexRoute: AuthenticatedAgentsIndexRoute,
-}
-
-const AuthenticatedAgentsRouteWithChildren =
-  AuthenticatedAgentsRoute._addFileChildren(AuthenticatedAgentsRouteChildren)
 
 interface AuthenticatedRouteChildren {
-  AuthenticatedAgentsRoute: typeof AuthenticatedAgentsRouteWithChildren
   AuthenticatedGovernanceRoute: typeof AuthenticatedGovernanceRoute
   AuthenticatedIntegrationsRoute: typeof AuthenticatedIntegrationsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
@@ -758,7 +630,6 @@ interface AuthenticatedRouteChildren {
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
-  AuthenticatedAgentsRoute: AuthenticatedAgentsRouteWithChildren,
   AuthenticatedGovernanceRoute: AuthenticatedGovernanceRoute,
   AuthenticatedIntegrationsRoute: AuthenticatedIntegrationsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
