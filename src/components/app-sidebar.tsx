@@ -103,7 +103,7 @@ export function AppSidebar() {
                 <AdminItem to="/admin/usage" icon={BarChart3} labelTh="การใช้งาน" labelEn="Usage" pathname={pathname} collapsed={collapsed} lang={lang} />
                 <AdminItem to="/admin/knowledge" icon={BookText} labelTh="คลังความรู้" labelEn="Knowledge" pathname={pathname} collapsed={collapsed} lang={lang} />
                 <AdminItem to="/admin/templates" icon={LayoutTemplate} labelTh="เทมเพลตของหน่วยงาน" labelEn="Custom Templates" pathname={pathname} collapsed={collapsed} lang={lang} />
-                <AdminItem to="/agents" icon={Bot} labelTh="Agent & Skills" labelEn="Agents & Skills" pathname={pathname} collapsed={collapsed} lang={lang} />
+                <AdminItem to="/skills/manage" icon={Bot} labelTh="จัดการ Skill หน่วยงาน" labelEn="Manage Skills" pathname={pathname} collapsed={collapsed} lang={lang} />
                 <AdminItem to="/integrations" icon={Plug} labelTh="เชื่อมระบบ" labelEn="Integrations" pathname={pathname} collapsed={collapsed} lang={lang} />
                 <AdminItem to="/governance" icon={ShieldCheck} labelTh="ธรรมาภิบาล" labelEn="Governance" pathname={pathname} collapsed={collapsed} lang={lang} />
                 <AdminItem to="/admin/notifications" icon={Bell} labelTh="การแจ้งเตือน" labelEn="Notifications" pathname={pathname} collapsed={collapsed} lang={lang} />
