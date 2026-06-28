@@ -5,6 +5,7 @@ import { checkPromptInjection } from "@/lib/prompt-guard";
 import { callAI, callAIMultimodal, attachmentSchema, type AttachmentInput } from "@/lib/ai.functions";
 import { loadUserMemoryBlock } from "@/lib/user-memory.functions";
 import { loadSkillPrompt } from "@/lib/user-skills.functions";
+import { loadSharedSkillPrompt } from "@/lib/shared-skills.functions";
 
 export type ResearchSource = {
   n: number;
@@ -410,6 +411,8 @@ export const synthesizeResearchReport = createServerFn({ method: "POST" })
         intensity: intensityEnum.optional().default("fast"),
         reportLength: lengthEnum.optional(),
         skillId: z.string().uuid().optional().nullable(),
+        personalSkillId: z.string().uuid().optional().nullable(),
+        sharedSkillId: z.string().uuid().optional().nullable(),
         // back-compat
         depth: z.enum(["fast", "deep"]).optional(),
       })
@@ -466,7 +469,11 @@ export const synthesizeResearchReport = createServerFn({ method: "POST" })
         .join("\n\n---\n\n") || (data.lang === "th" ? "(ไม่มีแหล่ง URL — ใช้ไฟล์แนบเป็นหลัก)" : "(no URL sources — use attachments)");
 
       const memBlock = await loadUserMemoryBlock(supabase, userId);
-      const skillBlock = await loadSkillPrompt(supabase, userId, data.skillId ?? null);
+      const personalSkillId = data.personalSkillId ?? data.skillId ?? null;
+      const [skillBlock, sharedSkillBlock] = await Promise.all([
+        loadSkillPrompt(supabase, userId, personalSkillId),
+        loadSharedSkillPrompt(supabase, userId, data.sharedSkillId ?? null),
+      ]);
 
       const intensityDirective =
         intensity === "deep"
@@ -486,7 +493,7 @@ export const synthesizeResearchReport = createServerFn({ method: "POST" })
           ? "คุณเป็น 'Synthesizer Agent' (นักวิเคราะห์ราชการไทย) ของระบบวิจัยแบบหลายตัวแทน จงเขียนรายงานสรุปจากแหล่งข้อมูลและไฟล์แนบที่ Extractor Agent คัดมาให้ ใช้ภาษาทางการ จัดหัวข้อชัดเจน อ้างอิงด้วยเลข [n] ทุกข้อความที่อ้างจากแหล่ง สำหรับไฟล์แนบให้ระบุ [ไฟล์: ชื่อไฟล์] ห้ามแต่งข้อมูลที่ไม่มีในแหล่ง"
           : "You are the 'Synthesizer Agent' of a multi-agent research system. Write a clear report using sources curated by the Extractor Agent and attachments. Cite every factual claim with [n] for URLs or [file: name] for attachments. Do not invent information.") +
         intensityDirective + " " + lengthDirective(reportLength, data.lang) +
-        skillBlock + memBlock;
+        sharedSkillBlock + skillBlock + memBlock;
 
       const userPrompt =
         (data.lang === "th" ? "คำถามวิจัย:\n" : "Research question:\n") + data.question + "\n\n" +
@@ -513,7 +520,9 @@ export const synthesizeResearchReport = createServerFn({ method: "POST" })
       const { error } = await supabase
         .from("ai_runs")
         .update({
-          input: { question: data.question, lang: data.lang, sources: sources.map((s) => s.url), attachments: atts.map((a) => ({ name: a.name, kind: a.kind })), intensity, reportLength, skillId: data.skillId ?? null },
+          input: { question: data.question, lang: data.lang, sources: sources.map((s) => s.url), attachments: atts.map((a) => ({ name: a.name, kind: a.kind })), intensity, reportLength, personalSkillId, sharedSkillId: data.sharedSkillId ?? null },
+          shared_skill_id: data.sharedSkillId ?? null,
+          user_skill_id: personalSkillId,
           output: report,
           status: "completed",
           prompt_tokens: ai.usage.promptTokens,

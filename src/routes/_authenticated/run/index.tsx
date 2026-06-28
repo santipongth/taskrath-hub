@@ -3,7 +3,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { runFreeform, ocrAttachments, listMyDeptModels } from "@/lib/ai.functions";
-import { listMySkills, seedDefaultSkills } from "@/lib/user-skills.functions";
+import { seedDefaultSkills } from "@/lib/user-skills.functions";
+import { listAvailableSkills, type CombinedSkill } from "@/lib/shared-skills.functions";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -58,7 +59,7 @@ function RunPage() {
   const run = useServerFn(runFreeform);
   const ocr = useServerFn(ocrAttachments);
   const fetchModels = useServerFn(listMyDeptModels);
-  const fetchSkills = useServerFn(listMySkills);
+  const fetchSkills = useServerFn(listAvailableSkills);
   const seedSkills = useServerFn(seedDefaultSkills);
 
   const { data: modelsData } = useQuery({
@@ -68,17 +69,19 @@ function RunPage() {
   });
   const models = modelsData?.models ?? [];
   const { data: skillsData, refetch: refetchSkills } = useQuery({
-    queryKey: ["user-skills"],
+    queryKey: ["available-skills"],
     queryFn: () => fetchSkills(),
   });
-  const skills = skillsData?.skills ?? [];
+  const sharedSkills: CombinedSkill[] = skillsData?.shared ?? [];
+  const personalSkills: CombinedSkill[] = skillsData?.personal ?? [];
+  const skills = personalSkills; // backward-compat for seed-on-empty effect below
 
   // Auto-seed curated default skills on first visit if the user has none.
   const seededRef = useRef(false);
   useEffect(() => {
     if (seededRef.current) return;
     if (!skillsData) return;
-    if (skillsData.skills.length > 0) return;
+    if (skillsData.personal.length > 0) return;
     seededRef.current = true;
     seedSkills().then(() => refetchSkills()).catch(() => {});
   }, [skillsData, seedSkills, refetchSkills]);
@@ -105,20 +108,24 @@ function RunPage() {
     } catch { /* ignore */ }
   }, []);
   const [personalSkillId, setPersonalSkillId] = useState<string>("__none__");
+  const [sharedSkillId, setSharedSkillId] = useState<string>("__none__");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const baseRef = useRef("");
 
-  const selectedSkill = useMemo(() => skills.find((s) => s.id === personalSkillId) ?? null, [skills, personalSkillId]);
+  const selectedPersonal = useMemo(() => personalSkills.find((s) => s.id === personalSkillId) ?? null, [personalSkills, personalSkillId]);
+  const selectedShared = useMemo(() => sharedSkills.find((s) => s.id === sharedSkillId) ?? null, [sharedSkills, sharedSkillId]);
+  const selectedSkill = selectedShared ?? selectedPersonal;
 
-  // Prefill from /tasks "ทำเลย"
+  // Prefill from /tasks "ทำเลย" or /skills launcher
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem("run:prefill");
       if (!raw) return;
       sessionStorage.removeItem("run:prefill");
-      const { prompt: p, skillId } = JSON.parse(raw) as { prompt?: string; skillId?: string };
+      const { prompt: p, skillId, personalSkillId: pSkill, sharedSkillId: sSkill } = JSON.parse(raw) as { prompt?: string; skillId?: string; personalSkillId?: string; sharedSkillId?: string };
       if (p) { setPrompt(p); baseRef.current = p; }
-      if (skillId) setPersonalSkillId(skillId);
+      if (sSkill) { setSharedSkillId(sSkill); setPersonalSkillId("__none__"); }
+      else if (pSkill || skillId) { setPersonalSkillId(pSkill ?? skillId ?? "__none__"); setSharedSkillId("__none__"); }
     } catch { /* ignore */ }
   }, []);
 
@@ -243,6 +250,7 @@ function RunPage() {
           attachments: workAtts.map(({ name, kind, data, mime, size }) => ({ name, kind, data, mime, size })),
           providerSelector: selector,
           personalSkillId: personalSkillId !== "__none__" ? personalSkillId : null,
+          sharedSkillId: sharedSkillId !== "__none__" ? sharedSkillId : null,
         },
       });
       setOutput(res.output);
@@ -343,7 +351,7 @@ function RunPage() {
                   {lang === "th" ? "แนบไฟล์" : "Attach file"}
                 </DropdownMenuItem>
 
-                {skills.length > 0 && (
+                {(sharedSkills.length + personalSkills.length) > 0 && (
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuLabel className="flex items-center gap-2 text-xs">
@@ -357,14 +365,33 @@ function RunPage() {
                       </DropdownMenuSubTrigger>
                       <DropdownMenuPortal>
                         <DropdownMenuSubContent className="max-h-72 overflow-y-auto">
-                          <DropdownMenuItem onSelect={() => setPersonalSkillId("__none__")}>
+                          <DropdownMenuItem onSelect={() => { setPersonalSkillId("__none__"); setSharedSkillId("__none__"); }}>
                             {lang === "th" ? "— ไม่ใช้ Skill —" : "— No skill —"}
                           </DropdownMenuItem>
-                          {skills.map((s) => (
-                            <DropdownMenuItem key={s.id} onSelect={() => setPersonalSkillId(s.id)}>
-                              {s.name}
-                            </DropdownMenuItem>
-                          ))}
+                          {sharedSkills.length > 0 && (
+                            <>
+                              <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground">
+                                {lang === "th" ? "ของหน่วยงาน" : "Shared"}
+                              </DropdownMenuLabel>
+                              {sharedSkills.map((s) => (
+                                <DropdownMenuItem key={`s-${s.id}`} onSelect={() => { setSharedSkillId(s.id); setPersonalSkillId("__none__"); }}>
+                                  {s.name}
+                                </DropdownMenuItem>
+                              ))}
+                            </>
+                          )}
+                          {personalSkills.length > 0 && (
+                            <>
+                              <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground">
+                                {lang === "th" ? "ส่วนตัว" : "Personal"}
+                              </DropdownMenuLabel>
+                              {personalSkills.map((s) => (
+                                <DropdownMenuItem key={`p-${s.id}`} onSelect={() => { setPersonalSkillId(s.id); setSharedSkillId("__none__"); }}>
+                                  {s.name}
+                                </DropdownMenuItem>
+                              ))}
+                            </>
+                          )}
                         </DropdownMenuSubContent>
                       </DropdownMenuPortal>
                     </DropdownMenuSub>
@@ -378,8 +405,11 @@ function RunPage() {
               <span className="ml-1 inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs text-foreground">
                 <UserCog className="h-3 w-3" />
                 {selectedSkill.name}
+                {selectedShared && (
+                  <span className="text-[10px] text-muted-foreground">· {lang === "th" ? "หน่วยงาน" : "shared"}</span>
+                )}
                 <button
-                  onClick={() => setPersonalSkillId("__none__")}
+                  onClick={() => { setPersonalSkillId("__none__"); setSharedSkillId("__none__"); }}
                   className="ml-0.5 text-muted-foreground hover:text-foreground"
                   aria-label="clear skill"
                 >

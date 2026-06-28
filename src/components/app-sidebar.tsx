@@ -23,9 +23,10 @@ import { checkIsAdmin } from "@/lib/ai.functions";
 const ITEMS: { to: string; key: MessageKey; icon: typeof LayoutDashboard; labelTh?: string; labelEn?: string }[] = [
   { to: "/", key: "nav_dashboard", icon: LayoutDashboard },
   { to: "/run", key: "nav_run", icon: Sparkles },
-  
+
   { to: "/chat", key: "nav_chat", icon: MessageSquare },
   { to: "/research", key: "nav_research", icon: Telescope },
+  { to: "/skills", key: "nav_run", icon: Bot, labelTh: "Skills", labelEn: "Skills" },
   { to: "/projects", key: "nav_run", icon: FolderKanban, labelTh: "Notebooks", labelEn: "Notebooks" },
   { to: "/templates", key: "nav_templates", icon: LibraryBig },
   { to: "/history", key: "nav_history", icon: History },
@@ -102,7 +103,7 @@ export function AppSidebar() {
                 <AdminItem to="/admin/usage" icon={BarChart3} labelTh="การใช้งาน" labelEn="Usage" pathname={pathname} collapsed={collapsed} lang={lang} />
                 <AdminItem to="/admin/knowledge" icon={BookText} labelTh="คลังความรู้" labelEn="Knowledge" pathname={pathname} collapsed={collapsed} lang={lang} />
                 <AdminItem to="/admin/templates" icon={LayoutTemplate} labelTh="เทมเพลตของหน่วยงาน" labelEn="Custom Templates" pathname={pathname} collapsed={collapsed} lang={lang} />
-                <AdminItem to="/agents" icon={Bot} labelTh="Agent & Skills" labelEn="Agents & Skills" pathname={pathname} collapsed={collapsed} lang={lang} />
+                <AdminItem to="/skills/manage" icon={Bot} labelTh="จัดการ Skill หน่วยงาน" labelEn="Manage Skills" pathname={pathname} collapsed={collapsed} lang={lang} />
                 <AdminItem to="/integrations" icon={Plug} labelTh="เชื่อมระบบ" labelEn="Integrations" pathname={pathname} collapsed={collapsed} lang={lang} />
                 <AdminItem to="/governance" icon={ShieldCheck} labelTh="ธรรมาภิบาล" labelEn="Governance" pathname={pathname} collapsed={collapsed} lang={lang} />
                 <AdminItem to="/admin/notifications" icon={Bell} labelTh="การแจ้งเตือน" labelEn="Notifications" pathname={pathname} collapsed={collapsed} lang={lang} />
@@ -119,7 +120,7 @@ export function AppSidebar() {
 function AdminItem({
   to, icon: Icon, labelTh, labelEn, pathname, collapsed, lang,
 }: {
-  to: "/admin/dashboard" | "/admin/usage" | "/admin/knowledge" | "/admin/templates" | "/admin/notifications" | "/admin/settings" | "/agents" | "/integrations" | "/governance";
+  to: "/admin/dashboard" | "/admin/usage" | "/admin/knowledge" | "/admin/templates" | "/admin/notifications" | "/admin/settings" | "/skills/manage" | "/integrations" | "/governance";
   icon: typeof LayoutDashboard;
   labelTh: string;
   labelEn: string;

@@ -11,7 +11,7 @@ import {
 } from "@/lib/research.functions";
 import { listMyProjects } from "@/lib/user-projects.functions";
 import { upsertProjectSource } from "@/lib/project-sources.functions";
-import { listMySkills } from "@/lib/user-skills.functions";
+import { listAvailableSkills } from "@/lib/shared-skills.functions";
 import { useI18n } from "@/lib/i18n";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -72,7 +72,7 @@ function ResearchPage() {
   const synthesize = useServerFn(synthesizeResearchReport);
   const listProjects = useServerFn(listMyProjects);
   const saveSource = useServerFn(upsertProjectSource);
-  const fetchSkills = useServerFn(listMySkills);
+  const fetchSkills = useServerFn(listAvailableSkills);
 
   const [question, setQuestion] = useState("");
   const [urlsText, setUrlsText] = useState("");
@@ -104,7 +104,7 @@ function ResearchPage() {
     queryKey: ["my-skills"],
     queryFn: () => fetchSkills(),
   });
-  const skills = useMemo(() => skillsData?.skills ?? [], [skillsData]);
+  const skills = useMemo(() => [...(skillsData?.shared ?? []), ...(skillsData?.personal ?? [])], [skillsData]);
 
   // Prefill from /tasks "ทำเลย" or notebook hub
   useEffect(() => {
@@ -260,7 +260,8 @@ function ResearchPage() {
           mode: prepared.mode,
           intensity,
           reportLength,
-          skillId: skillId || null,
+          personalSkillId: skillId.startsWith("personal:") ? skillId.slice("personal:".length) : null,
+          sharedSkillId: skillId.startsWith("shared:") ? skillId.slice("shared:".length) : null,
         },
       });
       setReport(r.report);
@@ -403,7 +404,9 @@ function ResearchPage() {
                 <SelectContent>
                   <SelectItem value="__none">{lang === "th" ? "— ไม่ใช้ skill —" : "— No skill —"}</SelectItem>
                   {skills.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    <SelectItem key={`${s.source}-${s.id}`} value={`${s.source}:${s.id}`}>
+                      {s.source === "shared" ? "🏢 " : "👤 "}{s.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
