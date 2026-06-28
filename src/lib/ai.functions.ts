@@ -322,6 +322,7 @@ export const runFreeform = createServerFn({ method: "POST" })
         attachments: z.array(attachmentSchema).max(10).optional().default([]),
         providerSelector: z.string().min(1).max(120).optional().nullable(),
         personalSkillId: z.string().uuid().optional().nullable(),
+        sharedSkillId: z.string().uuid().optional().nullable(),
         projectId: z.string().uuid().optional().nullable(),
       })
       .parse(input),
@@ -336,11 +337,14 @@ export const runFreeform = createServerFn({ method: "POST" })
     const r = data.redactPii ? redactPII(data.prompt) : { text: data.prompt, map: {}, counts: {} };
     const kbCtx = await retrieveKbContext(supabase, data.prompt);
     const memBlock = await loadUserMemoryBlock(supabase, userId);
-    const skillBlock = await loadSkillPrompt(supabase, userId, data.personalSkillId);
+    const [personalSkillBlock, sharedSkillBlock] = await Promise.all([
+      loadSkillPrompt(supabase, userId, data.personalSkillId),
+      loadSharedSkillPrompt(supabase, userId, data.sharedSkillId),
+    ]);
     const projectBlock = await loadProjectContext(supabase, userId, data.projectId);
     const baseSystem =
       "คุณเป็นผู้ช่วย AI สำหรับเจ้าหน้าที่ราชการไทย ตอบอย่างกระชับ สุภาพ และใช้ภาษาทางการ หากมีไฟล์แนบ (รูปภาพ/PDF/ข้อความ) ให้วิเคราะห์เนื้อหาไฟล์ประกอบคำตอบด้วย";
-    const systemPrompt = withKbContext(baseSystem + skillBlock + projectBlock + memBlock, kbCtx);
+    const systemPrompt = withKbContext(baseSystem + sharedSkillBlock + personalSkillBlock + projectBlock + memBlock, kbCtx);
     const atts = data.attachments ?? [];
 
     let aiText: string;
@@ -379,6 +383,8 @@ export const runFreeform = createServerFn({ method: "POST" })
         cost_usd: usage.costUsd,
         provider_id: providerInfo?.id ?? null,
         provider_kind: providerInfo?.kind ?? null,
+        shared_skill_id: data.sharedSkillId ?? null,
+        user_skill_id: data.personalSkillId ?? null,
         metadata: { ...(kbCtx ? { citations: kbCtx.citations } : {}), attachments: attachmentsMeta },
       })
       .select("id")
