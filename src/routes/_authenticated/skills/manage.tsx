@@ -32,6 +32,7 @@ export const Route = createFileRoute("/_authenticated/skills/manage")({
     try {
       return await listSharedSkillsForAdmin();
     } catch (e) {
+      if (isRedirect(e)) throw e;
       throw redirect({ to: "/skills" });
     }
   },
