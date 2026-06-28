@@ -156,19 +156,15 @@ function SkillsManagePage() {
             <Link to="/skills"><ArrowLeft className="h-3.5 w-3.5 mr-1" />{lang === "th" ? "กลับคลัง Skill" : "Back to library"}</Link>
           </Button>
           <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" /> {lang === "th" ? "จัดการ Skill ของหน่วยงาน" : "Manage Department Skills"}
+            <Sparkles className="h-5 w-5 text-primary" /> {lang === "th" ? "จัดการคลัง Skill" : "Manage Skill Library"}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             {lang === "th"
-              ? "สร้าง Skill กลางที่ทุกคนในหน่วยงานเรียกใช้ได้ผ่านเมนู Skills, สั่งงาน AI, และวิจัยเชิงลึก"
-              : "Create department-wide skills usable from Skills, Run, and Deep Research."}
+              ? "สร้าง Skill กลางที่ทุกคนเรียกใช้ได้ผ่านเมนู Skills, สั่งงาน AI, และวิจัยเชิงลึก"
+              : "Create shared skills usable from Skills, Run, and Deep Research."}
           </p>
-          {department && (
-            <Badge variant="secondary" className="mt-2 inline-flex items-center gap-1 text-[11px]">
-              <Building2 className="h-3 w-3" /> {department}
-            </Badge>
-          )}
         </div>
+
         <Button onClick={openCreate}><Plus className="h-4 w-4 mr-1.5" />{lang === "th" ? "สร้าง Skill" : "New skill"}</Button>
       </header>
 
