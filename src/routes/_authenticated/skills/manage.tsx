@@ -76,6 +76,7 @@ function SkillsManagePage() {
   const fetchAll = useServerFn(listSharedSkillsForAdmin);
   const upsert = useServerFn(upsertSharedSkill);
   const del = useServerFn(deleteSharedSkill);
+  const toggleActive = useServerFn(setSharedSkillActive);
 
   const { data } = useQuery({
     queryKey: ["shared-skills-admin"],
@@ -86,6 +87,17 @@ function SkillsManagePage() {
 
   const [draft, setDraft] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
+  const [query, setQuery] = useState("");
+  const [toggleTarget, setToggleTarget] = useState<SharedSkill | null>(null);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return skills;
+    return skills.filter((s) =>
+      [s.name, s.description ?? "", s.category ?? ""].some((t) => t.toLowerCase().includes(q)),
+    );
+  }, [skills, query]);
+
 
 
 
