@@ -1,11 +1,12 @@
-import { createFileRoute, Link, redirect, isRedirect } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, Link, isRedirect } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   listSharedSkillsForAdmin,
   upsertSharedSkill,
   deleteSharedSkill,
+  setSharedSkillActive,
   type SharedSkill,
 } from "@/lib/shared-skills.functions";
 import { useI18n } from "@/lib/i18n";
@@ -23,8 +24,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, ArrowLeft, Sparkles, Save } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowLeft, Sparkles, Save, Search, Power, PowerOff } from "lucide-react";
 import { toast } from "sonner";
+
 
 export const Route = createFileRoute("/_authenticated/skills/manage")({
   head: () => ({ meta: [{ title: "จัดการ Skill · RathCoWork" }] }),
