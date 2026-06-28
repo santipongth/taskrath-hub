@@ -245,7 +245,8 @@ function SkillsManagePage() {
                 </div>
               </CardHeader>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
 
