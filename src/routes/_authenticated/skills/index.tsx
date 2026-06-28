@@ -110,15 +110,8 @@ function SkillsPage() {
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground py-8 text-center">{lang === "th" ? "กำลังโหลด…" : "Loading…"}</p>
-      ) : !department ? (
-        <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            {lang === "th"
-              ? "ยังไม่ได้กำหนดหน่วยงานในโปรไฟล์ — โปรดติดต่อผู้ดูแลระบบ"
-              : "Your profile has no department set — please contact admin."}
-          </CardContent>
-        </Card>
       ) : filtered.length === 0 ? (
+
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
             {skills.length === 0
