@@ -351,7 +351,7 @@ function RunPage() {
                   {lang === "th" ? "แนบไฟล์" : "Attach file"}
                 </DropdownMenuItem>
 
-                {skills.length > 0 && (
+                {(sharedSkills.length + personalSkills.length) > 0 && (
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuLabel className="flex items-center gap-2 text-xs">
@@ -365,14 +365,33 @@ function RunPage() {
                       </DropdownMenuSubTrigger>
                       <DropdownMenuPortal>
                         <DropdownMenuSubContent className="max-h-72 overflow-y-auto">
-                          <DropdownMenuItem onSelect={() => setPersonalSkillId("__none__")}>
+                          <DropdownMenuItem onSelect={() => { setPersonalSkillId("__none__"); setSharedSkillId("__none__"); }}>
                             {lang === "th" ? "— ไม่ใช้ Skill —" : "— No skill —"}
                           </DropdownMenuItem>
-                          {skills.map((s) => (
-                            <DropdownMenuItem key={s.id} onSelect={() => setPersonalSkillId(s.id)}>
-                              {s.name}
-                            </DropdownMenuItem>
-                          ))}
+                          {sharedSkills.length > 0 && (
+                            <>
+                              <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground">
+                                {lang === "th" ? "ของหน่วยงาน" : "Shared"}
+                              </DropdownMenuLabel>
+                              {sharedSkills.map((s) => (
+                                <DropdownMenuItem key={`s-${s.id}`} onSelect={() => { setSharedSkillId(s.id); setPersonalSkillId("__none__"); }}>
+                                  {s.name}
+                                </DropdownMenuItem>
+                              ))}
+                            </>
+                          )}
+                          {personalSkills.length > 0 && (
+                            <>
+                              <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground">
+                                {lang === "th" ? "ส่วนตัว" : "Personal"}
+                              </DropdownMenuLabel>
+                              {personalSkills.map((s) => (
+                                <DropdownMenuItem key={`p-${s.id}`} onSelect={() => { setPersonalSkillId(s.id); setSharedSkillId("__none__"); }}>
+                                  {s.name}
+                                </DropdownMenuItem>
+                              ))}
+                            </>
+                          )}
                         </DropdownMenuSubContent>
                       </DropdownMenuPortal>
                     </DropdownMenuSub>
@@ -386,8 +405,11 @@ function RunPage() {
               <span className="ml-1 inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs text-foreground">
                 <UserCog className="h-3 w-3" />
                 {selectedSkill.name}
+                {selectedShared && (
+                  <span className="text-[10px] text-muted-foreground">· {lang === "th" ? "หน่วยงาน" : "shared"}</span>
+                )}
                 <button
-                  onClick={() => setPersonalSkillId("__none__")}
+                  onClick={() => { setPersonalSkillId("__none__"); setSharedSkillId("__none__"); }}
                   className="ml-0.5 text-muted-foreground hover:text-foreground"
                   aria-label="clear skill"
                 >
