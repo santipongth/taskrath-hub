@@ -493,7 +493,7 @@ export const synthesizeResearchReport = createServerFn({ method: "POST" })
           ? "คุณเป็น 'Synthesizer Agent' (นักวิเคราะห์ราชการไทย) ของระบบวิจัยแบบหลายตัวแทน จงเขียนรายงานสรุปจากแหล่งข้อมูลและไฟล์แนบที่ Extractor Agent คัดมาให้ ใช้ภาษาทางการ จัดหัวข้อชัดเจน อ้างอิงด้วยเลข [n] ทุกข้อความที่อ้างจากแหล่ง สำหรับไฟล์แนบให้ระบุ [ไฟล์: ชื่อไฟล์] ห้ามแต่งข้อมูลที่ไม่มีในแหล่ง"
           : "You are the 'Synthesizer Agent' of a multi-agent research system. Write a clear report using sources curated by the Extractor Agent and attachments. Cite every factual claim with [n] for URLs or [file: name] for attachments. Do not invent information.") +
         intensityDirective + " " + lengthDirective(reportLength, data.lang) +
-        skillBlock + memBlock;
+        sharedSkillBlock + skillBlock + memBlock;
 
       const userPrompt =
         (data.lang === "th" ? "คำถามวิจัย:\n" : "Research question:\n") + data.question + "\n\n" +
