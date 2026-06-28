@@ -520,7 +520,9 @@ export const synthesizeResearchReport = createServerFn({ method: "POST" })
       const { error } = await supabase
         .from("ai_runs")
         .update({
-          input: { question: data.question, lang: data.lang, sources: sources.map((s) => s.url), attachments: atts.map((a) => ({ name: a.name, kind: a.kind })), intensity, reportLength, skillId: data.skillId ?? null },
+          input: { question: data.question, lang: data.lang, sources: sources.map((s) => s.url), attachments: atts.map((a) => ({ name: a.name, kind: a.kind })), intensity, reportLength, personalSkillId, sharedSkillId: data.sharedSkillId ?? null },
+          shared_skill_id: data.sharedSkillId ?? null,
+          user_skill_id: personalSkillId,
           output: report,
           status: "completed",
           prompt_tokens: ai.usage.promptTokens,
