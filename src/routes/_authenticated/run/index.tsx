@@ -250,6 +250,7 @@ function RunPage() {
           attachments: workAtts.map(({ name, kind, data, mime, size }) => ({ name, kind, data, mime, size })),
           providerSelector: selector,
           personalSkillId: personalSkillId !== "__none__" ? personalSkillId : null,
+          sharedSkillId: sharedSkillId !== "__none__" ? sharedSkillId : null,
         },
       });
       setOutput(res.output);
