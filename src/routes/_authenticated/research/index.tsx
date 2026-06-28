@@ -72,7 +72,7 @@ function ResearchPage() {
   const synthesize = useServerFn(synthesizeResearchReport);
   const listProjects = useServerFn(listMyProjects);
   const saveSource = useServerFn(upsertProjectSource);
-  const fetchSkills = useServerFn(listMySkills);
+  const fetchSkills = useServerFn(listAvailableSkills);
 
   const [question, setQuestion] = useState("");
   const [urlsText, setUrlsText] = useState("");
