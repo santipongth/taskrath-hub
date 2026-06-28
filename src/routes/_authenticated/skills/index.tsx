@@ -28,8 +28,8 @@ function SkillsPage() {
   });
 
   const skills: SharedSkill[] = data?.skills ?? [];
-  const department = data?.department ?? null;
   const canManage = data?.canManage ?? false;
+
 
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<string>("__all__");
