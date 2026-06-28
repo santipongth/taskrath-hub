@@ -59,7 +59,7 @@ function RunPage() {
   const run = useServerFn(runFreeform);
   const ocr = useServerFn(ocrAttachments);
   const fetchModels = useServerFn(listMyDeptModels);
-  const fetchSkills = useServerFn(listMySkills);
+  const fetchSkills = useServerFn(listAvailableSkills);
   const seedSkills = useServerFn(seedDefaultSkills);
 
   const { data: modelsData } = useQuery({
@@ -69,10 +69,12 @@ function RunPage() {
   });
   const models = modelsData?.models ?? [];
   const { data: skillsData, refetch: refetchSkills } = useQuery({
-    queryKey: ["user-skills"],
+    queryKey: ["available-skills"],
     queryFn: () => fetchSkills(),
   });
-  const skills = skillsData?.skills ?? [];
+  const sharedSkills: CombinedSkill[] = skillsData?.shared ?? [];
+  const personalSkills: CombinedSkill[] = skillsData?.personal ?? [];
+  const skills = personalSkills; // backward-compat for seed-on-empty effect below
 
   // Auto-seed curated default skills on first visit if the user has none.
   const seededRef = useRef(false);
