@@ -152,6 +152,39 @@ export const deleteSharedSkill = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const setSharedSkillActive = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ id: z.string().uuid(), is_active: z.boolean() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const can = await canManageSkills(supabase, userId);
+    if (!can) throw new Error("เฉพาะผู้ดูแลระบบเท่านั้น");
+    const { error } = await supabase
+      .from("shared_skills")
+      .update({ is_active: data.is_active })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const getSharedSkill = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const can = await canManageSkills(supabase, userId);
+    if (!can) return { skill: null, canManage: false as const };
+    const { data: row, error } = await supabase
+      .from("shared_skills")
+      .select(SELECT_COLS)
+      .eq("id", data.id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return { skill: (row ?? null) as SharedSkill | null, canManage: true as const };
+  });
+
 /** Combined list (shared + personal) for selector UIs. */
 export const listAvailableSkills = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
