@@ -11,7 +11,7 @@ import {
 } from "@/lib/research.functions";
 import { listMyProjects } from "@/lib/user-projects.functions";
 import { upsertProjectSource } from "@/lib/project-sources.functions";
-import { listMySkills } from "@/lib/user-skills.functions";
+import { listAvailableSkills } from "@/lib/shared-skills.functions";
 import { useI18n } from "@/lib/i18n";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
