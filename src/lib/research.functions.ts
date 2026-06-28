@@ -469,7 +469,11 @@ export const synthesizeResearchReport = createServerFn({ method: "POST" })
         .join("\n\n---\n\n") || (data.lang === "th" ? "(ไม่มีแหล่ง URL — ใช้ไฟล์แนบเป็นหลัก)" : "(no URL sources — use attachments)");
 
       const memBlock = await loadUserMemoryBlock(supabase, userId);
-      const skillBlock = await loadSkillPrompt(supabase, userId, data.skillId ?? null);
+      const personalSkillId = data.personalSkillId ?? data.skillId ?? null;
+      const [skillBlock, sharedSkillBlock] = await Promise.all([
+        loadSkillPrompt(supabase, userId, personalSkillId),
+        loadSharedSkillPrompt(supabase, userId, data.sharedSkillId ?? null),
+      ]);
 
       const intensityDirective =
         intensity === "deep"
