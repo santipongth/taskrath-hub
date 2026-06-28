@@ -81,7 +81,7 @@ function RunPage() {
   useEffect(() => {
     if (seededRef.current) return;
     if (!skillsData) return;
-    if (skillsData.skills.length > 0) return;
+    if (skillsData.personal.length > 0) return;
     seededRef.current = true;
     seedSkills().then(() => refetchSkills()).catch(() => {});
   }, [skillsData, seedSkills, refetchSkills]);
