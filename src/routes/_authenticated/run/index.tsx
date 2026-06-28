@@ -108,20 +108,24 @@ function RunPage() {
     } catch { /* ignore */ }
   }, []);
   const [personalSkillId, setPersonalSkillId] = useState<string>("__none__");
+  const [sharedSkillId, setSharedSkillId] = useState<string>("__none__");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const baseRef = useRef("");
 
-  const selectedSkill = useMemo(() => skills.find((s) => s.id === personalSkillId) ?? null, [skills, personalSkillId]);
+  const selectedPersonal = useMemo(() => personalSkills.find((s) => s.id === personalSkillId) ?? null, [personalSkills, personalSkillId]);
+  const selectedShared = useMemo(() => sharedSkills.find((s) => s.id === sharedSkillId) ?? null, [sharedSkills, sharedSkillId]);
+  const selectedSkill = selectedShared ?? selectedPersonal;
 
-  // Prefill from /tasks "ทำเลย"
+  // Prefill from /tasks "ทำเลย" or /skills launcher
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem("run:prefill");
       if (!raw) return;
       sessionStorage.removeItem("run:prefill");
-      const { prompt: p, skillId } = JSON.parse(raw) as { prompt?: string; skillId?: string };
+      const { prompt: p, skillId, personalSkillId: pSkill, sharedSkillId: sSkill } = JSON.parse(raw) as { prompt?: string; skillId?: string; personalSkillId?: string; sharedSkillId?: string };
       if (p) { setPrompt(p); baseRef.current = p; }
-      if (skillId) setPersonalSkillId(skillId);
+      if (sSkill) { setSharedSkillId(sSkill); setPersonalSkillId("__none__"); }
+      else if (pSkill || skillId) { setPersonalSkillId(pSkill ?? skillId ?? "__none__"); setSharedSkillId("__none__"); }
     } catch { /* ignore */ }
   }, []);
 
