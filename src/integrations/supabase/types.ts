@@ -21,8 +21,6 @@ export type Database = {
           cost_usd: number
           created_at: string
           department: string | null
-          dept_agent_id: string | null
-          dept_skill_id: string | null
           id: string
           input: Json
           metadata: Json
@@ -31,10 +29,12 @@ export type Database = {
           prompt_tokens: number
           provider_id: string | null
           provider_kind: string | null
+          shared_skill_id: string | null
           status: string
           template_id: string | null
           title: string | null
           user_id: string
+          user_skill_id: string | null
         }
         Insert: {
           attempts?: Json | null
@@ -42,8 +42,6 @@ export type Database = {
           cost_usd?: number
           created_at?: string
           department?: string | null
-          dept_agent_id?: string | null
-          dept_skill_id?: string | null
           id?: string
           input?: Json
           metadata?: Json
@@ -52,10 +50,12 @@ export type Database = {
           prompt_tokens?: number
           provider_id?: string | null
           provider_kind?: string | null
+          shared_skill_id?: string | null
           status?: string
           template_id?: string | null
           title?: string | null
           user_id: string
+          user_skill_id?: string | null
         }
         Update: {
           attempts?: Json | null
@@ -63,8 +63,6 @@ export type Database = {
           cost_usd?: number
           created_at?: string
           department?: string | null
-          dept_agent_id?: string | null
-          dept_skill_id?: string | null
           id?: string
           input?: Json
           metadata?: Json
@@ -73,24 +71,26 @@ export type Database = {
           prompt_tokens?: number
           provider_id?: string | null
           provider_kind?: string | null
+          shared_skill_id?: string | null
           status?: string
           template_id?: string | null
           title?: string | null
           user_id?: string
+          user_skill_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "ai_runs_dept_agent_id_fkey"
-            columns: ["dept_agent_id"]
+            foreignKeyName: "ai_runs_shared_skill_id_fkey"
+            columns: ["shared_skill_id"]
             isOneToOne: false
-            referencedRelation: "dept_agents"
+            referencedRelation: "shared_skills"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "ai_runs_dept_skill_id_fkey"
-            columns: ["dept_skill_id"]
+            foreignKeyName: "ai_runs_user_skill_id_fkey"
+            columns: ["user_skill_id"]
             isOneToOne: false
-            referencedRelation: "dept_skills"
+            referencedRelation: "user_skills"
             referencedColumns: ["id"]
           },
         ]
@@ -300,78 +300,6 @@ export type Database = {
         }
         Relationships: []
       }
-      dept_agent_skills: {
-        Row: {
-          agent_id: string
-          order_index: number
-          skill_id: string
-        }
-        Insert: {
-          agent_id: string
-          order_index?: number
-          skill_id: string
-        }
-        Update: {
-          agent_id?: string
-          order_index?: number
-          skill_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "dept_agent_skills_agent_id_fkey"
-            columns: ["agent_id"]
-            isOneToOne: false
-            referencedRelation: "dept_agents"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "dept_agent_skills_skill_id_fkey"
-            columns: ["skill_id"]
-            isOneToOne: false
-            referencedRelation: "dept_skills"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      dept_agents: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          default_model: string | null
-          department: string
-          description: string | null
-          id: string
-          name: string
-          role_prompt: string
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          default_model?: string | null
-          department: string
-          description?: string | null
-          id?: string
-          name: string
-          role_prompt?: string
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          default_model?: string | null
-          department?: string
-          description?: string | null
-          id?: string
-          name?: string
-          role_prompt?: string
-          status?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       dept_model_providers: {
         Row: {
           api_key_secret_name: string | null
@@ -452,54 +380,6 @@ export type Database = {
           id?: string
           is_default?: boolean
           name?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      dept_skills: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          department: string
-          description: string | null
-          fields: Json
-          id: string
-          kb_category: string | null
-          model: string | null
-          name: string
-          needs_approval: boolean
-          status: string
-          system_prompt: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          department: string
-          description?: string | null
-          fields?: Json
-          id?: string
-          kb_category?: string | null
-          model?: string | null
-          name: string
-          needs_approval?: boolean
-          status?: string
-          system_prompt?: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          department?: string
-          description?: string | null
-          fields?: Json
-          id?: string
-          kb_category?: string | null
-          model?: string | null
-          name?: string
-          needs_approval?: boolean
-          status?: string
-          system_prompt?: string
           updated_at?: string
         }
         Relationships: []
@@ -723,6 +603,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      shared_skills: {
+        Row: {
+          category: string | null
+          created_at: string
+          created_by: string | null
+          default_model_selector: string | null
+          department: string
+          description: string | null
+          example_output: string | null
+          icon: string | null
+          id: string
+          is_active: boolean
+          name: string
+          role_prompt: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_model_selector?: string | null
+          department: string
+          description?: string | null
+          example_output?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          role_prompt: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_model_selector?: string | null
+          department?: string
+          description?: string | null
+          example_output?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          role_prompt?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       signed_documents: {
         Row: {
