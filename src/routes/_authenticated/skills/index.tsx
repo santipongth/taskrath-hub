@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
-import { Sparkles, Search, Settings2, Building2, ArrowRight, Telescope, MessageSquare } from "lucide-react";
+import { Sparkles, Search, Settings2, ArrowRight, Telescope, MessageSquare } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/skills/")({
   head: () => ({ meta: [{ title: "Skills · RathCoWork" }] }),
