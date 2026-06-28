@@ -4,7 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export type SharedSkill = {
   id: string;
-  department: string;
+  department: string | null;
   name: string;
   icon: string | null;
   category: string | null;
@@ -24,54 +24,40 @@ export type CombinedSkill = {
   icon: string | null;
   description: string | null;
   source: "shared" | "personal";
-  department?: string | null;
 };
 
 const MAX_NAME = 80;
 const MAX_PROMPT = 6000;
 
-async function getMyDept(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
-  userId: string,
-): Promise<string | null> {
-  const { data } = await supabase
-    .from("profiles")
-    .select("department")
-    .eq("id", userId)
-    .maybeSingle();
-  return (data?.department as string | null) ?? null;
-}
+const SELECT_COLS =
+  "id, department, name, icon, category, description, example_output, role_prompt, default_model_selector, sort_order, is_active, created_by, updated_at";
 
-async function isDeptAdmin(
+async function canManageSkills(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
   userId: string,
-  dept: string,
 ): Promise<boolean> {
-  const { data } = await supabase.rpc("is_dept_admin", { _user_id: userId, _dept: dept });
-  return Boolean(data);
+  const [admin, deptAdmin] = await Promise.all([
+    supabase.rpc("has_role", { _user_id: userId, _role: "admin" }),
+    supabase.rpc("has_role", { _user_id: userId, _role: "dept_admin" }),
+  ]);
+  return Boolean(admin.data) || Boolean(deptAdmin.data);
 }
 
-/** Skills visible to the current user (their department, active only). */
+/** Skills visible to every signed-in user (active only). */
 export const listSharedSkills = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const dept = await getMyDept(supabase, userId);
-    if (!dept) return { skills: [] as SharedSkill[], department: null, canManage: false };
     const { data, error } = await supabase
       .from("shared_skills")
-      .select(
-        "id, department, name, icon, category, description, example_output, role_prompt, default_model_selector, sort_order, is_active, created_by, updated_at",
-      )
-      .eq("department", dept)
+      .select(SELECT_COLS)
       .eq("is_active", true)
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true });
     if (error) throw new Error(error.message);
-    const canManage = await isDeptAdmin(supabase, userId, dept);
-    return { skills: (data ?? []) as SharedSkill[], department: dept, canManage };
+    const canManage = await canManageSkills(supabase, userId);
+    return { skills: (data ?? []) as SharedSkill[], canManage };
   });
 
 /** All skills (including inactive) for the admin manage page. */
@@ -79,38 +65,24 @@ export const listSharedSkillsForAdmin = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const dept = await getMyDept(supabase, userId);
-    if (!dept) {
-      return {
-        skills: [] as SharedSkill[],
-        department: null as string | null,
-        error: "no_department" as const,
-      };
-    }
-    const can = await isDeptAdmin(supabase, userId, dept);
+    const can = await canManageSkills(supabase, userId);
     if (!can) {
       return {
         skills: [] as SharedSkill[],
-        department: dept,
         error: "not_admin" as const,
       };
     }
     const { data, error } = await supabase
       .from("shared_skills")
-      .select(
-        "id, department, name, icon, category, description, example_output, role_prompt, default_model_selector, sort_order, is_active, created_by, updated_at",
-      )
-      .eq("department", dept)
+      .select(SELECT_COLS)
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true });
     if (error) throw new Error(error.message);
     return {
       skills: (data ?? []) as SharedSkill[],
-      department: dept,
-      error: null as null | "no_department" | "not_admin",
+      error: null as null | "not_admin",
     };
   });
-
 
 export const upsertSharedSkill = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -132,13 +104,10 @@ export const upsertSharedSkill = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const dept = await getMyDept(supabase, userId);
-    if (!dept) throw new Error("ไม่ได้กำหนดหน่วยงานในโปรไฟล์");
-    const can = await isDeptAdmin(supabase, userId, dept);
-    if (!can) throw new Error("เฉพาะผู้ดูแลหน่วยงานเท่านั้น");
+    const can = await canManageSkills(supabase, userId);
+    if (!can) throw new Error("เฉพาะผู้ดูแลระบบเท่านั้น");
 
     const payload = {
-      department: dept,
       name: data.name,
       icon: data.icon ?? null,
       category: data.category ?? null,
@@ -162,8 +131,7 @@ export const upsertSharedSkill = createServerFn({ method: "POST" })
       const { error } = await supabase
         .from("shared_skills")
         .update(payload)
-        .eq("id", data.id)
-        .eq("department", dept);
+        .eq("id", data.id);
       if (error) throw new Error(error.message);
       return { id: data.id };
     }
@@ -174,15 +142,12 @@ export const deleteSharedSkill = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const dept = await getMyDept(supabase, userId);
-    if (!dept) throw new Error("ไม่ได้กำหนดหน่วยงานในโปรไฟล์");
-    const can = await isDeptAdmin(supabase, userId, dept);
-    if (!can) throw new Error("เฉพาะผู้ดูแลหน่วยงานเท่านั้น");
+    const can = await canManageSkills(supabase, userId);
+    if (!can) throw new Error("เฉพาะผู้ดูแลระบบเท่านั้น");
     const { error } = await supabase
       .from("shared_skills")
       .delete()
-      .eq("id", data.id)
-      .eq("department", dept);
+      .eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -192,31 +157,36 @@ export const listAvailableSkills = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const dept = await getMyDept(supabase, userId);
     const [sharedRes, personalRes] = await Promise.all([
-      dept
-        ? supabase
-            .from("shared_skills")
-            .select("id, name, icon, description, department")
-            .eq("department", dept)
-            .eq("is_active", true)
-            .order("sort_order", { ascending: true })
-        : Promise.resolve({ data: [] as Array<{ id: string; name: string; icon: string | null; description: string | null; department: string }> }),
+      supabase
+        .from("shared_skills")
+        .select("id, name, icon, description")
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true }),
       supabase
         .from("user_skills")
         .select("id, name, icon, description")
         .eq("user_id", userId)
         .order("sort_order", { ascending: true }),
     ]);
-    const shared: CombinedSkill[] = ((sharedRes.data ?? []) as Array<{ id: string; name: string; icon: string | null; description: string | null; department: string }>).map((s) => ({
+    const shared: CombinedSkill[] = ((sharedRes.data ?? []) as Array<{
+      id: string;
+      name: string;
+      icon: string | null;
+      description: string | null;
+    }>).map((s) => ({
       id: s.id,
       name: s.name,
       icon: s.icon,
       description: s.description,
       source: "shared" as const,
-      department: s.department,
     }));
-    const personal: CombinedSkill[] = ((personalRes.data ?? []) as Array<{ id: string; name: string; icon: string | null; description: string | null }>).map((s) => ({
+    const personal: CombinedSkill[] = ((personalRes.data ?? []) as Array<{
+      id: string;
+      name: string;
+      icon: string | null;
+      description: string | null;
+    }>).map((s) => ({
       id: s.id,
       name: s.name,
       icon: s.icon,
@@ -230,7 +200,6 @@ export const listAvailableSkills = createServerFn({ method: "GET" })
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function loadSharedSkillPrompt(supabase: any, userId: string, skillId: string | null | undefined): Promise<string> {
   if (!skillId) return "";
-  // RLS already restricts to the same department.
   const { data } = await supabase
     .from("shared_skills")
     .select("role_prompt, is_active")
@@ -239,5 +208,5 @@ export async function loadSharedSkillPrompt(supabase: any, userId: string, skill
   const prompt = data?.is_active ? ((data.role_prompt as string | null) ?? null) : null;
   if (!prompt) return "";
   void userId;
-  return `\n\n<บทบาทที่หน่วยงานกำหนด>\n${prompt}\n</บทบาทที่หน่วยงานกำหนด>`;
+  return `\n\n<บทบาทที่องค์กรกำหนด>\n${prompt}\n</บทบาทที่องค์กรกำหนด>`;
 }
