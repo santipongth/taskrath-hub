@@ -46,7 +46,7 @@ const NAV_MAP: Record<string, string> = {
   t: "/templates",
   c: "/chat",
   i: "/history",
-  a: "/agents",
+  a: "/skills",
   s: "/settings",
   u: "/admin/usage",
 };
