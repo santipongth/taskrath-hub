@@ -260,7 +260,8 @@ function ResearchPage() {
           mode: prepared.mode,
           intensity,
           reportLength,
-          skillId: skillId || null,
+          personalSkillId: skillId.startsWith("personal:") ? skillId.slice("personal:".length) : null,
+          sharedSkillId: skillId.startsWith("shared:") ? skillId.slice("shared:".length) : null,
         },
       });
       setReport(r.report);
