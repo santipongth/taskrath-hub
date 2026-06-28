@@ -148,7 +148,20 @@ function SkillsManagePage() {
     }
   };
 
+  if (loadError === "not_admin") {
+    return (
+      <div className="mx-auto max-w-2xl px-6 py-16 text-center space-y-4">
+        <h1 className="text-xl font-semibold">{lang === "th" ? "ไม่มีสิทธิ์" : "Not authorized"}</h1>
+        <p className="text-sm text-muted-foreground">
+          {lang === "th" ? "เฉพาะผู้ดูแลระบบเท่านั้นที่จัดการ Skill ได้" : "Only admins can manage skills."}
+        </p>
+        <Button asChild variant="outline"><Link to="/skills"><ArrowLeft className="h-4 w-4 mr-1" />{lang === "th" ? "กลับ" : "Back"}</Link></Button>
+      </div>
+    );
+  }
+
   return (
+
     <div className="mx-auto max-w-5xl px-6 py-8 space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
