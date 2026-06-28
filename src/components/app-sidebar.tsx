@@ -23,9 +23,10 @@ import { checkIsAdmin } from "@/lib/ai.functions";
 const ITEMS: { to: string; key: MessageKey; icon: typeof LayoutDashboard; labelTh?: string; labelEn?: string }[] = [
   { to: "/", key: "nav_dashboard", icon: LayoutDashboard },
   { to: "/run", key: "nav_run", icon: Sparkles },
-  
+
   { to: "/chat", key: "nav_chat", icon: MessageSquare },
   { to: "/research", key: "nav_research", icon: Telescope },
+  { to: "/skills", key: "nav_run", icon: Bot, labelTh: "Skills", labelEn: "Skills" },
   { to: "/projects", key: "nav_run", icon: FolderKanban, labelTh: "Notebooks", labelEn: "Notebooks" },
   { to: "/templates", key: "nav_templates", icon: LibraryBig },
   { to: "/history", key: "nav_history", icon: History },

@@ -27,6 +27,7 @@ import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedHistoryIndexRouteImport } from './routes/_authenticated/history/index'
 import { Route as AuthenticatedChatIndexRouteImport } from './routes/_authenticated/chat/index'
 import { Route as AuthenticatedAgentsIndexRouteImport } from './routes/_authenticated/agents.index'
+import { Route as AuthenticatedSkillsManageRouteImport } from './routes/_authenticated/skills/manage'
 import { Route as AuthenticatedRunTemplateIdRouteImport } from './routes/_authenticated/run/$templateId'
 import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects/$projectId'
 import { Route as AuthenticatedHistoryRunIdRouteImport } from './routes/_authenticated/history/$runId'
@@ -137,6 +138,12 @@ const AuthenticatedAgentsIndexRoute =
     id: '/',
     path: '/',
     getParentRoute: () => AuthenticatedAgentsRoute,
+  } as any)
+const AuthenticatedSkillsManageRoute =
+  AuthenticatedSkillsManageRouteImport.update({
+    id: '/skills/manage',
+    path: '/skills/manage',
+    getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedRunTemplateIdRoute =
   AuthenticatedRunTemplateIdRouteImport.update({
@@ -249,6 +256,7 @@ export interface FileRoutesByFullPath {
   '/history/$runId': typeof AuthenticatedHistoryRunIdRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/run/$templateId': typeof AuthenticatedRunTemplateIdRoute
+  '/skills/manage': typeof AuthenticatedSkillsManageRoute
   '/agents/': typeof AuthenticatedAgentsIndexRoute
   '/chat/': typeof AuthenticatedChatIndexRoute
   '/history/': typeof AuthenticatedHistoryIndexRoute
@@ -282,6 +290,7 @@ export interface FileRoutesByTo {
   '/history/$runId': typeof AuthenticatedHistoryRunIdRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/run/$templateId': typeof AuthenticatedRunTemplateIdRoute
+  '/skills/manage': typeof AuthenticatedSkillsManageRoute
   '/agents': typeof AuthenticatedAgentsIndexRoute
   '/chat': typeof AuthenticatedChatIndexRoute
   '/history': typeof AuthenticatedHistoryIndexRoute
@@ -318,6 +327,7 @@ export interface FileRoutesById {
   '/_authenticated/history/$runId': typeof AuthenticatedHistoryRunIdRoute
   '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/_authenticated/run/$templateId': typeof AuthenticatedRunTemplateIdRoute
+  '/_authenticated/skills/manage': typeof AuthenticatedSkillsManageRoute
   '/_authenticated/agents/': typeof AuthenticatedAgentsIndexRoute
   '/_authenticated/chat/': typeof AuthenticatedChatIndexRoute
   '/_authenticated/history/': typeof AuthenticatedHistoryIndexRoute
@@ -354,6 +364,7 @@ export interface FileRouteTypes {
     | '/history/$runId'
     | '/projects/$projectId'
     | '/run/$templateId'
+    | '/skills/manage'
     | '/agents/'
     | '/chat/'
     | '/history/'
@@ -387,6 +398,7 @@ export interface FileRouteTypes {
     | '/history/$runId'
     | '/projects/$projectId'
     | '/run/$templateId'
+    | '/skills/manage'
     | '/agents'
     | '/chat'
     | '/history'
@@ -422,6 +434,7 @@ export interface FileRouteTypes {
     | '/_authenticated/history/$runId'
     | '/_authenticated/projects/$projectId'
     | '/_authenticated/run/$templateId'
+    | '/_authenticated/skills/manage'
     | '/_authenticated/agents/'
     | '/_authenticated/chat/'
     | '/_authenticated/history/'
@@ -572,6 +585,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/agents/'
       preLoaderRoute: typeof AuthenticatedAgentsIndexRouteImport
       parentRoute: typeof AuthenticatedAgentsRoute
+    }
+    '/_authenticated/skills/manage': {
+      id: '/_authenticated/skills/manage'
+      path: '/skills/manage'
+      fullPath: '/skills/manage'
+      preLoaderRoute: typeof AuthenticatedSkillsManageRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/run/$templateId': {
       id: '/_authenticated/run/$templateId'
@@ -728,6 +748,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedHistoryRunIdRoute: typeof AuthenticatedHistoryRunIdRoute
   AuthenticatedProjectsProjectIdRoute: typeof AuthenticatedProjectsProjectIdRoute
   AuthenticatedRunTemplateIdRoute: typeof AuthenticatedRunTemplateIdRoute
+  AuthenticatedSkillsManageRoute: typeof AuthenticatedSkillsManageRoute
   AuthenticatedChatIndexRoute: typeof AuthenticatedChatIndexRoute
   AuthenticatedHistoryIndexRoute: typeof AuthenticatedHistoryIndexRoute
   AuthenticatedProjectsIndexRoute: typeof AuthenticatedProjectsIndexRoute
@@ -753,6 +774,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedHistoryRunIdRoute: AuthenticatedHistoryRunIdRoute,
   AuthenticatedProjectsProjectIdRoute: AuthenticatedProjectsProjectIdRoute,
   AuthenticatedRunTemplateIdRoute: AuthenticatedRunTemplateIdRoute,
+  AuthenticatedSkillsManageRoute: AuthenticatedSkillsManageRoute,
   AuthenticatedChatIndexRoute: AuthenticatedChatIndexRoute,
   AuthenticatedHistoryIndexRoute: AuthenticatedHistoryIndexRoute,
   AuthenticatedProjectsIndexRoute: AuthenticatedProjectsIndexRoute,
