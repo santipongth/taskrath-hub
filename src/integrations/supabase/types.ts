@@ -607,48 +607,48 @@ export type Database = {
       shared_skills: {
         Row: {
           category: string | null
+          conversation_starters: string[]
           created_at: string
           created_by: string | null
-          default_model_selector: string | null
-          department: string | null
           description: string | null
           example_output: string | null
           icon: string | null
           id: string
           is_active: boolean
           name: string
+          recommended_model: string | null
           role_prompt: string
           sort_order: number
           updated_at: string
         }
         Insert: {
           category?: string | null
+          conversation_starters?: string[]
           created_at?: string
           created_by?: string | null
-          default_model_selector?: string | null
-          department?: string | null
           description?: string | null
           example_output?: string | null
           icon?: string | null
           id?: string
           is_active?: boolean
           name: string
+          recommended_model?: string | null
           role_prompt: string
           sort_order?: number
           updated_at?: string
         }
         Update: {
           category?: string | null
+          conversation_starters?: string[]
           created_at?: string
           created_by?: string | null
-          default_model_selector?: string | null
-          department?: string | null
           description?: string | null
           example_output?: string | null
           icon?: string | null
           id?: string
           is_active?: boolean
           name?: string
+          recommended_model?: string | null
           role_prompt?: string
           sort_order?: number
           updated_at?: string
