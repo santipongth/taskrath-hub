@@ -104,7 +104,7 @@ function ResearchPage() {
     queryKey: ["my-skills"],
     queryFn: () => fetchSkills(),
   });
-  const skills = useMemo(() => skillsData?.skills ?? [], [skillsData]);
+  const skills = useMemo(() => [...(skillsData?.shared ?? []), ...(skillsData?.personal ?? [])], [skillsData]);
 
   // Prefill from /tasks "ทำเลย" or notebook hub
   useEffect(() => {
