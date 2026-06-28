@@ -1,96 +1,64 @@
-## เป้าหมาย
-เปลี่ยน "Agent & Skills" → "Skills" อย่างเดียว: ตัด Agent ออกหมด ให้ผู้ดูแลหน่วยงาน (dept_admin) สร้าง Skill กลางที่แชร์ให้คนในหน่วยงานเรียกใช้ได้ทันทีจากหน้า Skills เอง และจากช่อง Skill selector ใน Chat / สั่งงาน AI / วิจัยเชิงลึก ส่วน Skill ส่วนตัวเดิม (user_skills) คงอยู่ในหน้า Settings ตามเดิม
 
-## โครงสร้างใหม่ของเมนู
+## เข้าใจ Concept ใหม่
 
-```text
-Sidebar
-├── (เดิม) Agent & Skills        ❌ ลบ
-└── Skills                        ✅ ใหม่ — เปิดให้ทุก role
-    └── (ปุ่ม "จัดการ Skills" ปรากฏเฉพาะ dept_admin / admin)
-```
+ระบบนี้ใช้งานจริงในหน่วยงานเดียว (single-tenant) — การบังคับว่าผู้ใช้ต้องตั้ง `department` ในโปรไฟล์ก่อนถึงจะเห็น/จัดการ Skill ได้ เป็นความซับซ้อนที่ไม่จำเป็น และเป็นต้นเหตุของ error "ไม่ได้กำหนดหน่วยงานในโปรไฟล์" ที่เพิ่งเจอ
 
-หน้า `/skills` มี 2 โหมดในไฟล์เดียว:
-- **ผู้ใช้ทั่วไป**: เห็นเฉพาะ catalog ของ shared skills ของหน่วยงานตนเอง + ใช้งานทันที
-- **Dept admin**: เห็นปุ่ม "+ สร้าง Skill", แก้/ปิดใช้/จัดเรียง skill ของหน่วยงาน
+แนวคิดใหม่ของเมนู "จัดการ Skill":
+- Skill ที่ admin สร้าง = **คลังกลางขององค์กร** ที่ผู้ใช้ทุกคนเห็นและเรียกใช้ได้ทันที
+- ไม่มี gate เรื่อง department อีกต่อไป
+- สิทธิ์จัดการดูที่ "บทบาทผู้ดูแล" อย่างเดียว ไม่ใช่หน่วยงาน
 
-## หน้าจอ
+## แนวทางที่แนะนำ
 
-### 1. `/skills` (Skill Library)
-- Grid ของการ์ด skill: ไอคอน, ชื่อ, คำอธิบายสั้น, badge หมวด, badge "หน่วยงาน: X"
-- ค้นหา + filter หมวด
-- คลิกการ์ด → เปิด **Skill Runner panel** ด้านขวา:
-  - แสดง prompt template / ตัวอย่างผลลัพธ์
-  - ช่อง input (textarea + แนบไฟล์ + เสียง) เหมือนหน้า /run
-  - ปุ่ม "เรียกใช้" → ยิงผ่าน `runAgent` (ส่ง skill_id แทน agent_id) → บันทึก `ai_runs` ปกติ
-  - ปุ่ม "เปิดในแชต" / "เปิดในวิจัยเชิงลึก" (deep-link พร้อม preselect skill)
+### 1. สิทธิ์การจัดการ Skill
+- ใครเป็น `admin` **หรือ** `dept_admin` (role ใน `user_roles`) จัดการ Skill ในคลังกลางได้ทั้งหมด
+- ผู้ใช้ทั่วไป (`user`) เห็นและเรียกใช้ Skill ที่ `is_active = true` ได้ทุกตัว
+- ไม่ต้องเช็ค `is_in_department` / `is_dept_admin(_, dept)` อีก
 
-### 2. `/skills/manage` (เฉพาะ dept_admin)
-- ตารางรายการ shared skills ของหน่วยงาน: ชื่อ, หมวด, สถานะ, อัพเดตล่าสุด, ผู้สร้าง
-- Drawer ฟอร์มสร้าง/แก้ Skill: name, icon, category, description, role_prompt (system), example_output, default_model_selector, is_active, sort_order
-- ปุ่ม "Duplicate from default" — โคลนจาก DEFAULT_SKILLS 8 ชุด
-- ปุ่ม Publish/Unpublish
+### 2. ฐานข้อมูล `shared_skills`
+- คอลัมน์ `department` **คงไว้** แต่ทำให้ optional (nullable, default `NULL`) ใช้เป็นแค่ tag/หมวดหมู่ในอนาคต ไม่ใช่ gate
+- เขียน RLS policies ใหม่:
+  - SELECT: ผู้ใช้ที่ล็อกอินทุกคน อ่าน skill ที่ `is_active = true` ได้
+  - INSERT/UPDATE/DELETE: เฉพาะ `has_role(auth.uid(), 'admin')` หรือ `has_role(auth.uid(), 'dept_admin')`
+- Skill เดิมที่มี `department` อยู่ ปล่อยทิ้งไว้ ไม่ลบข้อมูล (ค่ายังอยู่แต่ไม่ถูกใช้กรอง)
 
-### 3. การฝัง Skill selector ในหน้าอื่น
-- **Chat (`/chat/$threadId`)**: dropdown "Skill" เหนือ composer — รวม shared+personal, default = none
-- **สั่งงาน AI (`/run`)**: เปลี่ยน skill selector เดิม → รวม shared skills ของหน่วยงาน
-- **วิจัยเชิงลึก (`/research`)**: skill selector ที่มีอยู่แล้ว — เพิ่ม shared skills เข้าไป
-- ทุกหน้าใช้ helper เดียวกัน `loadSkillPrompt(supabase, userId, skillId)` ที่ขยายให้รองรับทั้ง user_skills และ shared_skills
+### 3. Server functions (`src/lib/shared-skills.functions.ts`)
+- ลบ `getMyDept()` ออกจาก path ของ shared skills (ฟังก์ชันอื่นยังใช้ได้)
+- `listSharedSkills` → คืน skill `is_active = true` ทั้งหมด + flag `canManage` ที่เช็คจาก role อย่างเดียว
+- `listSharedSkillsForAdmin` → เช็ค role admin/dept_admin → คืน skill ทั้งหมด (รวม inactive) ไม่ผูก department
+- `upsertSharedSkill` / `deleteSharedSkill` → เช็ค role อย่างเดียว, ไม่ set `department` (ปล่อย null)
+- `listAvailableSkills` (ใช้ใน Run / Research) → รวม shared (active ทุกตัว) + personal skills เหมือนเดิม
 
-## เปลี่ยนแปลงฐานข้อมูล
+### 4. หน้า UI
+- `/skills` (คลัง): เอา badge หน่วยงานออก, แสดง category แทน
+- `/skills/manage`:
+  - ลบ block "ยังไม่ได้กำหนดหน่วยงาน" ที่เพิ่งเพิ่ม
+  - ลบ field `department` ใน form (ไม่ต้องให้กรอก)
+  - หัวข้อเปลี่ยนเป็น "จัดการคลัง Skill" (ตัด "หน่วยงาน" ออก)
+  - เหลือกรณีเดียวที่บล็อก: `not_admin` → "เฉพาะผู้ดูแลระบบเท่านั้น"
+- Skill selector ใน Chat/Run/Research: ไม่ต้องแก้ logic, แค่จะเห็น shared skill เพิ่มขึ้นเพราะไม่กรอง dept
 
-ตารางใหม่ `public.shared_skills`:
-- `id uuid pk`
-- `department text not null`
-- `name text`, `icon text`, `category text`, `description text`, `example_output text`
-- `role_prompt text not null`
-- `default_model_selector text`
-- `sort_order int default 0`, `is_active bool default true`
-- `created_by uuid`, `created_at`, `updated_at` (trigger `set_updated_at`)
+### 5. ส่วนอื่นที่ไม่แตะ
+- `dept_model_providers` / `dept_model_routes` ยังคง concept department ตามเดิม (ใช้กับ provider routing ของ AI ไม่เกี่ยวกับ skill UI)
+- ฟิลด์ `profiles.department` คงไว้ ใช้ในหน้าแอดมินเดิมได้
+- `is_dept_admin`, `is_in_department` คงไว้ในฐานข้อมูล
 
-RLS:
-- SELECT: ผู้ใช้ที่ `is_in_department(auth.uid(), department)` หรือ `has_role(admin)`
-- INSERT/UPDATE/DELETE: `is_dept_admin(auth.uid(), department)`
-- GRANT SELECT, INSERT, UPDATE, DELETE TO authenticated; GRANT ALL TO service_role
+## ผลลัพธ์ที่ผู้ใช้จะเห็น
+- ผู้ใช้ทุกคนเปิด `/skills` แล้วเห็นรายการ skill ที่ admin สร้างทันที โดยไม่ต้องตั้ง department
+- Admin (หรือ dept_admin) กด "จัดการ" เข้าไปสร้าง/แก้/ปิดใช้ skill ได้เลย ไม่ติด error อีก
+- ฟอร์มสร้าง skill เรียบขึ้น ไม่มี field/บริบทหน่วยงาน
 
-ตารางเดิมที่จะ **drop**: `dept_agents`, `dept_skills`, `dept_agent_skills` (พร้อม backup ใน migration ก่อน drop) — เพราะตัดแนวคิด Agent ทิ้ง
-> ถ้ามีข้อมูลเดิมใน `dept_skills` จะ migrate ไป `shared_skills` ก่อน drop
+## รายละเอียดเชิงเทคนิค (สำหรับตอน implement)
 
-`dept_model_providers` / `dept_model_routes` **คงไว้** (ระบบ routing AI ใช้อยู่)
+ไฟล์ที่ต้องแก้:
+- `supabase/migrations/<new>.sql` — alter `shared_skills.department` ให้ nullable; drop + recreate RLS policies (4 policies → 2 policies: read-active-for-authenticated, manage-for-admin-or-dept_admin)
+- `src/lib/shared-skills.functions.ts` — ตัด `getMyDept` ออกจาก code path ทั้งหมดของ shared skills, แก้ `canManage` logic, แก้ insert/update ไม่ส่ง department
+- `src/routes/_authenticated/skills/index.tsx` — ตัด badge department, แก้ข้อความ
+- `src/routes/_authenticated/skills/manage.tsx` — ลบ branch `no_department`, ลบ field department ใน Draft/form, เปลี่ยน title
+- `src/components/app-sidebar.tsx` — เปลี่ยน label เมนูถ้าจำเป็น (จาก "จัดการ Skill หน่วยงาน" เป็น "จัดการคลัง Skill")
 
-## ไฟล์ที่จะแก้
-
-ลบ:
-- `src/routes/_authenticated/agents.tsx`
-- `src/routes/_authenticated/agents.index.tsx`
-- `src/routes/_authenticated/agents.manage.tsx`
-- `src/routes/_authenticated/agents.manage.runs.tsx`  *(ย้าย runs ไป /history ถ้ายังต้องการ — โดยทั่วไป /history มีอยู่แล้ว)*
-- `src/lib/dept-agents.functions.ts`
-- (คง `agents.manage.providers.tsx` แต่ย้ายเป็น `/admin/providers` หรือใต้ `/admin/settings` เพราะเป็นการตั้งค่า provider ไม่ใช่ agent)
-
-สร้างใหม่:
-- `src/routes/_authenticated/skills/index.tsx` — Skill library + runner
-- `src/routes/_authenticated/skills/manage.tsx` — เฉพาะ dept_admin
-- `src/lib/shared-skills.functions.ts` — list/upsert/delete/run + helper `loadAnySkillPrompt`
-- `supabase/migrations/<ts>_shared_skills.sql`
-
-แก้:
-- `src/components/app-sidebar.tsx` — เปลี่ยน item `/agents` เป็น `/skills` (icon: Sparkles), ย้าย Providers ไป admin group
-- `src/routes/_authenticated/run/index.tsx`, `/research/index.tsx`, `/chat/*` — Skill selector รวม shared+personal
-- `src/lib/user-skills.functions.ts` — แยก `loadSkillPrompt` ให้รับได้ทั้ง 2 source
-- `src/lib/ai.functions.ts` — `runAgent` รับ `skillId` (shared หรือ personal) แทน `agentId` legacy; เก็บ `AGENTS` built-in สำหรับ backward compat แต่ไม่โชว์ใน UI
-
-## รายละเอียดเทคนิคย่อ
-- ใช้ `createServerFn` + `requireSupabaseAuth` ทุกตัว (เช็คสิทธิ์ dept_admin ก่อน mutation ด้วย `is_dept_admin`)
-- หน้า `/skills/manage` คุ้มกันด้วย `beforeLoad` ตรวจ `has_role('dept_admin'|'admin')` — ถ้าไม่ผ่าน redirect `/skills`
-- Skill Runner ใน `/skills` reuse logic จาก `/run` (extract เป็น `<SkillRunPanel />` ใน `src/components/skill-run-panel.tsx`)
-- ทุก run บันทึก `ai_runs.metadata.skill = { id, source: 'shared'|'personal', name }` เพื่อตรวจย้อนหลัง
-- i18n: เพิ่ม key `nav_skills`, `skills_library_title`, `skills_manage_title` ใน `messages.ts`
-
-## ลำดับงาน
-1. Migration: สร้าง `shared_skills` + RLS + GRANT, migrate dept_skills → shared_skills, drop ตาราง dept_agents/dept_skills/dept_agent_skills
-2. Server fns + helper รวม skill source
-3. หน้า `/skills` + `/skills/manage` + component `SkillRunPanel`
-4. เปลี่ยน sidebar + ลบไฟล์ `agents.*`
-5. เชื่อม Skill selector ใน Chat / Run / Research
-6. ทดสอบ: ผู้ใช้ทั่วไปเห็น/รัน, dept_admin สร้าง/แก้, รันแล้วบันทึก `ai_runs` ถูกต้อง
+ลำดับงาน:
+1. Migration (alter column + RLS)
+2. แก้ server functions
+3. แก้ UI หน้าคลังและหน้า manage
+4. ทดสอบ: user ธรรมดาเห็น/เรียกใช้ได้, admin/dept_admin จัดการได้, user ที่โปรไฟล์ไม่มี department ก็ใช้งานได้ปกติ
