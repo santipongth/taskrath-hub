@@ -102,19 +102,8 @@ function SkillsManagePage() {
 
 
   const openCreate = () => setDraft({ ...EMPTY });
-  const openEdit = (s: SharedSkill) =>
-    setDraft({
-      id: s.id,
-      name: s.name,
-      icon: s.icon ?? "",
-      category: s.category ?? "",
-      description: s.description ?? "",
-      example_output: s.example_output ?? "",
-      role_prompt: s.role_prompt,
-      default_model_selector: s.default_model_selector ?? "",
-      sort_order: s.sort_order,
-      is_active: s.is_active,
-    });
+
+
 
   const save = async () => {
     if (!draft) return;
