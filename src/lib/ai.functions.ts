@@ -6,6 +6,7 @@ import { checkPromptInjection } from "@/lib/prompt-guard";
 import { retrieveKbContext, type Citation } from "@/lib/kb.functions";
 import { loadUserMemoryBlock } from "@/lib/user-memory.functions";
 import { loadSkillPrompt } from "@/lib/user-skills.functions";
+import { loadSharedSkillPrompt } from "@/lib/shared-skills.functions";
 import { loadProjectContext } from "@/lib/user-projects.functions";
 
 const KB_INSTRUCTION =
