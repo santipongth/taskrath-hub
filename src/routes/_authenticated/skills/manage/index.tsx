@@ -28,7 +28,7 @@ import { Plus, Pencil, Trash2, ArrowLeft, Sparkles, Save, Search, Power, PowerOf
 import { toast } from "sonner";
 
 
-export const Route = createFileRoute("/_authenticated/skills/manage")({
+export const Route = createFileRoute("/_authenticated/skills/manage/")({
   head: () => ({ meta: [{ title: "จัดการ Skill · RathCoWork" }] }),
   loader: async () => {
     try {

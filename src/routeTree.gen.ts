@@ -25,7 +25,6 @@ import { Route as AuthenticatedResearchIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authenticated/projects/index'
 import { Route as AuthenticatedHistoryIndexRouteImport } from './routes/_authenticated/history/index'
 import { Route as AuthenticatedChatIndexRouteImport } from './routes/_authenticated/chat/index'
-import { Route as AuthenticatedSkillsManageRouteImport } from './routes/_authenticated/skills/manage'
 import { Route as AuthenticatedRunTemplateIdRouteImport } from './routes/_authenticated/run/$templateId'
 import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects/$projectId'
 import { Route as AuthenticatedHistoryRunIdRouteImport } from './routes/_authenticated/history/$runId'
@@ -36,9 +35,10 @@ import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminNotificationsRouteImport } from './routes/_authenticated/admin/notifications'
 import { Route as AuthenticatedAdminKnowledgeRouteImport } from './routes/_authenticated/admin/knowledge'
 import { Route as AuthenticatedAdminDashboardRouteImport } from './routes/_authenticated/admin/dashboard'
+import { Route as AuthenticatedSkillsManageIndexRouteImport } from './routes/_authenticated/skills/manage/index'
 import { Route as ApiPublicHooksTaskRemindersRouteImport } from './routes/api/public/hooks/task-reminders'
 import { Route as ApiPublicCalendarIcsRouteImport } from './routes/api/public/calendar/ics'
-import { Route as AuthenticatedSkillsManageSkillIdRouteImport } from './routes/_authenticated/skills/manage.$skillId'
+import { Route as AuthenticatedSkillsManageSkillIdRouteImport } from './routes/_authenticated/skills/manage/$skillId'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -124,12 +124,6 @@ const AuthenticatedChatIndexRoute = AuthenticatedChatIndexRouteImport.update({
   path: '/chat/',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedSkillsManageRoute =
-  AuthenticatedSkillsManageRouteImport.update({
-    id: '/skills/manage',
-    path: '/skills/manage',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
 const AuthenticatedRunTemplateIdRoute =
   AuthenticatedRunTemplateIdRouteImport.update({
     id: '/run/$templateId',
@@ -189,6 +183,12 @@ const AuthenticatedAdminDashboardRoute =
     path: '/admin/dashboard',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedSkillsManageIndexRoute =
+  AuthenticatedSkillsManageIndexRouteImport.update({
+    id: '/skills/manage/',
+    path: '/skills/manage/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const ApiPublicHooksTaskRemindersRoute =
   ApiPublicHooksTaskRemindersRouteImport.update({
     id: '/api/public/hooks/task-reminders',
@@ -202,9 +202,9 @@ const ApiPublicCalendarIcsRoute = ApiPublicCalendarIcsRouteImport.update({
 } as any)
 const AuthenticatedSkillsManageSkillIdRoute =
   AuthenticatedSkillsManageSkillIdRouteImport.update({
-    id: '/$skillId',
-    path: '/$skillId',
-    getParentRoute: () => AuthenticatedSkillsManageRoute,
+    id: '/skills/manage/$skillId',
+    path: '/skills/manage/$skillId',
+    getParentRoute: () => AuthenticatedRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -227,7 +227,6 @@ export interface FileRoutesByFullPath {
   '/history/$runId': typeof AuthenticatedHistoryRunIdRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/run/$templateId': typeof AuthenticatedRunTemplateIdRoute
-  '/skills/manage': typeof AuthenticatedSkillsManageRouteWithChildren
   '/chat/': typeof AuthenticatedChatIndexRoute
   '/history/': typeof AuthenticatedHistoryIndexRoute
   '/projects/': typeof AuthenticatedProjectsIndexRoute
@@ -237,6 +236,7 @@ export interface FileRoutesByFullPath {
   '/skills/manage/$skillId': typeof AuthenticatedSkillsManageSkillIdRoute
   '/api/public/calendar/ics': typeof ApiPublicCalendarIcsRoute
   '/api/public/hooks/task-reminders': typeof ApiPublicHooksTaskRemindersRoute
+  '/skills/manage/': typeof AuthenticatedSkillsManageIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -258,7 +258,6 @@ export interface FileRoutesByTo {
   '/history/$runId': typeof AuthenticatedHistoryRunIdRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/run/$templateId': typeof AuthenticatedRunTemplateIdRoute
-  '/skills/manage': typeof AuthenticatedSkillsManageRouteWithChildren
   '/chat': typeof AuthenticatedChatIndexRoute
   '/history': typeof AuthenticatedHistoryIndexRoute
   '/projects': typeof AuthenticatedProjectsIndexRoute
@@ -268,6 +267,7 @@ export interface FileRoutesByTo {
   '/skills/manage/$skillId': typeof AuthenticatedSkillsManageSkillIdRoute
   '/api/public/calendar/ics': typeof ApiPublicCalendarIcsRoute
   '/api/public/hooks/task-reminders': typeof ApiPublicHooksTaskRemindersRoute
+  '/skills/manage': typeof AuthenticatedSkillsManageIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -291,7 +291,6 @@ export interface FileRoutesById {
   '/_authenticated/history/$runId': typeof AuthenticatedHistoryRunIdRoute
   '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/_authenticated/run/$templateId': typeof AuthenticatedRunTemplateIdRoute
-  '/_authenticated/skills/manage': typeof AuthenticatedSkillsManageRouteWithChildren
   '/_authenticated/chat/': typeof AuthenticatedChatIndexRoute
   '/_authenticated/history/': typeof AuthenticatedHistoryIndexRoute
   '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
@@ -301,6 +300,7 @@ export interface FileRoutesById {
   '/_authenticated/skills/manage/$skillId': typeof AuthenticatedSkillsManageSkillIdRoute
   '/api/public/calendar/ics': typeof ApiPublicCalendarIcsRoute
   '/api/public/hooks/task-reminders': typeof ApiPublicHooksTaskRemindersRoute
+  '/_authenticated/skills/manage/': typeof AuthenticatedSkillsManageIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -324,7 +324,6 @@ export interface FileRouteTypes {
     | '/history/$runId'
     | '/projects/$projectId'
     | '/run/$templateId'
-    | '/skills/manage'
     | '/chat/'
     | '/history/'
     | '/projects/'
@@ -334,6 +333,7 @@ export interface FileRouteTypes {
     | '/skills/manage/$skillId'
     | '/api/public/calendar/ics'
     | '/api/public/hooks/task-reminders'
+    | '/skills/manage/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -355,7 +355,6 @@ export interface FileRouteTypes {
     | '/history/$runId'
     | '/projects/$projectId'
     | '/run/$templateId'
-    | '/skills/manage'
     | '/chat'
     | '/history'
     | '/projects'
@@ -365,6 +364,7 @@ export interface FileRouteTypes {
     | '/skills/manage/$skillId'
     | '/api/public/calendar/ics'
     | '/api/public/hooks/task-reminders'
+    | '/skills/manage'
   id:
     | '__root__'
     | '/_authenticated'
@@ -387,7 +387,6 @@ export interface FileRouteTypes {
     | '/_authenticated/history/$runId'
     | '/_authenticated/projects/$projectId'
     | '/_authenticated/run/$templateId'
-    | '/_authenticated/skills/manage'
     | '/_authenticated/chat/'
     | '/_authenticated/history/'
     | '/_authenticated/projects/'
@@ -397,6 +396,7 @@ export interface FileRouteTypes {
     | '/_authenticated/skills/manage/$skillId'
     | '/api/public/calendar/ics'
     | '/api/public/hooks/task-reminders'
+    | '/_authenticated/skills/manage/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -523,13 +523,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedChatIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/skills/manage': {
-      id: '/_authenticated/skills/manage'
-      path: '/skills/manage'
-      fullPath: '/skills/manage'
-      preLoaderRoute: typeof AuthenticatedSkillsManageRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
     '/_authenticated/run/$templateId': {
       id: '/_authenticated/run/$templateId'
       path: '/run/$templateId'
@@ -600,6 +593,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminDashboardRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/skills/manage/': {
+      id: '/_authenticated/skills/manage/'
+      path: '/skills/manage'
+      fullPath: '/skills/manage/'
+      preLoaderRoute: typeof AuthenticatedSkillsManageIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/api/public/hooks/task-reminders': {
       id: '/api/public/hooks/task-reminders'
       path: '/api/public/hooks/task-reminders'
@@ -616,28 +616,13 @@ declare module '@tanstack/react-router' {
     }
     '/_authenticated/skills/manage/$skillId': {
       id: '/_authenticated/skills/manage/$skillId'
-      path: '/$skillId'
+      path: '/skills/manage/$skillId'
       fullPath: '/skills/manage/$skillId'
       preLoaderRoute: typeof AuthenticatedSkillsManageSkillIdRouteImport
-      parentRoute: typeof AuthenticatedSkillsManageRoute
+      parentRoute: typeof AuthenticatedRoute
     }
   }
 }
-
-interface AuthenticatedSkillsManageRouteChildren {
-  AuthenticatedSkillsManageSkillIdRoute: typeof AuthenticatedSkillsManageSkillIdRoute
-}
-
-const AuthenticatedSkillsManageRouteChildren: AuthenticatedSkillsManageRouteChildren =
-  {
-    AuthenticatedSkillsManageSkillIdRoute:
-      AuthenticatedSkillsManageSkillIdRoute,
-  }
-
-const AuthenticatedSkillsManageRouteWithChildren =
-  AuthenticatedSkillsManageRoute._addFileChildren(
-    AuthenticatedSkillsManageRouteChildren,
-  )
 
 interface AuthenticatedRouteChildren {
   AuthenticatedGovernanceRoute: typeof AuthenticatedGovernanceRoute
@@ -655,13 +640,14 @@ interface AuthenticatedRouteChildren {
   AuthenticatedHistoryRunIdRoute: typeof AuthenticatedHistoryRunIdRoute
   AuthenticatedProjectsProjectIdRoute: typeof AuthenticatedProjectsProjectIdRoute
   AuthenticatedRunTemplateIdRoute: typeof AuthenticatedRunTemplateIdRoute
-  AuthenticatedSkillsManageRoute: typeof AuthenticatedSkillsManageRouteWithChildren
   AuthenticatedChatIndexRoute: typeof AuthenticatedChatIndexRoute
   AuthenticatedHistoryIndexRoute: typeof AuthenticatedHistoryIndexRoute
   AuthenticatedProjectsIndexRoute: typeof AuthenticatedProjectsIndexRoute
   AuthenticatedResearchIndexRoute: typeof AuthenticatedResearchIndexRoute
   AuthenticatedRunIndexRoute: typeof AuthenticatedRunIndexRoute
   AuthenticatedSkillsIndexRoute: typeof AuthenticatedSkillsIndexRoute
+  AuthenticatedSkillsManageSkillIdRoute: typeof AuthenticatedSkillsManageSkillIdRoute
+  AuthenticatedSkillsManageIndexRoute: typeof AuthenticatedSkillsManageIndexRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
@@ -680,13 +666,14 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedHistoryRunIdRoute: AuthenticatedHistoryRunIdRoute,
   AuthenticatedProjectsProjectIdRoute: AuthenticatedProjectsProjectIdRoute,
   AuthenticatedRunTemplateIdRoute: AuthenticatedRunTemplateIdRoute,
-  AuthenticatedSkillsManageRoute: AuthenticatedSkillsManageRouteWithChildren,
   AuthenticatedChatIndexRoute: AuthenticatedChatIndexRoute,
   AuthenticatedHistoryIndexRoute: AuthenticatedHistoryIndexRoute,
   AuthenticatedProjectsIndexRoute: AuthenticatedProjectsIndexRoute,
   AuthenticatedResearchIndexRoute: AuthenticatedResearchIndexRoute,
   AuthenticatedRunIndexRoute: AuthenticatedRunIndexRoute,
   AuthenticatedSkillsIndexRoute: AuthenticatedSkillsIndexRoute,
+  AuthenticatedSkillsManageSkillIdRoute: AuthenticatedSkillsManageSkillIdRoute,
+  AuthenticatedSkillsManageIndexRoute: AuthenticatedSkillsManageIndexRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
