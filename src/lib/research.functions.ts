@@ -411,6 +411,8 @@ export const synthesizeResearchReport = createServerFn({ method: "POST" })
         intensity: intensityEnum.optional().default("fast"),
         reportLength: lengthEnum.optional(),
         skillId: z.string().uuid().optional().nullable(),
+        personalSkillId: z.string().uuid().optional().nullable(),
+        sharedSkillId: z.string().uuid().optional().nullable(),
         // back-compat
         depth: z.enum(["fast", "deep"]).optional(),
       })
