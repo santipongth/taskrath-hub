@@ -106,11 +106,23 @@ function ResearchPage() {
   });
   const skills = useMemo(() => [...(skillsData?.shared ?? []), ...(skillsData?.personal ?? [])], [skillsData]);
 
-  // Prefill from /tasks "ทำเลย" or notebook hub
+  // Prefill from /tasks "ทำเลย", /skills launcher, or notebook hub
   useEffect(() => {
     try {
       const p = sessionStorage.getItem("research:prefill");
-      if (p) { setQuestion(p); sessionStorage.removeItem("research:prefill"); }
+      if (p) {
+        sessionStorage.removeItem("research:prefill");
+        // Backward-compat: older callers stored a raw string; new callers store JSON
+        if (p.startsWith("{")) {
+          try {
+            const parsed = JSON.parse(p) as { prompt?: string; sharedSkillId?: string };
+            if (parsed.prompt) setQuestion(parsed.prompt);
+            if (parsed.sharedSkillId) setSkillId(`shared:${parsed.sharedSkillId}`);
+          } catch { setQuestion(p); }
+        } else {
+          setQuestion(p);
+        }
+      }
       const u = sessionStorage.getItem("research:urls");
       if (u) { setUrlsText(u); sessionStorage.removeItem("research:urls"); }
     } catch { /* ignore */ }

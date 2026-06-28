@@ -1,64 +1,119 @@
+## บริบท — สรุปสิ่งที่แพลตฟอร์มชั้นนำทำ
 
-## เข้าใจ Concept ใหม่
 
-ระบบนี้ใช้งานจริงในหน่วยงานเดียว (single-tenant) — การบังคับว่าผู้ใช้ต้องตั้ง `department` ในโปรไฟล์ก่อนถึงจะเห็น/จัดการ Skill ได้ เป็นความซับซ้อนที่ไม่จำเป็น และเป็นต้นเหตุของ error "ไม่ได้กำหนดหน่วยงานในโปรไฟล์" ที่เพิ่งเจอ
+| สิ่งที่ผู้สร้างกรอก                        | Claude Skills         | ChatGPT GPT         | Gemini Gem             | ของเรา (ตอนนี้)              |
+| ------------------------------------------ | --------------------- | ------------------- | ---------------------- | ---------------------------- |
+| Name + Instructions/Prompt                 | ✅                     | ✅                   | ✅                      | ✅                            |
+| Description (สั้น)                         | ✅ ใช้ขับ auto-trigger | ✅                   | รวมใน instructions     | ✅                            |
+| Icon / Avatar                              | ❌                     | ✅                   | ❌                      | มีฟิลด์แต่ไม่แสดง            |
+| Conversation starters (4 prompts ตัวอย่าง) | ❌                     | ✅                   | ❌                      | ❌                            |
+| Knowledge files                            | ✅                     | ✅                   | ✅                      | ❌                            |
+| Recommended model                          | ❌                     | ✅                   | ❌                      | มีฟิลด์ **แต่ dead code**    |
+| Tools / Actions                            | scripts               | actions             | ❌                      | ❌                            |
+| Live preview / test pane                   | ❌                     | ✅                   | ✅                      | ❌                            |
+| Sharing scopes                             | workspace             | private/link/store  | private/link/workspace | ผู้ใช้ลงชื่อทั้งหมด (active) |
+| End-user invocation                        | auto + slash          | search/URL/@mention | sidebar                | dropdown ใน /run /research   |
 
-แนวคิดใหม่ของเมนู "จัดการ Skill":
-- Skill ที่ admin สร้าง = **คลังกลางขององค์กร** ที่ผู้ใช้ทุกคนเห็นและเรียกใช้ได้ทันที
-- ไม่มี gate เรื่อง department อีกต่อไป
-- สิทธิ์จัดการดูที่ "บทบาทผู้ดูแล" อย่างเดียว ไม่ใช่หน่วยงาน
 
-## แนวทางที่แนะนำ
+**Best practices ที่ทุกแพลตฟอร์มเห็นพ้อง**
 
-### 1. สิทธิ์การจัดการ Skill
-- ใครเป็น `admin` **หรือ** `dept_admin` (role ใน `user_roles`) จัดการ Skill ในคลังกลางได้ทั้งหมด
-- ผู้ใช้ทั่วไป (`user`) เห็นและเรียกใช้ Skill ที่ `is_active = true` ได้ทุกตัว
-- ไม่ต้องเช็ค `is_in_department` / `is_dept_admin(_, dept)` อีก
+1. *Required คือ Name + Instructions* — ที่เหลือ optional แต่ Description กับ Conversation Starters มี ROI สูงสุดต่อ UX
+2. *Description ต้องเขียนแบบ "Use when… / Best for…"* เพื่อช่วยทั้งคนและ AI เลือกใช้
+3. *Conversation starters ลดปัญหา blank page* — สำคัญสำหรับผู้ใช้ใหม่
+4. *Recommended model* ควรเป็น dropdown จริงที่ส่งต่อไปยัง inference (ไม่ใช่ free text)
+5. *Live preview* ในหน้าแก้ไข — ผู้สร้างควรทดสอบก่อน publish
+6. กฎทอง: behavioral rules อยู่ใน Instructions, ข้อมูลอ้างอิงอยู่ใน Knowledge
 
-### 2. ฐานข้อมูล `shared_skills`
-- คอลัมน์ `department` **คงไว้** แต่ทำให้ optional (nullable, default `NULL`) ใช้เป็นแค่ tag/หมวดหมู่ในอนาคต ไม่ใช่ gate
-- เขียน RLS policies ใหม่:
-  - SELECT: ผู้ใช้ที่ล็อกอินทุกคน อ่าน skill ที่ `is_active = true` ได้
-  - INSERT/UPDATE/DELETE: เฉพาะ `has_role(auth.uid(), 'admin')` หรือ `has_role(auth.uid(), 'dept_admin')`
-- Skill เดิมที่มี `department` อยู่ ปล่อยทิ้งไว้ ไม่ลบข้อมูล (ค่ายังอยู่แต่ไม่ถูกใช้กรอง)
+## Gap ปัจจุบันของโปรเจกต์ (สรุปจาก code map)
 
-### 3. Server functions (`src/lib/shared-skills.functions.ts`)
-- ลบ `getMyDept()` ออกจาก path ของ shared skills (ฟังก์ชันอื่นยังใช้ได้)
-- `listSharedSkills` → คืน skill `is_active = true` ทั้งหมด + flag `canManage` ที่เช็คจาก role อย่างเดียว
-- `listSharedSkillsForAdmin` → เช็ค role admin/dept_admin → คืน skill ทั้งหมด (รวม inactive) ไม่ผูก department
-- `upsertSharedSkill` / `deleteSharedSkill` → เช็ค role อย่างเดียว, ไม่ set `department` (ปล่อย null)
-- `listAvailableSkills` (ใช้ใน Run / Research) → รวม shared (active ทุกตัว) + personal skills เหมือนเดิม
+- `icon` ถูกเก็บแต่ไม่ render บนการ์ด — ใช้ `<Sparkles>` ทุกใบ
+- `default_model_selector` เป็น **dead code** ทั้ง shared และ personal — เก็บแต่ไม่มีจุดอ่านในการ inference
+- `example_output` แสดงในชีตด้านขวาของ `/skills` แต่ไม่ได้ใช้เป็น "starter" จริง
+- ไม่มี conversation starters / sample prompts
+- ไม่มี preview/test pane ในหน้า Details
+- `/chat` ไม่รองรับ skill เลย ขณะ `/run`, `/research` รองรับ
+- `/research` prefill จาก sessionStorage อ่านเฉพาะ question ไม่เซต `sharedSkillId` (พฤติกรรมต่างจาก `/run`) — น่าจะเป็น bug
+- คอลัมน์ `department` บน `shared_skills` ไม่ถูกใช้งานแล้ว — quote dead
 
-### 4. หน้า UI
-- `/skills` (คลัง): เอา badge หน่วยงานออก, แสดง category แทน
-- `/skills/manage`:
-  - ลบ block "ยังไม่ได้กำหนดหน่วยงาน" ที่เพิ่งเพิ่ม
-  - ลบ field `department` ใน form (ไม่ต้องให้กรอก)
-  - หัวข้อเปลี่ยนเป็น "จัดการคลัง Skill" (ตัด "หน่วยงาน" ออก)
-  - เหลือกรณีเดียวที่บล็อก: `not_admin` → "เฉพาะผู้ดูแลระบบเท่านั้น"
-- Skill selector ใน Chat/Run/Research: ไม่ต้องแก้ logic, แค่จะเห็น shared skill เพิ่มขึ้นเพราะไม่กรอง dept
+## แผน 3 เฟส
 
-### 5. ส่วนอื่นที่ไม่แตะ
-- `dept_model_providers` / `dept_model_routes` ยังคง concept department ตามเดิม (ใช้กับ provider routing ของ AI ไม่เกี่ยวกับ skill UI)
-- ฟิลด์ `profiles.department` คงไว้ ใช้ในหน้าแอดมินเดิมได้
-- `is_dept_admin`, `is_in_department` คงไว้ในฐานข้อมูล
+```text
+Phase 1  (Quick wins — เติมฟิลด์ที่มาตรฐาน) ─── เสนอทำก่อน
+   ├─ Icon picker (Lucide) + แสดงจริงในการ์ด /skills, /run, /research
+   ├─ Conversation starters: 4 ช่อง (ทดแทน example_output ที่ไม่ได้ใช้จริง)
+   ├─ Recommended model: dropdown เลือกจาก dept providers + ส่งต่อไปยัง runFreeform
+   ├─ Description ใส่ helper text สไตล์ "Use when…"
+   └─ Fix /research prefill ให้เซต sharedSkillId เหมือน /run
 
-## ผลลัพธ์ที่ผู้ใช้จะเห็น
-- ผู้ใช้ทุกคนเปิด `/skills` แล้วเห็นรายการ skill ที่ admin สร้างทันที โดยไม่ต้องตั้ง department
-- Admin (หรือ dept_admin) กด "จัดการ" เข้าไปสร้าง/แก้/ปิดใช้ skill ได้เลย ไม่ติด error อีก
-- ฟอร์มสร้าง skill เรียบขึ้น ไม่มี field/บริบทหน่วยงาน
+Phase 2  (Authoring quality)
+   ├─ Test/Preview pane ในหน้า /skills/manage/$skillId
+   │    (ฝั่งขวา: textarea + ปุ่ม Run → เรียก runFreeform แบบ ephemeral ไม่บันทึก ai_runs)
+   ├─ Version snapshot (เก็บประวัติ role_prompt ใน skill_versions ใหม่)
+   └─ Cleanup: ลบ default_model_selector เก่า/แทนด้วย recommended_model
+       และลบหรือคงไว้ department column (ผู้ใช้ตัดสินใจ)
 
-## รายละเอียดเชิงเทคนิค (สำหรับตอน implement)
+Phase 3  (Reach — ใช้ใน Chat & smart discovery)
+   ├─ /chat รองรับ skill selector (เหมือน /run)
+   ├─ Conversation starters render เป็น "ปุ่มลัด" ที่หน้า /skills detail + เปิด /run หรือ /chat ทันที
+   └─ (ทางเลือก) Slash command "/skill-name" ใน chat composer
+```
 
-ไฟล์ที่ต้องแก้:
-- `supabase/migrations/<new>.sql` — alter `shared_skills.department` ให้ nullable; drop + recreate RLS policies (4 policies → 2 policies: read-active-for-authenticated, manage-for-admin-or-dept_admin)
-- `src/lib/shared-skills.functions.ts` — ตัด `getMyDept` ออกจาก code path ทั้งหมดของ shared skills, แก้ `canManage` logic, แก้ insert/update ไม่ส่ง department
-- `src/routes/_authenticated/skills/index.tsx` — ตัด badge department, แก้ข้อความ
-- `src/routes/_authenticated/skills/manage.tsx` — ลบ branch `no_department`, ลบ field department ใน Draft/form, เปลี่ยน title
-- `src/components/app-sidebar.tsx` — เปลี่ยน label เมนูถ้าจำเป็น (จาก "จัดการ Skill หน่วยงาน" เป็น "จัดการคลัง Skill")
+## รายละเอียด Phase 1 (สิ่งที่จะลงมือทันทีหลัง approve)
 
-ลำดับงาน:
-1. Migration (alter column + RLS)
-2. แก้ server functions
-3. แก้ UI หน้าคลังและหน้า manage
-4. ทดสอบ: user ธรรมดาเห็น/เรียกใช้ได้, admin/dept_admin จัดการได้, user ที่โปรไฟล์ไม่มี department ก็ใช้งานได้ปกติ
+### 1. Icon picker + แสดงผลจริง
+
+- เพิ่ม component `IconPicker` (เลือกจาก Lucide subset ~30 ตัว ที่เกี่ยวกับงานราชการ: FileText, Mail, Search, FileSpreadsheet, Languages, Megaphone, Calendar, Stamp, ฯลฯ + ตัวเลือก emoji free text)
+- เก็บเป็น string `"lucide:FileText"` หรือ `"emoji:✉️"` ใน column `icon` เดิม (ไม่ต้อง migrate)
+- helper `<SkillIcon value={s.icon} />` ใช้ใน manage list, /skills card, selector ใน /run, /research
+
+### 2. Conversation starters
+
+- เพิ่มคอลัมน์ `conversation_starters text[]` (สูงสุด 4 ข้อ, ข้อละ 200 ตัวอักษร) บน `shared_skills`
+- ฟอร์ม: 4 input rows + ปุ่มเพิ่ม/ลบ
+- ใน `/skills` detail sheet: render เป็นชิป กดแล้วไป `/run` พร้อม prefill prompt + skill
+- ใน `/run` ตอนเลือก skill: แสดงชิปด้านบน textarea เพื่อ one-click prefill
+- เก็บ `example_output` ต่อ (ใช้แสดง preview) แต่ไม่บังคับ — เปลี่ยน label เป็น "Sample output (for users to preview)"
+
+### 3. Recommended model ที่ทำงานจริง
+
+- เปลี่ยน `default_model_selector` เป็น `recommended_provider_id uuid` FK → `dept_model_providers.id` (nullable)
+- ฟอร์ม: dropdown แสดง provider ที่ admin ตั้งค่าไว้ (อ่านจาก `listDeptProviders`)
+- ใน `/run` และ `/research`: เมื่อผู้ใช้เลือก skill ที่มี recommended provider → preselect provider dropdown (ผู้ใช้ override ได้)
+- (ไม่ต้องแตะ runtime logic ของ runFreeform — แค่เปลี่ยนค่า default ฝั่ง client)
+
+### 4. Description helper text
+
+- เพิ่ม placeholder + tooltip ในฟอร์ม: `"เขียนแบบ 'ใช้สำหรับ…' หรือ 'เหมาะกับ…' เพื่อให้ผู้ใช้คนอื่นเลือกใช้ได้ถูก"`
+
+### 5. แก้ research prefill bug
+
+- ใน `/research/index.tsx` mount: อ่าน `sharedSkillId` จาก `sessionStorage("research:prefill")` แล้ว set state เหมือนที่ `/run` ทำ
+
+## รายละเอียดทางเทคนิค (สำหรับนักพัฒนา)
+
+**Migration (Phase 1)**
+
+```sql
+ALTER TABLE public.shared_skills
+  ADD COLUMN conversation_starters text[] NOT NULL DEFAULT '{}',
+  ADD COLUMN recommended_provider_id uuid REFERENCES public.dept_model_providers(id) ON DELETE SET NULL;
+-- default_model_selector คงไว้ก่อน (ลบใน Phase 2 หลังย้ายค่าเก่า)
+```
+
+**Files ที่จะแก้ใน Phase 1**
+
+- `src/lib/shared-skills.functions.ts` — เพิ่มฟิลด์ใน SELECT_COLS, validator, payload
+- `src/components/SkillIcon.tsx` *(ใหม่)*, `src/components/IconPicker.tsx` *(ใหม่)*
+- `src/routes/_authenticated/skills/manage/$skillId.tsx` — เพิ่ม icon picker, starters editor, provider dropdown
+- `src/routes/_authenticated/skills/manage/index.tsx` — แสดง icon ในการ์ด
+- `src/routes/_authenticated/skills/index.tsx` — render icon, starters เป็นชิป
+- `src/routes/_authenticated/run/index.tsx` — render starters, preselect provider
+- `src/routes/_authenticated/research/index.tsx` — fix prefill + preselect provider
+- `src/integrations/supabase/types.ts` — auto-regen หลัง migration
+
+## คำถามที่อยากให้ confirm ก่อนลงมือ
+
+1. **เลือกทำเฉพาะ Phase 1 ก่อน** ใช่ไหม? (Phase 2/3 ค่อยคุยหลังเฟส 1 เสร็จ) ให้ทำ เฟส 1 ก่อน
+2. **Icon**: ใช้ Lucide picker (30 ตัว preset) + emoji ฟรีเทกซ์ พอไหม หรืออยากได้ image upload ด้วย? ใช้ Lucide picker (30 ตัว preset) + emoji ฟรีเทกซ์ พอแล้ว
+3. **Recommended model**: ผูกกับ `dept_model_providers` (provider ที่ admin ตั้ง) ใช่ไหม — หรืออยากให้เป็น text เลือก model name โดยตรง (เช่น `google/gemini-3-flash-preview`) เป็น text เลือก model name โดยตรง
+4. **department column** ที่เป็น dead: ทิ้งไปเลย (drop ใน Phase 1) หรือเก็บไว้เผื่ออนาคต multi-tenant ส่วนนี้ลบทิ้งให้สะอาด ไม่ต้องเหลือเก็บในอนาคต

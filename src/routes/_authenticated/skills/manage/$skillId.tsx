@@ -16,11 +16,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { IconPicker } from "@/components/IconPicker";
+import { SkillIcon } from "@/components/SkillIcon";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Save, Trash2, Eye, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Eye, ShieldCheck, Sparkles, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/skills/manage/$skillId")({
@@ -28,14 +30,18 @@ export const Route = createFileRoute("/_authenticated/skills/manage/$skillId")({
   component: SkillDetailsPage,
 });
 
+const MAX_STARTERS = 4;
+const MAX_STARTER_LEN = 200;
+
 type Form = {
   name: string;
-  icon: string;
+  icon: string | null;
   category: string;
   description: string;
   example_output: string;
   role_prompt: string;
-  default_model_selector: string;
+  conversation_starters: string[];
+  recommended_model: string;
   sort_order: number;
   is_active: boolean;
 };
@@ -66,12 +72,13 @@ function SkillDetailsPage() {
     if (skill) {
       setForm({
         name: skill.name,
-        icon: skill.icon ?? "",
+        icon: skill.icon ?? null,
         category: skill.category ?? "",
         description: skill.description ?? "",
         example_output: skill.example_output ?? "",
         role_prompt: skill.role_prompt,
-        default_model_selector: skill.default_model_selector ?? "",
+        conversation_starters: (skill.conversation_starters ?? []).slice(0, MAX_STARTERS),
+        recommended_model: skill.recommended_model ?? "",
         sort_order: skill.sort_order,
         is_active: skill.is_active,
       });
@@ -103,6 +110,19 @@ function SkillDetailsPage() {
     );
   }
 
+  const updateStarter = (i: number, value: string) => {
+    const next = [...form.conversation_starters];
+    next[i] = value.slice(0, MAX_STARTER_LEN);
+    setForm({ ...form, conversation_starters: next });
+  };
+  const addStarter = () => {
+    if (form.conversation_starters.length >= MAX_STARTERS) return;
+    setForm({ ...form, conversation_starters: [...form.conversation_starters, ""] });
+  };
+  const removeStarter = (i: number) => {
+    setForm({ ...form, conversation_starters: form.conversation_starters.filter((_, idx) => idx !== i) });
+  };
+
   const save = async () => {
     if (!form.name.trim() || !form.role_prompt.trim()) {
       toast.error(lang === "th" ? "กรอกชื่อและบทบาท" : "Name and role prompt required");
@@ -114,12 +134,13 @@ function SkillDetailsPage() {
         data: {
           id: skill.id,
           name: form.name,
-          icon: form.icon || null,
+          icon: form.icon,
           category: form.category || null,
           description: form.description || null,
           example_output: form.example_output || null,
           role_prompt: form.role_prompt,
-          default_model_selector: form.default_model_selector || null,
+          conversation_starters: form.conversation_starters.map((s) => s.trim()).filter(Boolean),
+          recommended_model: form.recommended_model || null,
           sort_order: form.sort_order,
           is_active: form.is_active,
         },
@@ -180,6 +201,9 @@ function SkillDetailsPage() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2 flex-wrap">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 text-primary">
+                <SkillIcon value={form.icon} className="h-4 w-4" />
+              </span>
               {skill.name}
               {form.is_active ? (
                 <Badge variant="secondary" className="text-[10px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-0">
@@ -209,34 +233,91 @@ function SkillDetailsPage() {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label className="text-xs">{lang === "th" ? "หมวด" : "Category"}</Label>
-                <Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} maxLength={60} />
+                <Label className="text-xs">{lang === "th" ? "ไอคอน" : "Icon"}</Label>
+                <IconPicker value={form.icon} onChange={(v) => setForm({ ...form, icon: v })} />
               </div>
               <div>
-                <Label className="text-xs">{lang === "th" ? "ลำดับ" : "Sort order"}</Label>
-                <Input type="number" value={form.sort_order} onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) || 0 })} />
+                <Label className="text-xs">{lang === "th" ? "หมวด" : "Category"}</Label>
+                <Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} maxLength={60} />
               </div>
             </div>
             <div>
               <Label className="text-xs">{lang === "th" ? "คำอธิบายสั้น" : "Description"}</Label>
-              <Textarea rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} maxLength={500} />
+              <Textarea
+                rows={2}
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                maxLength={500}
+                placeholder={lang === "th"
+                  ? "เขียนแบบ 'ใช้สำหรับ…' หรือ 'เหมาะกับ…' เพื่อช่วยให้ผู้ใช้คนอื่นเลือกใช้ได้ถูก"
+                  : "Write 'Use for…' / 'Best for…' so others can pick the right skill"}
+              />
             </div>
             <div>
               <Label className="text-xs">{lang === "th" ? "บทบาท / System prompt" : "Role prompt"} *</Label>
               <Textarea rows={8} value={form.role_prompt} onChange={(e) => setForm({ ...form, role_prompt: e.target.value })} maxLength={6000} />
             </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">
+                  {lang === "th" ? "ตัวอย่างคำสั่งเริ่มต้น (สูงสุด 4)" : "Conversation starters (up to 4)"}
+                </Label>
+                <Button
+                  type="button" size="sm" variant="ghost"
+                  onClick={addStarter}
+                  disabled={form.conversation_starters.length >= MAX_STARTERS}
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" />{lang === "th" ? "เพิ่ม" : "Add"}
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {lang === "th"
+                  ? "ปุ่มลัดที่ผู้ใช้กดเพื่อเริ่มงานทันที — ใส่คำสั่งจริง ไม่ใช่ทักทาย"
+                  : "Quick-action prompts users can click — write real instructions, not greetings"}
+              </p>
+              {form.conversation_starters.length === 0 ? (
+                <p className="rounded-md border border-dashed border-border p-2 text-xs text-muted-foreground">
+                  {lang === "th" ? "ยังไม่ได้กำหนด — กด 'เพิ่ม' เพื่อตั้งคำสั่งแรก" : "None yet — click 'Add' to set the first starter"}
+                </p>
+              ) : (
+                form.conversation_starters.map((s, i) => (
+                  <div key={i} className="flex gap-1.5">
+                    <Input
+                      value={s}
+                      onChange={(e) => updateStarter(i, e.target.value)}
+                      maxLength={MAX_STARTER_LEN}
+                      placeholder={lang === "th" ? `เช่น "ร่างหนังสือเชิญประชุม…"` : `e.g. "Draft a meeting invitation…"`}
+                    />
+                    <Button type="button" size="icon" variant="ghost" onClick={() => removeStarter(i)} aria-label="remove">
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+
             <div>
-              <Label className="text-xs">{lang === "th" ? "ตัวอย่างผลลัพธ์ (ทางเลือก)" : "Example output (optional)"}</Label>
+              <Label className="text-xs">{lang === "th" ? "ตัวอย่างผลลัพธ์ (ทางเลือก)" : "Sample output (optional)"}</Label>
               <Textarea rows={4} value={form.example_output} onChange={(e) => setForm({ ...form, example_output: e.target.value })} maxLength={4000} />
             </div>
+
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label className="text-xs">{lang === "th" ? "ไอคอน (ทางเลือก)" : "Icon (optional)"}</Label>
-                <Input value={form.icon} onChange={(e) => setForm({ ...form, icon: e.target.value })} maxLength={40} placeholder="✨" />
+                <Label className="text-xs">{lang === "th" ? "โมเดลที่แนะนำ (ทางเลือก)" : "Recommended model (optional)"}</Label>
+                <Input
+                  value={form.recommended_model}
+                  onChange={(e) => setForm({ ...form, recommended_model: e.target.value })}
+                  maxLength={120}
+                  placeholder="google/gemini-2.5-flash"
+                />
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {lang === "th" ? "แสดงเป็นคำแนะนำให้ผู้ใช้" : "Shown as a hint to users"}
+                </p>
               </div>
               <div>
-                <Label className="text-xs">{lang === "th" ? "โมเดลที่แนะนำ (ทางเลือก)" : "Default model (optional)"}</Label>
-                <Input value={form.default_model_selector} onChange={(e) => setForm({ ...form, default_model_selector: e.target.value })} maxLength={120} />
+                <Label className="text-xs">{lang === "th" ? "ลำดับ" : "Sort order"}</Label>
+                <Input type="number" value={form.sort_order} onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) || 0 })} />
               </div>
             </div>
           </CardContent>
@@ -292,6 +373,26 @@ function SkillDetailsPage() {
                   <div className="rounded-md border border-dashed border-border p-2 text-xs text-muted-foreground">
                     {lang === "th" ? "ไม่มี — Skill ถูกซ่อน" : "Nobody — skill is hidden."}
                   </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle className="text-base flex items-center gap-2"><Sparkles className="h-4 w-4" />{lang === "th" ? "พรีวิว" : "Preview"}</CardTitle></CardHeader>
+            <CardContent>
+              <div className="rounded-md border border-border p-3 space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
+                    <SkillIcon value={form.icon} className="h-3.5 w-3.5" />
+                  </span>
+                  <span className="text-sm font-medium truncate">{form.name || (lang === "th" ? "(ไม่มีชื่อ)" : "(no name)")}</span>
+                </div>
+                {form.description && <p className="text-xs text-muted-foreground line-clamp-3">{form.description}</p>}
+                {form.recommended_model && (
+                  <p className="text-[11px] text-muted-foreground">
+                    {lang === "th" ? "แนะนำโมเดล" : "Recommended model"}: <code className="text-foreground">{form.recommended_model}</code>
+                  </p>
                 )}
               </div>
             </CardContent>

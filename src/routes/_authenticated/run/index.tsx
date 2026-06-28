@@ -281,6 +281,28 @@ function RunPage() {
         <img src={logo.url} alt="RathCoWork" className="h-20 w-auto object-contain" />
       </div>
 
+      {/* Conversation starters from selected shared skill */}
+      {selectedShared && (selectedShared.conversation_starters?.length ?? 0) > 0 && !prompt.trim() && (
+        <div className="mb-3 flex flex-wrap justify-center gap-1.5">
+          {selectedShared.conversation_starters.map((cs, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => { baseRef.current = cs; setPrompt(cs); }}
+              className="max-w-full truncate rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground hover:border-primary/40 hover:bg-accent/40 hover:text-foreground"
+              title={cs}
+            >
+              {cs}
+            </button>
+          ))}
+        </div>
+      )}
+      {selectedShared && selectedShared.recommended_model && (
+        <p className="mb-2 text-center text-[11px] text-muted-foreground">
+          {lang === "th" ? "โมเดลที่แนะนำสำหรับ Skill นี้" : "Recommended model"}: <code className="text-foreground">{selectedShared.recommended_model}</code>
+        </p>
+      )}
+
       {/* Grok-style pill composer */}
       <div
         className="rounded-3xl border border-border bg-card px-4 pt-3 pb-2 shadow-sm transition-colors focus-within:border-primary/40"

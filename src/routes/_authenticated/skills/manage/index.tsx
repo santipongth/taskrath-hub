@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { SkillIcon } from "@/components/SkillIcon";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter, SheetDescription,
 } from "@/components/ui/sheet";
@@ -35,37 +36,30 @@ export const Route = createFileRoute("/_authenticated/skills/manage/")({
       return await listSharedSkillsForAdmin();
     } catch (e) {
       if (isRedirect(e)) throw e;
-      return { skills: [], department: null, error: "load_failed" as const };
+      return { skills: [], error: "load_failed" as const };
     }
   },
   component: SkillsManagePage,
   errorComponent: () => (
-    <div className="p-6 text-sm text-muted-foreground">ไม่สามารถโหลดหน้าจัดการ Skill ได้ โปรดตรวจสอบสิทธิ์ผู้ดูแลหน่วยงาน</div>
+    <div className="p-6 text-sm text-muted-foreground">ไม่สามารถโหลดหน้าจัดการ Skill ได้ โปรดตรวจสอบสิทธิ์ผู้ดูแล</div>
   ),
 });
 
 
 type Draft = {
-  id?: string;
   name: string;
-  icon: string;
   category: string;
   description: string;
-  example_output: string;
   role_prompt: string;
-  default_model_selector: string;
   sort_order: number;
   is_active: boolean;
 };
 
 const EMPTY: Draft = {
   name: "",
-  icon: "",
   category: "",
   description: "",
-  example_output: "",
   role_prompt: "",
-  default_model_selector: "",
   sort_order: 0,
   is_active: true,
 };
@@ -98,12 +92,7 @@ function SkillsManagePage() {
     );
   }, [skills, query]);
 
-
-
-
   const openCreate = () => setDraft({ ...EMPTY });
-
-
 
   const save = async () => {
     if (!draft) return;
@@ -115,19 +104,15 @@ function SkillsManagePage() {
     try {
       await upsert({
         data: {
-          id: draft.id,
           name: draft.name,
-          icon: draft.icon || null,
           category: draft.category || null,
           description: draft.description || null,
-          example_output: draft.example_output || null,
           role_prompt: draft.role_prompt,
-          default_model_selector: draft.default_model_selector || null,
           sort_order: draft.sort_order,
           is_active: draft.is_active,
         },
       });
-      toast.success(lang === "th" ? "บันทึกแล้ว" : "Saved");
+      toast.success(lang === "th" ? "บันทึกแล้ว — แก้ไอคอน, conversation starters และอื่น ๆ ได้ในหน้ารายละเอียด" : "Saved — edit icon, starters and more on the details page");
       setDraft(null);
       qc.invalidateQueries({ queryKey: ["shared-skills-admin"] });
       qc.invalidateQueries({ queryKey: ["shared-skills"] });
@@ -240,30 +225,35 @@ function SkillsManagePage() {
             <Card key={s.id} className={s.is_active ? "" : "opacity-60"}>
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <CardTitle className="text-base flex items-center gap-2 flex-wrap">
-                      <Link
-                        to="/skills/manage/$skillId"
-                        params={{ skillId: s.id }}
-                        className="hover:underline"
-                      >
-                        {s.name}
-                      </Link>
-                      {s.is_active ? (
-                        <Badge variant="secondary" className="text-[10px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-0">
-                          {lang === "th" ? "เปิดใช้งาน" : "active"}
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-[10px]">{lang === "th" ? "ปิดใช้" : "inactive"}</Badge>
+                  <div className="flex items-start gap-3 min-w-0">
+                    <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                      <SkillIcon value={s.icon} className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0">
+                      <CardTitle className="text-base flex items-center gap-2 flex-wrap">
+                        <Link
+                          to="/skills/manage/$skillId"
+                          params={{ skillId: s.id }}
+                          className="hover:underline"
+                        >
+                          {s.name}
+                        </Link>
+                        {s.is_active ? (
+                          <Badge variant="secondary" className="text-[10px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-0">
+                            {lang === "th" ? "เปิดใช้งาน" : "active"}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px]">{lang === "th" ? "ปิดใช้" : "inactive"}</Badge>
+                        )}
+                        {s.category && <Badge variant="secondary" className="text-[10px]">{s.category}</Badge>}
+                      </CardTitle>
+                      {s.description && <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{s.description}</p>}
+                      {updatedLabel && (
+                        <p className="mt-1.5 text-[11px] text-muted-foreground">
+                          {lang === "th" ? "อัปเดตล่าสุด" : "Updated"}: {updatedLabel}
+                        </p>
                       )}
-                      {s.category && <Badge variant="secondary" className="text-[10px]">{s.category}</Badge>}
-                    </CardTitle>
-                    {s.description && <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{s.description}</p>}
-                    {updatedLabel && (
-                      <p className="mt-1.5 text-[11px] text-muted-foreground">
-                        {lang === "th" ? "อัปเดตล่าสุด" : "Updated"}: {updatedLabel}
-                      </p>
-                    )}
+                    </div>
                   </div>
                   <div className="flex shrink-0 gap-1">
                     <Button
@@ -332,9 +322,11 @@ function SkillsManagePage() {
           {draft && (
             <>
               <SheetHeader>
-                <SheetTitle>{draft.id ? (lang === "th" ? "แก้ Skill" : "Edit skill") : (lang === "th" ? "สร้าง Skill ใหม่" : "New skill")}</SheetTitle>
+                <SheetTitle>{lang === "th" ? "สร้าง Skill ใหม่" : "New skill"}</SheetTitle>
                 <SheetDescription>
-                  {lang === "th" ? "Skill จะถูกแชร์ให้ทุกคนในระบบเรียกใช้" : "Will be shared with everyone in the workspace."}
+                  {lang === "th"
+                    ? "กรอกข้อมูลพื้นฐาน แล้วเปิดหน้ารายละเอียดเพื่อตั้งไอคอน, conversation starters และอื่น ๆ"
+                    : "Enter basics now; configure icon, starters, and more on the details page."}
                 </SheetDescription>
               </SheetHeader>
 
@@ -355,15 +347,19 @@ function SkillsManagePage() {
                 </div>
                 <div>
                   <Label className="text-xs">{lang === "th" ? "คำอธิบายสั้น" : "Description"}</Label>
-                  <Textarea rows={2} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} maxLength={500} />
+                  <Textarea
+                    rows={2}
+                    value={draft.description}
+                    onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+                    maxLength={500}
+                    placeholder={lang === "th"
+                      ? "เขียนแบบ 'ใช้สำหรับ…' เพื่อให้ผู้ใช้คนอื่นเลือกใช้ได้ถูก"
+                      : "Write 'Use for…' to help users pick the right skill"}
+                  />
                 </div>
                 <div>
                   <Label className="text-xs">{lang === "th" ? "บทบาท / System prompt" : "Role prompt"} *</Label>
                   <Textarea rows={6} value={draft.role_prompt} onChange={(e) => setDraft({ ...draft, role_prompt: e.target.value })} maxLength={6000} placeholder={lang === "th" ? "คุณคือ…" : "You are…"} />
-                </div>
-                <div>
-                  <Label className="text-xs">{lang === "th" ? "ตัวอย่างผลลัพธ์ (ทางเลือก)" : "Example output (optional)"}</Label>
-                  <Textarea rows={3} value={draft.example_output} onChange={(e) => setDraft({ ...draft, example_output: e.target.value })} maxLength={4000} />
                 </div>
                 <div className="flex items-center justify-between rounded-md border border-border p-2">
                   <div>

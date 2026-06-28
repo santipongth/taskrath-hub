@@ -4,14 +4,14 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export type SharedSkill = {
   id: string;
-  department: string | null;
   name: string;
   icon: string | null;
   category: string | null;
   description: string | null;
   example_output: string | null;
   role_prompt: string;
-  default_model_selector: string | null;
+  conversation_starters: string[];
+  recommended_model: string | null;
   sort_order: number;
   is_active: boolean;
   created_by: string | null;
@@ -23,14 +23,18 @@ export type CombinedSkill = {
   name: string;
   icon: string | null;
   description: string | null;
+  conversation_starters: string[];
+  recommended_model: string | null;
   source: "shared" | "personal";
 };
 
 const MAX_NAME = 80;
 const MAX_PROMPT = 6000;
+const MAX_STARTERS = 4;
+const MAX_STARTER_LEN = 200;
 
 const SELECT_COLS =
-  "id, department, name, icon, category, description, example_output, role_prompt, default_model_selector, sort_order, is_active, created_by, updated_at";
+  "id, name, icon, category, description, example_output, role_prompt, conversation_starters, recommended_model, sort_order, is_active, created_by, updated_at";
 
 async function canManageSkills(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -57,7 +61,7 @@ export const listSharedSkills = createServerFn({ method: "GET" })
       .order("name", { ascending: true });
     if (error) throw new Error(error.message);
     const canManage = await canManageSkills(supabase, userId);
-    return { skills: (data ?? []) as SharedSkill[], canManage };
+    return { skills: (data ?? []) as unknown as SharedSkill[], canManage };
   });
 
 /** All skills (including inactive) for the admin manage page. */
@@ -79,7 +83,7 @@ export const listSharedSkillsForAdmin = createServerFn({ method: "GET" })
       .order("name", { ascending: true });
     if (error) throw new Error(error.message);
     return {
-      skills: (data ?? []) as SharedSkill[],
+      skills: (data ?? []) as unknown as SharedSkill[],
       error: null as null | "not_admin",
     };
   });
@@ -91,12 +95,16 @@ export const upsertSharedSkill = createServerFn({ method: "POST" })
       .object({
         id: z.string().uuid().optional(),
         name: z.string().trim().min(1).max(MAX_NAME),
-        icon: z.string().trim().max(40).optional().nullable(),
+        icon: z.string().trim().max(60).optional().nullable(),
         category: z.string().trim().max(60).optional().nullable(),
         description: z.string().trim().max(500).optional().nullable(),
         example_output: z.string().trim().max(4000).optional().nullable(),
         role_prompt: z.string().trim().min(1).max(MAX_PROMPT),
-        default_model_selector: z.string().trim().max(120).optional().nullable(),
+        conversation_starters: z
+          .array(z.string().trim().max(MAX_STARTER_LEN))
+          .max(MAX_STARTERS)
+          .optional(),
+        recommended_model: z.string().trim().max(120).optional().nullable(),
         sort_order: z.number().int().min(0).max(9999).optional(),
         is_active: z.boolean().optional(),
       })
@@ -107,6 +115,11 @@ export const upsertSharedSkill = createServerFn({ method: "POST" })
     const can = await canManageSkills(supabase, userId);
     if (!can) throw new Error("เฉพาะผู้ดูแลระบบเท่านั้น");
 
+    const starters = (data.conversation_starters ?? [])
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0)
+      .slice(0, MAX_STARTERS);
+
     const payload = {
       name: data.name,
       icon: data.icon ?? null,
@@ -114,7 +127,8 @@ export const upsertSharedSkill = createServerFn({ method: "POST" })
       description: data.description ?? null,
       example_output: data.example_output ?? null,
       role_prompt: data.role_prompt,
-      default_model_selector: data.default_model_selector ?? null,
+      conversation_starters: starters,
+      recommended_model: data.recommended_model ?? null,
       sort_order: data.sort_order ?? 0,
       is_active: data.is_active ?? true,
     };
@@ -182,7 +196,7 @@ export const getSharedSkill = createServerFn({ method: "GET" })
       .eq("id", data.id)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    return { skill: (row ?? null) as SharedSkill | null, canManage: true as const };
+    return { skill: (row ?? null) as unknown as SharedSkill | null, canManage: true as const };
   });
 
 /** Combined list (shared + personal) for selector UIs. */
@@ -193,7 +207,7 @@ export const listAvailableSkills = createServerFn({ method: "GET" })
     const [sharedRes, personalRes] = await Promise.all([
       supabase
         .from("shared_skills")
-        .select("id, name, icon, description")
+        .select("id, name, icon, description, conversation_starters, recommended_model")
         .eq("is_active", true)
         .order("sort_order", { ascending: true }),
       supabase
@@ -207,11 +221,15 @@ export const listAvailableSkills = createServerFn({ method: "GET" })
       name: string;
       icon: string | null;
       description: string | null;
+      conversation_starters: string[] | null;
+      recommended_model: string | null;
     }>).map((s) => ({
       id: s.id,
       name: s.name,
       icon: s.icon,
       description: s.description,
+      conversation_starters: s.conversation_starters ?? [],
+      recommended_model: s.recommended_model ?? null,
       source: "shared" as const,
     }));
     const personal: CombinedSkill[] = ((personalRes.data ?? []) as Array<{
@@ -224,6 +242,8 @@ export const listAvailableSkills = createServerFn({ method: "GET" })
       name: s.name,
       icon: s.icon,
       description: s.description,
+      conversation_starters: [],
+      recommended_model: null,
       source: "personal" as const,
     }));
     return { shared, personal };
