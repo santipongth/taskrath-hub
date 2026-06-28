@@ -403,7 +403,9 @@ function ResearchPage() {
                 <SelectContent>
                   <SelectItem value="__none">{lang === "th" ? "— ไม่ใช้ skill —" : "— No skill —"}</SelectItem>
                   {skills.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    <SelectItem key={`${s.source}-${s.id}`} value={`${s.source}:${s.id}`}>
+                      {s.source === "shared" ? "🏢 " : "👤 "}{s.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
