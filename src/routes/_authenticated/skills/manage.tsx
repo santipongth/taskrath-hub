@@ -33,7 +33,7 @@ export const Route = createFileRoute("/_authenticated/skills/manage")({
       return await listSharedSkillsForAdmin();
     } catch (e) {
       if (isRedirect(e)) throw e;
-      throw redirect({ to: "/skills" });
+      return { skills: [], department: null, error: "load_failed" as const };
     }
   },
   component: SkillsManagePage,
@@ -41,6 +41,7 @@ export const Route = createFileRoute("/_authenticated/skills/manage")({
     <div className="p-6 text-sm text-muted-foreground">ไม่สามารถโหลดหน้าจัดการ Skill ได้ โปรดตรวจสอบสิทธิ์ผู้ดูแลหน่วยงาน</div>
   ),
 });
+
 
 type Draft = {
   id?: string;
