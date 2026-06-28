@@ -257,7 +257,7 @@ function SkillsManagePage() {
               <SheetHeader>
                 <SheetTitle>{draft.id ? (lang === "th" ? "แก้ Skill" : "Edit skill") : (lang === "th" ? "สร้าง Skill ใหม่" : "New skill")}</SheetTitle>
                 <SheetDescription>
-                  {lang === "th" ? "Skill จะถูกแชร์ให้ทุกคนในหน่วยงานเรียกใช้" : "Will be shared with everyone in your department."}
+                  {lang === "th" ? "Skill จะถูกแชร์ให้ทุกคนในระบบเรียกใช้" : "Will be shared with everyone in the workspace."}
                 </SheetDescription>
               </SheetHeader>
 
