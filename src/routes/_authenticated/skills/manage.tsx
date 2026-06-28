@@ -162,6 +162,26 @@ function SkillsManagePage() {
     }
   };
 
+  const confirmToggle = async () => {
+    if (!toggleTarget) return;
+    const next = !toggleTarget.is_active;
+    try {
+      await toggleActive({ data: { id: toggleTarget.id, is_active: next } });
+      qc.invalidateQueries({ queryKey: ["shared-skills-admin"] });
+      qc.invalidateQueries({ queryKey: ["shared-skills"] });
+      qc.invalidateQueries({ queryKey: ["available-skills"] });
+      toast.success(
+        next
+          ? lang === "th" ? "เปิดใช้งานแล้ว" : "Activated"
+          : lang === "th" ? "ปิดใช้งานแล้ว" : "Deactivated",
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Error");
+    } finally {
+      setToggleTarget(null);
+    }
+  };
+
   if (loadError === "not_admin") {
     return (
       <div className="mx-auto max-w-2xl px-6 py-16 text-center space-y-4">
