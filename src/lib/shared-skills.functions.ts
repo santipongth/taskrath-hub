@@ -140,15 +140,145 @@ export const upsertSharedSkill = createServerFn({ method: "POST" })
         .select("id")
         .single();
       if (error) throw new Error(error.message);
+      await snapshotVersion(supabase, row.id as string, userId, payload);
       return { id: row.id as string };
     } else {
+      const { data: prev } = await supabase
+        .from("shared_skills")
+        .select("role_prompt")
+        .eq("id", data.id)
+        .maybeSingle();
       const { error } = await supabase
         .from("shared_skills")
         .update(payload)
         .eq("id", data.id);
       if (error) throw new Error(error.message);
+      const prevPrompt = (prev?.role_prompt as string | null) ?? "";
+      if (prevPrompt.trim() !== payload.role_prompt.trim()) {
+        await snapshotVersion(supabase, data.id, userId, payload);
+      }
       return { id: data.id };
     }
+  });
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function snapshotVersion(
+  supabase: any,
+  skillId: string,
+  userId: string,
+  payload: {
+    name: string;
+    description: string | null;
+    role_prompt: string;
+    conversation_starters: string[];
+    recommended_model: string | null;
+  },
+) {
+  const { data: latest } = await supabase
+    .from("shared_skill_versions")
+    .select("version_no")
+    .eq("skill_id", skillId)
+    .order("version_no", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const nextNo = ((latest?.version_no as number | null) ?? 0) + 1;
+  await supabase.from("shared_skill_versions").insert({
+    skill_id: skillId,
+    version_no: nextNo,
+    name: payload.name,
+    description: payload.description,
+    role_prompt: payload.role_prompt,
+    conversation_starters: payload.conversation_starters,
+    recommended_model: payload.recommended_model,
+    created_by: userId,
+  });
+}
+
+export type SharedSkillVersion = {
+  id: string;
+  skill_id: string;
+  version_no: number;
+  name: string;
+  description: string | null;
+  role_prompt: string;
+  conversation_starters: string[];
+  recommended_model: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+
+export const listSharedSkillVersions = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ skillId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const can = await canManageSkills(supabase, userId);
+    if (!can) return { versions: [] as SharedSkillVersion[] };
+    const { data: rows, error } = await supabase
+      .from("shared_skill_versions")
+      .select(
+        "id, skill_id, version_no, name, description, role_prompt, conversation_starters, recommended_model, created_by, created_at",
+      )
+      .eq("skill_id", data.skillId)
+      .order("version_no", { ascending: false });
+    if (error) throw new Error(error.message);
+    return { versions: (rows ?? []) as unknown as SharedSkillVersion[] };
+  });
+
+export const restoreSharedSkillVersion = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ skillId: z.string().uuid(), versionId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const can = await canManageSkills(supabase, userId);
+    if (!can) throw new Error("เฉพาะผู้ดูแลระบบเท่านั้น");
+    const { data: ver, error: e1 } = await supabase
+      .from("shared_skill_versions")
+      .select("skill_id, name, description, role_prompt, conversation_starters, recommended_model")
+      .eq("id", data.versionId)
+      .maybeSingle();
+    if (e1) throw new Error(e1.message);
+    if (!ver || ver.skill_id !== data.skillId) throw new Error("ไม่พบเวอร์ชันนี้");
+    const payload = {
+      name: ver.name as string,
+      description: (ver.description as string | null) ?? null,
+      role_prompt: ver.role_prompt as string,
+      conversation_starters: (ver.conversation_starters as string[] | null) ?? [],
+      recommended_model: (ver.recommended_model as string | null) ?? null,
+    };
+    const { error: e2 } = await supabase
+      .from("shared_skills")
+      .update(payload)
+      .eq("id", data.skillId);
+    if (e2) throw new Error(e2.message);
+    await snapshotVersion(supabase, data.skillId, userId, payload);
+    return { ok: true };
+  });
+
+export const testSharedSkillPrompt = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        role_prompt: z.string().trim().min(1).max(MAX_PROMPT),
+        sample_prompt: z.string().trim().min(1).max(4000),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const can = await canManageSkills(supabase, userId);
+    if (!can) throw new Error("เฉพาะผู้ดูแลระบบเท่านั้น");
+    void supabase;
+    void userId;
+    const { callAI } = await import("@/lib/ai.functions");
+    const systemPrompt =
+      "คุณเป็นผู้ช่วย AI สำหรับเจ้าหน้าที่ราชการไทย ตอบอย่างกระชับ สุภาพ และใช้ภาษาทางการ" +
+      `\n\n<บทบาทที่องค์กรกำหนด>\n${data.role_prompt}\n</บทบาทที่องค์กรกำหนด>`;
+    const ai = await callAI(systemPrompt, data.sample_prompt);
+    return { text: ai.text, usage: ai.usage };
   });
 
 export const deleteSharedSkill = createServerFn({ method: "POST" })
