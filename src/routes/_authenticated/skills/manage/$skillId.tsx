@@ -204,6 +204,47 @@ function SkillDetailsPage() {
     }
   };
 
+  const doTest = async () => {
+    if (!form.role_prompt.trim()) {
+      toast.error(lang === "th" ? "กรอกบทบาทก่อน" : "Set the role prompt first");
+      return;
+    }
+    if (!samplePrompt.trim()) {
+      toast.error(lang === "th" ? "กรอกตัวอย่างคำสั่ง" : "Enter a sample prompt");
+      return;
+    }
+    setTesting(true);
+    setTestOutput(null);
+    try {
+      const res = await runTest({
+        data: { role_prompt: form.role_prompt, sample_prompt: samplePrompt },
+      });
+      setTestOutput(res.text || (lang === "th" ? "(ไม่มีคำตอบ)" : "(no response)"));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Error");
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const doRestore = async () => {
+    if (!restoreTarget) return;
+    try {
+      await restoreVersion({ data: { skillId, versionId: restoreTarget.id } });
+      qc.invalidateQueries({ queryKey: ["shared-skill", skillId] });
+      qc.invalidateQueries({ queryKey: ["shared-skill-versions", skillId] });
+      qc.invalidateQueries({ queryKey: ["shared-skills-admin"] });
+      qc.invalidateQueries({ queryKey: ["shared-skills"] });
+      toast.success(lang === "th" ? `กู้คืนเวอร์ชัน ${restoreTarget.no} แล้ว` : `Restored v${restoreTarget.no}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Error");
+    } finally {
+      setRestoreTarget(null);
+    }
+  };
+
+  const versions = versionsData?.versions ?? [];
+
   const updatedLabel = (() => {
     const d = new Date(skill.updated_at);
     return isNaN(d.getTime()) ? "" : d.toLocaleString(lang === "th" ? "th-TH" : "en-US", { dateStyle: "medium", timeStyle: "short" });
