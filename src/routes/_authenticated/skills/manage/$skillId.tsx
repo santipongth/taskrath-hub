@@ -504,6 +504,85 @@ function SkillDetailsPage() {
           </Card>
 
           <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <History className="h-4 w-4" />{lang === "th" ? "ประวัติเวอร์ชัน" : "Version history"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-1.5">
+              {versions.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  {lang === "th" ? "ยังไม่มีประวัติ" : "No history yet"}
+                </p>
+              ) : (
+                versions.slice(0, 10).map((v) => {
+                  const isLatest = v.version_no === versions[0].version_no;
+                  const d = new Date(v.created_at);
+                  const dateStr = isNaN(d.getTime())
+                    ? ""
+                    : d.toLocaleString(lang === "th" ? "th-TH" : "en-US", {
+                        dateStyle: "short",
+                        timeStyle: "short",
+                      });
+                  return (
+                    <div
+                      key={v.id}
+                      className="flex items-center justify-between gap-2 rounded-md border border-border p-2"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 text-xs">
+                          <Badge variant="secondary" className="text-[10px]">v{v.version_no}</Badge>
+                          {isLatest && (
+                            <Badge variant="outline" className="text-[10px]">
+                              {lang === "th" ? "ปัจจุบัน" : "current"}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{dateStr}</p>
+                      </div>
+                      {!isLatest && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setRestoreTarget({ id: v.id, no: v.version_no })}
+                        >
+                          <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                          {lang === "th" ? "กู้คืน" : "Restore"}
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+              <AlertDialog
+                open={restoreTarget !== null}
+                onOpenChange={(o) => { if (!o) setRestoreTarget(null); }}
+              >
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      {lang === "th"
+                        ? `กู้คืนเป็นเวอร์ชัน ${restoreTarget?.no}?`
+                        : `Restore to v${restoreTarget?.no}?`}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {lang === "th"
+                        ? "ระบบจะเขียนทับบทบาทปัจจุบันและสร้างเวอร์ชันใหม่ทับไว้"
+                        : "Overwrites the current prompt and creates a new version on top."}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{lang === "th" ? "ยกเลิก" : "Cancel"}</AlertDialogCancel>
+                    <AlertDialogAction onClick={doRestore}>
+                      {lang === "th" ? "กู้คืน" : "Restore"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </CardContent>
+          </Card>
+
+          <Card>
             <CardHeader><CardTitle className="text-base text-destructive">{lang === "th" ? "เขตอันตราย" : "Danger zone"}</CardTitle></CardHeader>
             <CardContent>
               <AlertDialog>
