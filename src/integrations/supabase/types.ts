@@ -604,6 +604,53 @@ export type Database = {
           },
         ]
       }
+      shared_skill_versions: {
+        Row: {
+          conversation_starters: string[]
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          recommended_model: string | null
+          role_prompt: string
+          skill_id: string
+          version_no: number
+        }
+        Insert: {
+          conversation_starters?: string[]
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          recommended_model?: string | null
+          role_prompt: string
+          skill_id: string
+          version_no: number
+        }
+        Update: {
+          conversation_starters?: string[]
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          recommended_model?: string | null
+          role_prompt?: string
+          skill_id?: string
+          version_no?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shared_skill_versions_skill_id_fkey"
+            columns: ["skill_id"]
+            isOneToOne: false
+            referencedRelation: "shared_skills"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shared_skills: {
         Row: {
           category: string | null

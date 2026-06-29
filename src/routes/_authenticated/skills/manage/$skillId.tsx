@@ -7,6 +7,9 @@ import {
   upsertSharedSkill,
   deleteSharedSkill,
   setSharedSkillActive,
+  listSharedSkillVersions,
+  restoreSharedSkillVersion,
+  testSharedSkillPrompt,
 } from "@/lib/shared-skills.functions";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
@@ -22,7 +25,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Save, Trash2, Eye, ShieldCheck, Sparkles, Plus, X } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Eye, ShieldCheck, Sparkles, Plus, X, Play, History, RotateCcw, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/skills/manage/$skillId")({
@@ -55,10 +58,19 @@ function SkillDetailsPage() {
   const upsert = useServerFn(upsertSharedSkill);
   const del = useServerFn(deleteSharedSkill);
   const toggleActive = useServerFn(setSharedSkillActive);
+  const fetchVersions = useServerFn(listSharedSkillVersions);
+  const restoreVersion = useServerFn(restoreSharedSkillVersion);
+  const runTest = useServerFn(testSharedSkillPrompt);
 
   const { data, isLoading } = useQuery({
     queryKey: ["shared-skill", skillId],
     queryFn: () => fetchOne({ data: { id: skillId } }),
+  });
+
+  const { data: versionsData } = useQuery({
+    queryKey: ["shared-skill-versions", skillId],
+    queryFn: () => fetchVersions({ data: { skillId } }),
+    enabled: Boolean(data?.canManage),
   });
 
   const skill = data?.skill ?? null;
@@ -67,6 +79,10 @@ function SkillDetailsPage() {
   const [form, setForm] = useState<Form | null>(null);
   const [saving, setSaving] = useState(false);
   const [toggleOpen, setToggleOpen] = useState(false);
+  const [samplePrompt, setSamplePrompt] = useState("");
+  const [testing, setTesting] = useState(false);
+  const [testOutput, setTestOutput] = useState<string | null>(null);
+  const [restoreTarget, setRestoreTarget] = useState<{ id: string; no: number } | null>(null);
 
   useEffect(() => {
     if (skill) {
@@ -146,6 +162,7 @@ function SkillDetailsPage() {
         },
       });
       qc.invalidateQueries({ queryKey: ["shared-skill", skillId] });
+      qc.invalidateQueries({ queryKey: ["shared-skill-versions", skillId] });
       qc.invalidateQueries({ queryKey: ["shared-skills-admin"] });
       qc.invalidateQueries({ queryKey: ["shared-skills"] });
       qc.invalidateQueries({ queryKey: ["available-skills"] });
@@ -186,6 +203,47 @@ function SkillDetailsPage() {
       setToggleOpen(false);
     }
   };
+
+  const doTest = async () => {
+    if (!form.role_prompt.trim()) {
+      toast.error(lang === "th" ? "กรอกบทบาทก่อน" : "Set the role prompt first");
+      return;
+    }
+    if (!samplePrompt.trim()) {
+      toast.error(lang === "th" ? "กรอกตัวอย่างคำสั่ง" : "Enter a sample prompt");
+      return;
+    }
+    setTesting(true);
+    setTestOutput(null);
+    try {
+      const res = await runTest({
+        data: { role_prompt: form.role_prompt, sample_prompt: samplePrompt },
+      });
+      setTestOutput(res.text || (lang === "th" ? "(ไม่มีคำตอบ)" : "(no response)"));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Error");
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const doRestore = async () => {
+    if (!restoreTarget) return;
+    try {
+      await restoreVersion({ data: { skillId, versionId: restoreTarget.id } });
+      qc.invalidateQueries({ queryKey: ["shared-skill", skillId] });
+      qc.invalidateQueries({ queryKey: ["shared-skill-versions", skillId] });
+      qc.invalidateQueries({ queryKey: ["shared-skills-admin"] });
+      qc.invalidateQueries({ queryKey: ["shared-skills"] });
+      toast.success(lang === "th" ? `กู้คืนเวอร์ชัน ${restoreTarget.no} แล้ว` : `Restored v${restoreTarget.no}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Error");
+    } finally {
+      setRestoreTarget(null);
+    }
+  };
+
+  const versions = versionsData?.versions ?? [];
 
   const updatedLabel = (() => {
     const d = new Date(skill.updated_at);
@@ -323,6 +381,40 @@ function SkillDetailsPage() {
           </CardContent>
         </Card>
 
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Play className="h-4 w-4" />{lang === "th" ? "ทดสอบบทบาท" : "Test prompt"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-[11px] text-muted-foreground">
+              {lang === "th"
+                ? "รันด้วยบทบาทปัจจุบัน (ยังไม่บันทึก) เพื่อดูว่าผู้ใช้จะได้ผลลัพธ์อย่างไร — ไม่นับเป็นประวัติการใช้งาน"
+                : "Runs with the current draft prompt — ephemeral, not saved to history."}
+            </p>
+            <Textarea
+              rows={3}
+              value={samplePrompt}
+              onChange={(e) => setSamplePrompt(e.target.value)}
+              maxLength={4000}
+              placeholder={lang === "th" ? "ลองพิมพ์คำสั่งตัวอย่างที่ผู้ใช้น่าจะถาม…" : "Type a sample user request…"}
+            />
+            <div className="flex justify-end">
+              <Button size="sm" onClick={doTest} disabled={testing}>
+                {testing
+                  ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />{lang === "th" ? "กำลังรัน…" : "Running…"}</>
+                  : <><Play className="h-3.5 w-3.5 mr-1.5" />{lang === "th" ? "รันทดสอบ" : "Run test"}</>}
+              </Button>
+            </div>
+            {testOutput !== null && (
+              <div className="rounded-md border border-border bg-muted/40 p-3 text-sm whitespace-pre-wrap">
+                {testOutput}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         <div className="space-y-4">
           <Card>
             <CardHeader><CardTitle className="text-base flex items-center gap-2"><Eye className="h-4 w-4" />{lang === "th" ? "การมองเห็น" : "Visibility"}</CardTitle></CardHeader>
@@ -408,6 +500,85 @@ function SkillDetailsPage() {
                   ? "เฉพาะผู้ที่มีบทบาทข้างต้นเท่านั้นที่แก้ไข ปิด/เปิด หรือลบ Skill นี้ได้"
                   : "Only the roles above can edit, toggle, or delete this skill."}
               </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <History className="h-4 w-4" />{lang === "th" ? "ประวัติเวอร์ชัน" : "Version history"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-1.5">
+              {versions.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  {lang === "th" ? "ยังไม่มีประวัติ" : "No history yet"}
+                </p>
+              ) : (
+                versions.slice(0, 10).map((v) => {
+                  const isLatest = v.version_no === versions[0].version_no;
+                  const d = new Date(v.created_at);
+                  const dateStr = isNaN(d.getTime())
+                    ? ""
+                    : d.toLocaleString(lang === "th" ? "th-TH" : "en-US", {
+                        dateStyle: "short",
+                        timeStyle: "short",
+                      });
+                  return (
+                    <div
+                      key={v.id}
+                      className="flex items-center justify-between gap-2 rounded-md border border-border p-2"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 text-xs">
+                          <Badge variant="secondary" className="text-[10px]">v{v.version_no}</Badge>
+                          {isLatest && (
+                            <Badge variant="outline" className="text-[10px]">
+                              {lang === "th" ? "ปัจจุบัน" : "current"}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{dateStr}</p>
+                      </div>
+                      {!isLatest && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setRestoreTarget({ id: v.id, no: v.version_no })}
+                        >
+                          <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                          {lang === "th" ? "กู้คืน" : "Restore"}
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+              <AlertDialog
+                open={restoreTarget !== null}
+                onOpenChange={(o) => { if (!o) setRestoreTarget(null); }}
+              >
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      {lang === "th"
+                        ? `กู้คืนเป็นเวอร์ชัน ${restoreTarget?.no}?`
+                        : `Restore to v${restoreTarget?.no}?`}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {lang === "th"
+                        ? "ระบบจะเขียนทับบทบาทปัจจุบันและสร้างเวอร์ชันใหม่ทับไว้"
+                        : "Overwrites the current prompt and creates a new version on top."}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{lang === "th" ? "ยกเลิก" : "Cancel"}</AlertDialogCancel>
+                    <AlertDialogAction onClick={doRestore}>
+                      {lang === "th" ? "กู้คืน" : "Restore"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </CardContent>
           </Card>
 
