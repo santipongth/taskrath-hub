@@ -7,6 +7,9 @@ import {
   upsertSharedSkill,
   deleteSharedSkill,
   setSharedSkillActive,
+  listSharedSkillVersions,
+  restoreSharedSkillVersion,
+  testSharedSkillPrompt,
 } from "@/lib/shared-skills.functions";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
@@ -22,7 +25,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Save, Trash2, Eye, ShieldCheck, Sparkles, Plus, X } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Eye, ShieldCheck, Sparkles, Plus, X, Play, History, RotateCcw, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/skills/manage/$skillId")({
