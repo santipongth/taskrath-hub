@@ -162,6 +162,7 @@ function SkillDetailsPage() {
         },
       });
       qc.invalidateQueries({ queryKey: ["shared-skill", skillId] });
+      qc.invalidateQueries({ queryKey: ["shared-skill-versions", skillId] });
       qc.invalidateQueries({ queryKey: ["shared-skills-admin"] });
       qc.invalidateQueries({ queryKey: ["shared-skills"] });
       qc.invalidateQueries({ queryKey: ["available-skills"] });
