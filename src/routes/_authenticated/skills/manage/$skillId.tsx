@@ -414,6 +414,8 @@ function SkillDetailsPage() {
             )}
           </CardContent>
         </Card>
+
+        <div className="space-y-4">
           <Card>
             <CardHeader><CardTitle className="text-base flex items-center gap-2"><Eye className="h-4 w-4" />{lang === "th" ? "การมองเห็น" : "Visibility"}</CardTitle></CardHeader>
             <CardContent className="space-y-3 text-sm">
