@@ -58,10 +58,19 @@ function SkillDetailsPage() {
   const upsert = useServerFn(upsertSharedSkill);
   const del = useServerFn(deleteSharedSkill);
   const toggleActive = useServerFn(setSharedSkillActive);
+  const fetchVersions = useServerFn(listSharedSkillVersions);
+  const restoreVersion = useServerFn(restoreSharedSkillVersion);
+  const runTest = useServerFn(testSharedSkillPrompt);
 
   const { data, isLoading } = useQuery({
     queryKey: ["shared-skill", skillId],
     queryFn: () => fetchOne({ data: { id: skillId } }),
+  });
+
+  const { data: versionsData } = useQuery({
+    queryKey: ["shared-skill-versions", skillId],
+    queryFn: () => fetchVersions({ data: { skillId } }),
+    enabled: Boolean(data?.canManage),
   });
 
   const skill = data?.skill ?? null;
@@ -70,6 +79,10 @@ function SkillDetailsPage() {
   const [form, setForm] = useState<Form | null>(null);
   const [saving, setSaving] = useState(false);
   const [toggleOpen, setToggleOpen] = useState(false);
+  const [samplePrompt, setSamplePrompt] = useState("");
+  const [testing, setTesting] = useState(false);
+  const [testOutput, setTestOutput] = useState<string | null>(null);
+  const [restoreTarget, setRestoreTarget] = useState<{ id: string; no: number } | null>(null);
 
   useEffect(() => {
     if (skill) {
